@@ -72,17 +72,25 @@ class Style:
     
     def extend(self, **overrides) -> 'Style':
         """扩展样式，返回新的样式对象"""
-        # 合并现有属性和覆盖属性
-        current_props = asdict(self.properties)
-        # 过滤None值
-        current_props = {k: v for k, v in current_props.items() if v is not None}
+        # 手动复制属性，避免deepcopy问题
+        current_props = {}
+        
+        # 获取当前属性，直接访问而不使用asdict
+        for field in self.properties.__dataclass_fields__.keys():
+            value = getattr(self.properties, field)
+            if value is not None:
+                current_props[field] = value
         
         return Style(**{**current_props, **overrides})
     
     def merge(self, other: 'Style') -> 'Style':
         """合并另一个样式"""
-        other_props = asdict(other.properties)
-        other_props = {k: v for k, v in other_props.items() if v is not None}
+        # 手动获取其他样式的属性
+        other_props = {}
+        for field in other.properties.__dataclass_fields__.keys():
+            value = getattr(other.properties, field)
+            if value is not None:
+                other_props[field] = value
         return self.extend(**other_props)
     
     def responsive(self, condition: Signal[bool], true_style: 'Style', false_style: 'Style' = None) -> 'ComputedStyle':
@@ -126,9 +134,10 @@ class Style:
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典格式"""
         result = {}
-        for key, value in asdict(self.properties).items():
+        for field in self.properties.__dataclass_fields__.keys():
+            value = getattr(self.properties, field)
             if value is not None:
-                result[key] = value
+                result[field] = value
         return result
 
 

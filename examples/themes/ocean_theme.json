@@ -1,0 +1,123 @@
+{
+  "name": "Ocean Breeze",
+  "description": "清新的海洋风主题，灵感来自大海的深邃与宁静",
+  "version": "1.0.0",
+  "appearance_mode": "auto",
+  "colors": {
+    "primary": {
+      "light": "#0077BE", 
+      "dark": "#4A9EFF"
+    },
+    "secondary": {
+      "light": "#2E8B57",
+      "dark": "#3CB371" 
+    },
+    "accent": {
+      "light": "#1E90FF",
+      "dark": "#00BFFF"
+    },
+    "success": {
+      "light": "#20B2AA",
+      "dark": "#40E0D0"
+    },
+    "warning": {
+      "light": "#FFB347", 
+      "dark": "#FFA500"
+    },
+    "error": {
+      "light": "#DC143C",
+      "dark": "#FF6B6B"
+    },
+    "background": {
+      "light": "#F0F8FF",
+      "dark": "#0F1419"
+    },
+    "surface": {
+      "light": "#E6F3FF", 
+      "dark": "#1A2332"
+    },
+    "card": {
+      "light": "#FFFFFF",
+      "dark": "#243447"
+    }
+  },
+  "typography": {
+    "heading": {
+      "font": "SF Pro Display",
+      "size": 28,
+      "weight": "semibold"
+    },
+    "subheading": {
+      "font": "SF Pro Display", 
+      "size": 20,
+      "weight": "medium"
+    },
+    "body": {
+      "font": "SF Pro Text",
+      "size": 17,
+      "weight": "regular"
+    },
+    "caption": {
+      "font": "SF Pro Text",
+      "size": 13,
+      "weight": "regular" 
+    }
+  },
+  "spacing": {
+    "xs": 4,
+    "sm": 8, 
+    "md": 16,
+    "lg": 24,
+    "xl": 32,
+    "xxl": 48
+  },
+  "radius": {
+    "sm": 4,
+    "md": 8,
+    "lg": 12,
+    "xl": 16
+  },
+  "shadows": {
+    "sm": {
+      "offset": [0, 1],
+      "blur": 3,
+      "opacity": 0.1,
+      "color": "#000000"
+    },
+    "md": {
+      "offset": [0, 2],
+      "blur": 6,
+      "opacity": 0.15,
+      "color": "#000000"
+    },
+    "lg": {
+      "offset": [0, 4],
+      "blur": 12,
+      "opacity": 0.2,
+      "color": "#000000"
+    }
+  },
+  "animations": {
+    "duration": {
+      "fast": 0.15,
+      "normal": 0.25, 
+      "slow": 0.4
+    },
+    "easing": {
+      "ease_out": "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+      "ease_in_out": "cubic-bezier(0.42, 0, 0.58, 1)",
+      "bounce": "cubic-bezier(0.68, -0.55, 0.265, 1.55)"
+    }
+  },
+  "effects": {
+    "glass_intensity": 0.7,
+    "blur_radius": 20,
+    "vibrancy": "light"
+  },
+  "metadata": {
+    "author": "macUI Team",
+    "created_at": "2024-08-26",
+    "tags": ["ocean", "blue", "fresh", "professional"],
+    "compatible_versions": ["2.0.0+"]
+  }
+}
