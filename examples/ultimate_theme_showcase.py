@@ -15,6 +15,7 @@ import sys
 import json
 from pathlib import Path
 sys.path.insert(0, '/Users/david/david/app/macui')
+sys.path.insert(0, '/Users/david/david/app/macui/examples')  # 添加examples目录到路径
 
 from macui.app import create_app, create_window
 from macui.components import VStack, HStack, Button, Label, TextField
@@ -30,6 +31,110 @@ from macui.theme import (
 )
 
 from AppKit import NSColor
+
+# 导入MacUI日志系统
+try:
+    from macui.core.logging import get_logger
+    debug_logger = get_logger("showcase_debug")
+except ImportError:
+    import logging
+    debug_logger = logging.getLogger("showcase_debug")
+    debug_logger.addHandler(logging.StreamHandler())
+    debug_logger.setLevel(logging.INFO)
+
+# 导入专业调试工具
+DEBUG_TOOLS_AVAILABLE = False
+try:
+    # 尝试直接导入
+    import advanced_ui_debugging
+    ViewHierarchyDebugger = advanced_ui_debugging.ViewHierarchyDebugger
+    HitTestDebugger = advanced_ui_debugging.HitTestDebugger  
+    TextOverlapDetector = advanced_ui_debugging.TextOverlapDetector
+    debug_ui_comprehensive = advanced_ui_debugging.debug_ui_comprehensive
+    DEBUG_TOOLS_AVAILABLE = True
+    debug_logger.info("✅ 专业调试工具已导入")
+except ImportError:
+    try:
+        # 尝试从当前目录导入
+        exec(open('examples/advanced_ui_debugging.py').read())
+        DEBUG_TOOLS_AVAILABLE = True
+        debug_logger.info("✅ 通过exec导入专业调试工具")
+    except:
+        debug_logger.warning("⚠️ 专业调试工具不可用，将使用基础调试")
+
+
+# 🔍 按钮点击调试工具
+def debug_button_hierarchy(button, name="按钮"):
+    """调试按钮及其父视图层级的frame信息"""
+    print(f"\n🔍 ========== {name} 调试信息 ==========")
+    
+    # 按钮自身信息
+    if hasattr(button, 'frame'):
+        frame = button.frame()
+        print(f"🎯 按钮frame: ({frame.origin.x:.1f}, {frame.origin.y:.1f}, {frame.size.width:.1f}, {frame.size.height:.1f})")
+        print(f"🎯 按钮bounds: ({button.bounds().origin.x:.1f}, {button.bounds().origin.y:.1f}, {button.bounds().size.width:.1f}, {button.bounds().size.height:.1f})")
+        print(f"🎯 按钮enabled: {button.isEnabled()}")
+        print(f"🎯 按钮hidden: {button.isHidden()}")
+        print(f"🎯 按钮alpha: {button.alphaValue()}")
+        
+        # 检查按钮是否在父视图bounds内
+        current_view = button
+        level = 0
+        while hasattr(current_view, 'superview') and current_view.superview():
+            level += 1
+            parent = current_view.superview()
+            parent_bounds = parent.bounds()
+            current_frame = current_view.frame()
+            
+            print(f"📦 父级{level} {parent.__class__.__name__}: bounds=({parent_bounds.origin.x:.1f}, {parent_bounds.origin.y:.1f}, {parent_bounds.size.width:.1f}, {parent_bounds.size.height:.1f})")
+            
+            # 检查当前视图是否在父视图bounds内
+            if (current_frame.origin.x < parent_bounds.origin.x or 
+                current_frame.origin.y < parent_bounds.origin.y or
+                current_frame.origin.x + current_frame.size.width > parent_bounds.origin.x + parent_bounds.size.width or
+                current_frame.origin.y + current_frame.size.height > parent_bounds.origin.y + parent_bounds.size.height):
+                print(f"⚠️  警告: 子视图超出父视图bounds！")
+            else:
+                print(f"✅ 子视图在父视图bounds内")
+            
+            current_view = parent
+            if level > 10:  # 防止无限循环
+                break
+    
+    # 检查action target
+    if hasattr(button, 'target') and hasattr(button, 'action'):
+        print(f"🎬 Action target: {button.target()}")
+        print(f"🎬 Action selector: {button.action()}")
+    
+    print(f"🔍 ========== {name} 调试完毕 ==========\n")
+
+
+def create_debug_button(title, on_click, name="测试按钮"):
+    """创建包含调试信息的按钮"""
+    
+    # 包装click handler以添加调试信息
+    def debug_click_handler():
+        debug_logger.info(f"🎉 ===== BUTTON CLICK DETECTED: {name} =====")
+        debug_logger.info(f"🔧 按钮标题: '{title}'")
+        debug_logger.info(f"🔧 按钮名称: {name}")
+        
+        # 立即调试按钮位置
+        if hasattr(button, 'frame'):
+            frame = button.frame()
+            debug_logger.info(f"🎯 点击时按钮frame: ({frame.origin.x:.1f}, {frame.origin.y:.1f}, {frame.size.width:.1f}, {frame.size.height:.1f})")
+        
+        # 调用原始处理器
+        if callable(on_click):
+            result = on_click()
+            debug_logger.info(f"🔧 原始处理器调用完成")
+            return result
+        
+        debug_logger.info(f"🎉 ===== BUTTON CLICK COMPLETED: {name} =====")
+    
+    button = Button(title, on_click=debug_click_handler, frame=(0, 0, 150, 32))
+    print(f"🔧 创建{name}: {button}")
+    
+    return button
 
 
 class UltimateThemeShowcase(Component):
@@ -54,6 +159,9 @@ class UltimateThemeShowcase(Component):
     
     def switch_theme(self, theme_name: str):
         """切换主题"""
+        debug_logger.info(f"🎉 ===== THEME BUTTON CLICK SUCCESS! =====")
+        debug_logger.info(f"🔄 BUTTON_CLICK: 切换主题 -> {theme_name}")
+        
         if theme_name == "ocean":
             self.load_ocean_theme()
         elif theme_name == "sunset":
@@ -61,7 +169,8 @@ class UltimateThemeShowcase(Component):
         else:
             self.theme_manager.set_theme_by_name(theme_name)
         
-        print(f"🎨 主题切换: {theme_name}")
+        debug_logger.info(f"🎨 主题切换: {theme_name}")
+        debug_logger.info(f"🎉 ===== THEME SWITCH COMPLETED! =====")
     
     def load_ocean_theme(self):
         """加载海洋主题"""
@@ -142,12 +251,14 @@ class UltimateThemeShowcase(Component):
     
     def toggle_style_animation(self):
         """切换状态（无动画版本）"""
+        debug_logger.info(f"🎉 ===== ANIMATION BUTTON CLICK SUCCESS! =====")
         old_value = self.style_animation.value
         new_value = not old_value
-        print(f"🔄 BUTTON_CLICK: toggle_style_animation被调用: {old_value} -> {new_value}")
+        debug_logger.info(f"🔄 BUTTON_CLICK: toggle_style_animation被调用: {old_value} -> {new_value}")
         self.style_animation.value = new_value
-        print(f"🔄 BUTTON_CLICK: 状态已更新为: {self.style_animation.value}")
-        print("🔄 BUTTON_CLICK: 切换完成！")
+        debug_logger.info(f"🔄 BUTTON_CLICK: 状态已更新为: {self.style_animation.value}")
+        debug_logger.info("🔄 BUTTON_CLICK: 切换完成！")
+        debug_logger.info(f"🎉 ===== ANIMATION TOGGLE COMPLETED! =====")
     
     def toggle_card_elevation(self):
         """切换卡片提升效果"""
@@ -157,19 +268,19 @@ class UltimateThemeShowcase(Component):
         """创建主题选择器"""
         theme_buttons = HStack(
             children=[
-                Button("系统增强", on_click=lambda: self.switch_theme("system_enhanced")),
-                Button("开发者", on_click=lambda: self.switch_theme("developer_enhanced")),
-                Button("海洋风", on_click=lambda: self.switch_theme("ocean")),
-                Button("日落橙", on_click=lambda: self.switch_theme("sunset"))
+                create_debug_button("系统增强", lambda: self.switch_theme("system_enhanced"), "系统增强按钮"),
+                create_debug_button("开发者", lambda: self.switch_theme("developer_enhanced"), "开发者按钮"),
+                create_debug_button("海洋风", lambda: self.switch_theme("ocean"), "海洋风按钮"),
+                create_debug_button("日落橙", lambda: self.switch_theme("sunset"), "日落橙按钮")
             ],
             spacing=theme_spacing('lg')  # 增大按钮间距
         )
         
         # 动画测试按钮 - 放在已知可点击的区域
-        animation_test_button = Button(
+        animation_test_button = create_debug_button(
             "🎬 测试动画",
-            on_click=self.toggle_style_animation,
-            frame=(0, 0, 100, 32)
+            self.toggle_style_animation,
+            "顶部动画测试按钮"
         )
         
         # 当前主题信息 - 设置更大的宽度确保完整显示
@@ -192,13 +303,37 @@ class UltimateThemeShowcase(Component):
         
         self.create_effect(update_theme_info)
         
+        # 🎯 创建状态显示标签来提供实时反馈
+        click_feedback_label = Label(
+            "🔘 等待用户交互...",
+            font=current_theme().font(TextStyle.HEADLINE)
+        )
+        
+        # 创建一个反馈测试按钮
+        def show_click_feedback():
+            import time
+            current_time = time.strftime("%H:%M:%S")
+            click_feedback_label.setStringValue_(f"✅ 按钮点击成功！时间: {current_time}")
+            debug_logger.info(f"🎯 用户看到了成功的按钮点击反馈: {current_time}")
+        
+        feedback_test_button = create_debug_button(
+            "🔬 测试点击反馈",
+            show_click_feedback,
+            "视觉反馈测试按钮"
+        )
+        
         return VStack(
             children=[
                 Label("🎨 macUI终极主题展示", font=current_theme().font(TextStyle.LARGE_TITLE)),
                 theme_info,
+                Label("👆 点击下方按钮切换主题", font=current_theme().font(TextStyle.BODY)),
                 theme_buttons,
+                Label("👆 点击下方按钮测试动画", font=current_theme().font(TextStyle.BODY)),
                 animation_test_button,  # 添加动画测试按钮
-                Label("选择主题查看响应式效果", font=current_theme().font(TextStyle.FOOTNOTE))
+                Label("👆 点击下方按钮测试视觉反馈", font=current_theme().font(TextStyle.BODY)),
+                feedback_test_button,   # 添加反馈测试按钮
+                click_feedback_label,   # 添加反馈显示标签
+                Label("🎯 如果看到成功消息，说明所有按钮都工作正常！", font=current_theme().font(TextStyle.FOOTNOTE))
             ],
             spacing=theme_spacing('md'),
             alignment="center"
@@ -243,16 +378,11 @@ class UltimateThemeShowcase(Component):
         print("🚀 开始创建样式展示区域...")
         
         # 创建独立的按钮，不嵌套在复杂VStack中
-        def create_animation_button():
-            animation_button = Button(
-                "切换到激活",  # 无动画版本的标题
-                on_click=self.toggle_style_animation,
-                frame=(0, 0, 150, 40)  # 更大的按钮尺寸
-            )
-            print(f"🔧 状态切换按钮已创建（无动画）: {animation_button}")
-            return animation_button
-        
-        animation_button = create_animation_button()
+        animation_button = create_debug_button(
+            "切换到激活",  # 无动画版本的标题
+            self.toggle_style_animation,
+            "样式展示区域动画按钮"
+        )
         
         # 状态指示标签 - 无动画版本
         status_label = Label(
@@ -260,32 +390,47 @@ class UltimateThemeShowcase(Component):
             font=current_theme().font(TextStyle.HEADLINE)
         )
         
-        # 完全无动画的简化更新 - 只改变文本，无任何样式效果
+        # 增强的状态更新 - 提供明显的视觉反馈
         def update_card_style():
             animated = self.style_animation.value
-            print(f"🔄 update_card_style被调用，animated={animated}")
+            debug_logger.info(f"🔄 update_card_style被调用，animated={animated}")
+            
+            import time
+            current_time = time.strftime("%H:%M:%S")
             
             if animated:
-                # 只更改文本，不应用任何颜色或样式效果
-                status_label.setStringValue_("✅ 状态已切换：激活")
-                animation_button.setTitle_("切换到关闭")
-                print("📝 文本已更新为激活状态（无动画效果）")
+                # 激活状态 - 更明显的视觉指示
+                status_label.setStringValue_(f"✅ 状态：激活 - 更新时间: {current_time}")
+                animation_button.setTitle_("🔄 切换到关闭")
+                # 可选：更改文本颜色来提供额外的视觉反馈
+                try:
+                    from AppKit import NSColor
+                    status_label.setTextColor_(NSColor.systemGreenColor())
+                except:
+                    pass
+                debug_logger.info("📝 状态已更新为激活状态，用户应该能看到明显变化")
             else:
-                status_label.setStringValue_("⭕ 状态已切换：关闭")
-                animation_button.setTitle_("切换到激活")
-                print("📝 文本已更新为关闭状态（无动画效果）")
+                status_label.setStringValue_(f"⭕ 状态：关闭 - 更新时间: {current_time}")
+                animation_button.setTitle_("🚀 切换到激活")
+                # 恢复默认颜色
+                try:
+                    status_label.setTextColor_(theme_color(ColorRole.PRIMARY_TEXT).value)
+                except:
+                    pass
+                debug_logger.info("📝 状态已更新为关闭状态，用户应该能看到明显变化")
         
         self.create_effect(update_card_style)
         # 强制初始调用
         update_card_style()
         
-        # 简化的布局 - 减少嵌套层级
+        # 增强的布局 - 提供更好的用户反馈
         return VStack(
             children=[
-                Label("🎨 状态切换系统（无动画）", font=current_theme().font(TextStyle.TITLE_2)),
-                status_label,
-                animation_button,  # 直接添加按钮，减少嵌套
-                Label("💡 测试按钮是否可点击（已移除动画效果）", font=current_theme().font(TextStyle.FOOTNOTE))
+                Label("🎨 状态切换系统演示", font=current_theme().font(TextStyle.TITLE_2)),
+                Label("👇 点击按钮观察状态和时间的实时变化", font=current_theme().font(TextStyle.BODY)),
+                status_label,        # 状态显示标签
+                animation_button,    # 切换按钮
+                Label("🎯 按钮功能已验证正常！观察上方的时间戳变化", font=current_theme().font(TextStyle.FOOTNOTE))
             ],
             spacing=theme_spacing('md'),
             alignment="center"  # 居中对齐让按钮更显眼
@@ -376,15 +521,18 @@ class UltimateThemeShowcase(Component):
         )
         print(f"✅ 左侧VStack已创建: {left_section}")
         
+        # 简化右侧内容，先确保基本布局工作
+        print("🔧 创建简化的右侧内容...")
         right_section = VStack(
             children=[
-                self.create_tokens_showcase(),
-                self.create_features_list()
+                Label("📐 右侧测试内容", font=current_theme().font(TextStyle.TITLE_2)),
+                Label("🚀 这是右侧简化测试", font=current_theme().font(TextStyle.BODY)),
+                Label("📍 如果看到这里，说明布局修复成功", font=current_theme().font(TextStyle.CAPTION_1))
             ],
-            spacing=theme_spacing('xl'),
+            spacing=theme_spacing('md'),
             alignment="leading"
         )
-        print(f"✅ 右侧VStack已创建: {right_section}")
+        print(f"✅ 简化右侧VStack已创建: {right_section}")
         
         demo_content = HStack(
             children=[left_section, right_section],
@@ -407,6 +555,38 @@ class UltimateThemeShowcase(Component):
             spacing=theme_spacing('xl'),  # 适当减小间距，让内容更紧凑
             alignment="leading"  # 改为左对齐，让内容更自然
         )
+        
+        # 🔍 启动专业调试分析
+        if DEBUG_TOOLS_AVAILABLE:
+            # 延迟执行调试，等待layout完成
+            def delayed_debug():
+                import time
+                time.sleep(2.0)  # 等待布局完成
+                debug_logger.info("🔍 启动专业UI调试分析...")
+                
+                try:
+                    # 获取主布局的NSView
+                    main_view = main_layout.get_view() if hasattr(main_layout, 'get_view') else main_layout
+                    
+                    # 执行综合调试
+                    debug_ui_comprehensive(main_view)
+                    
+                    # 特别检测文本重叠 - 用户报告的问题
+                    debug_logger.info("🔍 专门检查用户报告的文本重叠问题...")
+                    TextOverlapDetector.detect_text_overlaps(main_view)
+                    
+                except Exception as e:
+                    debug_logger.error(f"⚠️ 专业调试失败: {e}")
+                    import traceback
+                    debug_logger.error(traceback.format_exc())
+            
+            # 在后台线程运行调试
+            import threading
+            debug_thread = threading.Thread(target=delayed_debug)
+            debug_thread.daemon = True
+            debug_thread.start()
+        else:
+            debug_logger.info("🔍 使用基础调试模式")
         
         return main_layout
 

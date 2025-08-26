@@ -20,7 +20,10 @@
       "Bash(grep:*)",
       "Bash(timeout 5 uv run:*)",
       "Bash(timeout 6 uv run:*)",
-      "WebFetch(domain:stackoverflow.com)"
+      "WebFetch(domain:stackoverflow.com)",
+      "Bash(timeout 4 uv run:*)",
+      "Bash(timeout 3 uv run:*)",
+      "Bash(timeout 20 uv run:*)"
     ],
     "deny": [],
     "ask": []

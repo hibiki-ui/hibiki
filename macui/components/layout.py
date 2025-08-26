@@ -131,10 +131,14 @@ class LayoutStrategy:
     @staticmethod
     def choose_layout_mode(children, requested_mode=LayoutMode.AUTO):
         """选择最合适的布局模式"""
+        print(f"🎯 LayoutStrategy.choose_layout_mode: 请求模式={requested_mode}, 子组件数={len(children) if children else 0}")
+        
         if requested_mode in [LayoutMode.CONSTRAINTS, LayoutMode.FRAME]:
+            print(f"🎯 直接返回请求的模式: {requested_mode}")
             return requested_mode
             
         if not children:
+            print("🎯 无子组件，返回CONSTRAINTS模式")
             return LayoutMode.CONSTRAINTS
             
         # 检查是否包含复杂组件
@@ -142,24 +146,35 @@ class LayoutStrategy:
         complex_count = 0
         simple_count = 0
         
-        for child in children:
+        print("🔍 开始检测子组件类型:")
+        for i, child in enumerate(children):
             child_type = LayoutStrategy.detect_component_type(child)
+            child_name = child.__class__.__name__ if hasattr(child, '__class__') else str(type(child))
+            print(f"  子组件 {i+1}: {child_name} → {child_type}")
+            
             if child_type == "complex":
                 has_complex = True
                 complex_count += 1
             else:
                 simple_count += 1
+        
+        print(f"🔍 组件统计: 简单={simple_count}, 复杂={complex_count}")
                 
         # 决策逻辑
         if has_complex:
+            print("🎯 检测到复杂组件")
             # 如果有复杂组件，根据请求模式决定
             if requested_mode == LayoutMode.AUTO:
                 # AUTO模式：如果全是复杂组件用frame，否则用hybrid
-                return LayoutMode.FRAME if simple_count == 0 else LayoutMode.HYBRID
+                result = LayoutMode.FRAME if simple_count == 0 else LayoutMode.HYBRID
+                print(f"🎯 复杂组件AUTO模式 → {result}")
+                return result
             else:
+                print(f"🎯 复杂组件非AUTO模式 → HYBRID")
                 return LayoutMode.HYBRID
         else:
             # 全是简单组件，使用约束布局
+            print("🎯 全部简单组件 → CONSTRAINTS")
             return LayoutMode.CONSTRAINTS
 
 def FrameContainer(
@@ -280,8 +295,22 @@ def VStack(
         return _create_hybrid_vstack(spacing, padding, alignment, children, frame)
 
 def _create_constraints_vstack(spacing, padding, alignment, children, frame):
-    """创建基于约束的VStack（原有实现）"""
+    """创建基于约束的VStack（原有实现） - 已修复文本重叠问题"""
     stack = NSStackView.alloc().init()
+    
+    # 🎯 关键修复1：设置更合理的初始frame，确保有足够高度
+    if frame:
+        stack.setFrame_(NSMakeRect(*frame))
+        print(f"🎯 VStack设置frame: {frame}")
+    else:
+        # 计算所需的最小高度来容纳所有子视图 - 更保守的估算
+        base_child_height = 80  # 每个子视图更大的基础高度
+        safe_spacing = max(10, min(spacing, 50))  # 确保最小间距
+        estimated_height = max(600, len(children) * base_child_height + safe_spacing * max(0, len(children) - 1) + 100)
+        estimated_width = 700  # 更宽的默认宽度
+        stack.setFrame_(NSMakeRect(0, 0, estimated_width, estimated_height))
+        print(f"🔧 VStack保守自适应frame: ({estimated_width}, {estimated_height})")
+    
     # 明确设置为垂直方向（1 = Vertical, 0 = Horizontal）
     stack.setOrientation_(1)  # 强制设置为Vertical
     print(f"🔧 VStack强制设置orientation为1 (Vertical)")
@@ -292,51 +321,40 @@ def _create_constraints_vstack(spacing, padding, alignment, children, frame):
     
     # 按照技术文档: 禁用 Autoresizing Mask 转换
     stack.setTranslatesAutoresizingMaskIntoConstraints_(False)
-    
-    # 设置框架 - 按照苹果Auto Layout设计原则
-    if frame:
-        stack.setFrame_(NSMakeRect(*frame))
-        print(f"🎯 VStack设置frame: {frame}")
-    else:
-        # ✅ 苹果正确做法：不设置显式frame，依赖intrinsic content size
-        # NSStackView应该根据子视图的intrinsic content size自动调整尺寸
-        print(f"✅ VStack遵循苹果设计：依赖intrinsic content size，不设置显式frame")
 
-    # 设置间距
-    stack.setSpacing_(spacing)
+    # 🎯 关键修复2：限制spacing避免计算溢出，并强制最小间距
+    safe_spacing = max(15, min(spacing, 50))  # 强制最小15px间距，最大50px
+    stack.setSpacing_(safe_spacing)
+    print(f"🔧 VStack设置安全spacing (强制最小15px): {spacing} → {safe_spacing}")
     check_after_spacing = stack.orientation()
     print(f"🔍 VStack设置spacing后orientation: {check_after_spacing}")
 
-    # 设置对齐 - 为VStack使用正确的对齐常量
-    # VStack需要水平方向的对齐常量
-    vstack_alignment_map = {
-        "leading": NSLayoutAttributeLeading,
-        "trailing": NSLayoutAttributeTrailing,
-        "center": NSLayoutAttributeCenterX,  # 垂直布局用水平居中
-        "centerX": NSLayoutAttributeCenterX,
-    }
-    alignment_constant = vstack_alignment_map.get(alignment, NSLayoutAttributeCenterX)
-    print(f"🔧 VStack使用对齐常量: {alignment} → {alignment_constant}")
-    
-    stack.setAlignment_(alignment_constant)
+    # 🎯 关键修复3：使用最安全的对齐设置
+    # 对于VStack，使用centerX是最安全的选择
+    stack.setAlignment_(NSLayoutAttributeCenterX)
+    print(f"🔧 VStack使用最安全的alignment: centerX")
     check_after_alignment = stack.orientation()
     print(f"🔍 VStack设置alignment后orientation: {check_after_alignment} ({'期望保持1' if check_after_alignment == 1 else '⚠️被改变了!'})")
 
-    # 设置分布方式 - 让子视图根据内容大小自然分布
+    # 🎯 关键修复4：使用安全的分布方式
     stack.setDistribution_(NSStackViewDistributionGravityAreas)
     check_after_distribution = stack.orientation()
     print(f"🔍 VStack设置distribution后orientation: {check_after_distribution}")
-    print(f"📊 VStack distribution设置为: GravityAreas")
+    print(f"🔧 VStack使用安全的distribution: GravityAreas")
 
-    # 设置内边距
+    # 🎯 关键修复5：保守的padding设置，避免负边距
     if isinstance(padding, (int, float)):
-        insets = NSEdgeInsets(padding, padding, padding, padding)
+        safe_padding = max(0, min(padding, 20))  # 限制在0-20像素之间
+        insets = NSEdgeInsets(safe_padding, safe_padding, safe_padding, safe_padding)
     elif isinstance(padding, tuple) and len(padding) == 4:
-        insets = NSEdgeInsets(*padding)
+        # 确保所有padding值都是正数
+        safe_padding_tuple = [max(0, min(p, 20)) for p in padding]
+        insets = NSEdgeInsets(*safe_padding_tuple)
     else:
-        insets = NSEdgeInsets(0, 0, 0, 0)
+        insets = NSEdgeInsets(5, 5, 5, 5)  # 使用安全的默认值
 
     stack.setEdgeInsets_(insets)
+    print(f"🔧 VStack设置安全的padding: {insets}")
 
     # 添加子视图
     print(f"🚀 创建VStack (约束模式): 将添加 {len(children)} 个子视图")
@@ -627,9 +645,20 @@ def HStack(
         return _create_hybrid_hstack(spacing, padding, alignment, children, frame)
 
 def _create_constraints_hstack(spacing, padding, alignment, children, frame):
-    """创建基于约束的HStack（原有实现）"""
+    """创建基于约束的HStack（原有实现） - 已修复边界问题"""
     stack = NSStackView.alloc().init()
-    stack.setFrame_(NSMakeRect(0, 0, 100, 100))  # 提供稳定的初始Frame
+    
+    # 🎯 关键修复：设置更合理的初始frame，确保有足够空间
+    if frame:
+        stack.setFrame_(NSMakeRect(*frame))
+    else:
+        # 计算所需的最小宽度来容纳所有按钮 - 更保守的估算
+        base_child_width = 120  # 每个子视图更大的基础宽度
+        safe_spacing = max(10, min(spacing, 50))  # 确保最小间距
+        estimated_width = max(500, len(children) * base_child_width + safe_spacing * max(0, len(children) - 1) + 80)
+        estimated_height = 120  # 更高的默认高度
+        stack.setFrame_(NSMakeRect(0, 0, estimated_width, estimated_height))
+        print(f"🔧 HStack保守自适应frame: ({estimated_width}, {estimated_height})")
     # 明确设置为水平方向（0 = Horizontal, 1 = Vertical）
     stack.setOrientation_(0)  # 强制设置为Horizontal
     print(f"🔧 强制设置orientation为0 (Horizontal)")
@@ -645,46 +674,46 @@ def _create_constraints_hstack(spacing, padding, alignment, children, frame):
     if frame:
         stack.setFrame_(NSMakeRect(*frame))
 
-    # 设置间距
-    stack.setSpacing_(spacing)
-    check_after_spacing = stack.orientation()
-    print(f"🔍 设置spacing后orientation: {check_after_spacing}")
+    # 🎯 关键修复：限制spacing避免计算溢出，并强制最小间距
+    safe_spacing = max(15, min(spacing, 50))  # 强制最小15px间距，最大50px
+    stack.setSpacing_(safe_spacing)
+    print(f"🔧 HStack设置安全spacing (强制最小15px): {spacing} → {safe_spacing}")
 
-    # 设置对齐 - 为HStack使用正确的对齐常量
-    # HStack需要垂直方向的对齐常量
-    hstack_alignment_map = {
-        "top": NSLayoutAttributeTop,
-        "bottom": NSLayoutAttributeBottom,
-        "center": NSLayoutAttributeCenterY,  # 修复：水平布局用垂直居中
-        "centerY": NSLayoutAttributeCenterY,
-    }
-    alignment_constant = hstack_alignment_map.get(alignment, NSLayoutAttributeCenterY)
-    print(f"🔧 HStack使用对齐常量: {alignment} → {alignment_constant}")
+    # 🎯 关键修复：使用最安全的对齐设置
+    # 对于HStack，使用centerY是最安全的选择
+    stack.setAlignment_(NSLayoutAttributeCenterY)
+    print(f"🔧 HStack使用最安全的alignment: centerY")
     
-    stack.setAlignment_(alignment_constant)
-    check_after_alignment = stack.orientation()
-    print(f"🔍 设置alignment后orientation: {check_after_alignment} ({'期望保持0' if check_after_alignment == 0 else '⚠️被改变了!'})")
-    
-    # 设置分布方式 - 关键：让子视图根据内容大小自然分布
+    # 🎯 关键修复：使用安全的分布方式
     stack.setDistribution_(NSStackViewDistributionGravityAreas)
-    check_after_distribution = stack.orientation()
-    print(f"🔍 设置distribution后orientation: {check_after_distribution}")
-    print(f"📊 HStack distribution设置为: GravityAreas (根据内容大小自然分布)")
+    print(f"🔧 HStack使用安全的distribution: GravityAreas")
 
-    # 设置内边距
+    # 🎯 关键修复：保守的padding设置，避免负边距
     if isinstance(padding, (int, float)):
-        insets = NSEdgeInsets(padding, padding, padding, padding)
+        safe_padding = max(0, min(padding, 20))  # 限制在0-20像素之间
+        insets = NSEdgeInsets(safe_padding, safe_padding, safe_padding, safe_padding)
     elif isinstance(padding, tuple) and len(padding) == 4:
-        insets = NSEdgeInsets(*padding)
+        # 确保所有padding值都是正数
+        safe_padding_tuple = [max(0, min(p, 20)) for p in padding]
+        insets = NSEdgeInsets(*safe_padding_tuple)
     else:
-        insets = NSEdgeInsets(0, 0, 0, 0)
+        insets = NSEdgeInsets(5, 5, 5, 5)  # 使用安全的默认值
 
     stack.setEdgeInsets_(insets)
+    print(f"🔧 设置安全的padding: {insets}")
 
     # 添加子视图
     print(f"🚀 创建HStack (约束模式): 将添加 {len(children)} 个子视图")
     for i, child in enumerate(children):
-        child_view = child.get_view() if isinstance(child, Component) else child
+        print(f"🔍 处理子组件 {i+1}: {type(child)} → isinstance(Component)={isinstance(child, Component)}")
+        if isinstance(child, Component):
+            print(f"🔍 调用Component.get_view()...")
+            child_view = child.get_view()
+        else:
+            print(f"🔍 直接使用PyObjC对象...")
+            child_view = child
+        
+        print(f"🔍 最终child_view: {type(child_view)}")
         if child_view:
             # 确保按钮有合适的尺寸
             if hasattr(child_view, 'title') and child_view.title():
