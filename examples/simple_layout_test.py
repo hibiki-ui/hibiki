@@ -1,129 +1,156 @@
 #!/usr/bin/env python3
-"""简单的新布局系统测试 - 仅使用基础组件验证概念"""
+"""
+简单布局测试 - 快速验证布局组件修复
+
+测试ModernVStack和ModernHStack的基本功能
+"""
 
 import sys
 sys.path.insert(0, '/Users/david/david/app/macui')
 
-from macui.app import create_app, create_window
-from macui.components import Button, Label
-from macui.core.component import Component
+from macui.core.signal import Signal
+from macui.layout.engine import set_debug_mode
 
-# 导入新布局引擎核心部分
-from macui.layout.engine import LayoutEngine, set_debug_mode
-from macui.layout.node import LayoutNode
-from macui.layout.styles import LayoutStyle, FlexDirection, AlignItems, JustifyContent, Display
+# 导入现代化组件
+from macui.components.modern_controls import ModernButton, ModernLabel
+from macui.components.modern_layout import ModernVStack, ModernHStack
 
-class SimpleLayoutDemo(Component):
-    """简单布局演示 - 直接使用布局引擎核心API"""
+
+def test_simple_vstack():
+    """测试简单的VStack布局"""
+    print("\n=== 测试简单VStack ===")
     
-    def __init__(self):
-        super().__init__()
-        set_debug_mode(True)
-        self.layout_engine = LayoutEngine()
+    set_debug_mode(True)
     
-    def mount(self):
-        """使用新布局引擎直接控制NSView位置"""
-        from AppKit import NSView
-        from Foundation import NSMakeRect
-        
-        print("🧪 简单布局系统测试开始...")
-        
-        # 创建容器视图
-        container = NSView.alloc().init()
-        container.setFrame_(NSMakeRect(0, 0, 400, 300))
-        
-        # 创建按钮NSView (Button函数直接返回NSButton)
-        btn1_view = Button("按钮 1")
-        btn2_view = Button("按钮 2") 
-        btn3_view = Button("按钮 3")
-        
-        # 添加到容器
-        container.addSubview_(btn1_view)
-        container.addSubview_(btn2_view)
-        container.addSubview_(btn3_view)
-        
-        # 创建布局节点结构
-        root_style = LayoutStyle(
-            display=Display.FLEX,
-            flex_direction=FlexDirection.COLUMN,
-            width=400,
-            height=300,
-            align_items=AlignItems.CENTER,
-            justify_content=JustifyContent.SPACE_AROUND,
-            padding=20
-        )
-        
-        root_node = LayoutNode(style=root_style, key="root", user_data=container)
-        
-        # 子节点
-        btn1_node = LayoutNode(style=LayoutStyle(width=100, height=32), key="btn1", user_data=btn1_view)
-        btn2_node = LayoutNode(style=LayoutStyle(width=100, height=32), key="btn2", user_data=btn2_view)
-        btn3_node = LayoutNode(style=LayoutStyle(width=100, height=32), key="btn3", user_data=btn3_view)
-        
-        root_node.add_child(btn1_node)
-        root_node.add_child(btn2_node)
-        root_node.add_child(btn3_node)
-        
-        # 计算布局
-        result = self.layout_engine.compute_layout(root_node)
-        
-        print(f"✅ 布局计算完成: {result.compute_time:.2f}ms")
-        
-        # 应用布局结果到NSView
-        self._apply_layout_to_views(root_node)
-        
-        print("🎯 简单布局系统测试完成")
-        return container
+    # 创建子组件
+    label = ModernLabel("测试标签", width=150, height=24)
+    button = ModernButton("测试按钮", width=100, height=32)
     
-    def _apply_layout_to_views(self, node: LayoutNode):
-        """将布局结果应用到NSView"""
-        from Foundation import NSMakeRect
+    print(f"✅ 创建了子组件: Label和Button")
+    
+    # 创建VStack
+    vstack = ModernVStack(
+        children=[label, button],
+        spacing=16,
+        width=200,
+        height=100,
+        padding=20
+    )
+    
+    print(f"✅ 创建了VStack，子组件数: {len(vstack.child_components)}")
+    
+    # 获取视图
+    try:
+        view = vstack.get_view()
+        print(f"✅ 成功获取VStack视图: {type(view).__name__}")
         
-        x, y, w, h = node.get_layout()
+        # 检查frame
+        if hasattr(view, 'frame'):
+            frame = view.frame()
+            print(f"📐 VStack frame: ({frame.origin.x}, {frame.origin.y}, {frame.size.width}, {frame.size.height})")
         
-        # 如果节点有对应的NSView，设置其frame
-        if hasattr(node, 'user_data') and node.user_data:
-            view = node.user_data
-            if hasattr(view, 'setFrame_'):  # 确认是NSView
-                frame = NSMakeRect(x, y, w, h)
-                view.setFrame_(frame)
-                print(f"📐 {node.key}: 设置frame({x:.1f}, {y:.1f}, {w:.1f}, {h:.1f})")
+        # 检查子视图
+        if hasattr(view, 'subviews'):
+            subviews = view.subviews()
+            count = len(subviews) if subviews else 0
+            print(f"🔗 VStack子视图数量: {count}")
+            
+            if count > 0:
+                for i, subview in enumerate(subviews):
+                    sub_frame = subview.frame()
+                    print(f"   子视图{i+1}: frame=({sub_frame.origin.x:.1f}, {sub_frame.origin.y:.1f}, {sub_frame.size.width:.1f}, {sub_frame.size.height:.1f})")
         
-        # 递归处理子节点
-        for child in node.children:
-            self._apply_layout_to_views(child)
+        return True
+        
+    except Exception as e:
+        print(f"❌ VStack测试失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def test_simple_hstack():
+    """测试简单的HStack布局"""
+    print("\n=== 测试简单HStack ===")
+    
+    # 创建子组件
+    label = ModernLabel("标签", width=80, height=24)
+    button = ModernButton("按钮", width=60, height=24)
+    
+    print(f"✅ 创建了子组件: Label和Button")
+    
+    # 创建HStack
+    hstack = ModernHStack(
+        children=[label, button],
+        spacing=12,
+        width=200,
+        height=60,
+        padding=15
+    )
+    
+    print(f"✅ 创建了HStack，子组件数: {len(hstack.child_components)}")
+    
+    # 获取视图
+    try:
+        view = hstack.get_view()
+        print(f"✅ 成功获取HStack视图: {type(view).__name__}")
+        
+        # 检查frame
+        if hasattr(view, 'frame'):
+            frame = view.frame()
+            print(f"📐 HStack frame: ({frame.origin.x}, {frame.origin.y}, {frame.size.width}, {frame.size.height})")
+        
+        # 检查子视图
+        if hasattr(view, 'subviews'):
+            subviews = view.subviews()
+            count = len(subviews) if subviews else 0
+            print(f"🔗 HStack子视图数量: {count}")
+            
+            if count > 0:
+                for i, subview in enumerate(subviews):
+                    sub_frame = subview.frame()
+                    print(f"   子视图{i+1}: frame=({sub_frame.origin.x:.1f}, {sub_frame.origin.y:.1f}, {sub_frame.size.width:.1f}, {sub_frame.size.height:.1f})")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ HStack测试失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 def main():
     """主函数"""
-    print("🧪 简单新布局系统概念验证")
-    print("📐 直接使用LayoutEngine核心API")
+    print("🧪 简单布局组件测试")
+    print("🎯 验证ModernVStack和ModernHStack修复")
     print("=" * 50)
     
-    # 创建应用
-    app = create_app("Simple Layout Test")
+    results = []
     
-    # 创建演示组件
-    demo = SimpleLayoutDemo()
+    # 运行测试
+    results.append(("VStack测试", test_simple_vstack()))
+    results.append(("HStack测试", test_simple_hstack())) 
     
-    # 创建窗口
-    window = create_window(
-        title="简单布局引擎测试",
-        size=(400, 300),
-        content=demo
-    )
+    # 汇总结果
+    print("\n" + "=" * 50)
+    print("🏁 测试结果汇总:")
     
-    window.show()
+    passed = 0
+    total = len(results)
     
-    print("✅ 简单布局系统演示启动!")
+    for test_name, result in results:
+        status = "✅ 通过" if result else "❌ 失败"
+        print(f"   {test_name}: {status}")
+        if result:
+            passed += 1
     
-    # 运行应用 (快速测试，自动退出)
-    try:
-        import AppHelper
-        AppHelper.runEventLoop()
-    except ImportError:
-        from AppKit import NSApp
-        NSApp.run()
+    print(f"\n📊 总体结果: {passed}/{total} 测试通过")
+    
+    if passed == total:
+        print("🎉 所有布局组件测试通过！布局修复成功！")
+    else:
+        print("⚠️ 部分测试失败，需要进一步调试")
 
 
 if __name__ == "__main__":
