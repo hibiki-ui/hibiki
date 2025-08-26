@@ -142,7 +142,9 @@ class UltimateThemeShowcase(Component):
     
     def toggle_style_animation(self):
         """切换样式动画"""
+        print(f"🎬 toggle_style_animation被调用: {self.style_animation.value} -> {not self.style_animation.value}")
         self.style_animation.value = not self.style_animation.value
+        print(f"🎬 动画状态已更新为: {self.style_animation.value}")
     
     def toggle_card_elevation(self):
         """切换卡片提升效果"""
@@ -160,6 +162,13 @@ class UltimateThemeShowcase(Component):
             spacing=theme_spacing('lg')  # 增大按钮间距
         )
         
+        # 动画测试按钮 - 放在已知可点击的区域
+        animation_test_button = Button(
+            "🎬 测试动画",
+            on_click=self.toggle_style_animation,
+            frame=(0, 0, 100, 32)
+        )
+        
         # 当前主题信息 - 设置更大的宽度确保完整显示
         theme_info = Label(
             current_theme().name,
@@ -167,11 +176,16 @@ class UltimateThemeShowcase(Component):
             frame=(0, 0, 400, 30)  # 设置固定宽度和高度
         )
         
-        # 响应式更新
+        # 响应式更新 - 包含动画状态
         def update_theme_info():
             theme = current_theme()
-            theme_info.setStringValue_(f"🎨 {theme.name}")
+            animated = self.style_animation.value
+            animation_status = " 🚀动画中" if animated else ""
+            theme_info.setStringValue_(f"🎨 {theme.name}{animation_status}")
             theme_info.setTextColor_(theme_color(ColorRole.ACCENT_COLOR).value)
+            
+            # 更新动画按钮标题
+            animation_test_button.setTitle_("⏹️ 停止动画" if animated else "🎬 测试动画")
         
         self.create_effect(update_theme_info)
         
@@ -180,6 +194,7 @@ class UltimateThemeShowcase(Component):
                 Label("🎨 macUI终极主题展示", font=current_theme().font(TextStyle.LARGE_TITLE)),
                 theme_info,
                 theme_buttons,
+                animation_test_button,  # 添加动画测试按钮
                 Label("选择主题查看响应式效果", font=current_theme().font(TextStyle.FOOTNOTE))
             ],
             spacing=theme_spacing('md'),
@@ -221,54 +236,57 @@ class UltimateThemeShowcase(Component):
         return color_items
     
     def create_style_showcase(self) -> VStack:
-        """创建样式展示"""
-        # 动画按钮
-        animation_button = Button(
-            "切换动画效果",
-            on_click=self.toggle_style_animation
-        )
+        """创建样式展示 - 简化版解决交互问题"""
+        print("🚀 开始创建样式展示区域...")
+        
+        # 创建独立的按钮，不嵌套在复杂VStack中
+        def create_animation_button():
+            animation_button = Button(
+                "开始动画测试",  # 更明确的标题
+                on_click=self.toggle_style_animation,
+                frame=(0, 0, 150, 40)  # 更大的按钮尺寸
+            )
+            print(f"🔧 动画按钮已创建: {animation_button}")
+            return animation_button
+        
+        animation_button = create_animation_button()
         
         # 状态指示标签
         status_label = Label(
-            "🎭 样式演示: 默认状态",
+            "🎭 点击按钮测试动画效果",
             font=current_theme().font(TextStyle.HEADLINE)
         )
         
-        # 响应式样式演示卡片 - 简化版，避免AutoLayout冲突
-        demo_card_content = VStack(
-            children=[
-                status_label,
-                Label("这个区域会根据状态动态改变样式", font=current_theme().font(TextStyle.BODY)),
-                animation_button,
-                Label("📍 坐标调试: VStack布局正常", font=current_theme().font(TextStyle.CAPTION_1))
-            ],
-            spacing=theme_spacing('sm'),
-            alignment="center"
-        )
-        
-        # 简化的响应式更新 - 只更新文本和颜色，避免复杂样式冲突
+        # 简化的响应式更新
         def update_card_style():
             animated = self.style_animation.value
+            print(f"🔄 update_card_style被调用，animated={animated}")
             
             if animated:
-                status_label.setStringValue_("🚀 样式演示: 动画激活状态")
+                status_label.setStringValue_("🚀 动画已激活！")
                 status_label.setTextColor_(theme_color(ColorRole.ACCENT_COLOR).value)
                 animation_button.setTitle_("停止动画")
+                print("📝 UI已更新为动画状态")
             else:
-                status_label.setStringValue_("🎭 样式演示: 默认状态")
+                status_label.setStringValue_("🎭 点击按钮测试动画效果")
                 status_label.setTextColor_(theme_color(ColorRole.PRIMARY_TEXT).value)
-                animation_button.setTitle_("开始动画")
+                animation_button.setTitle_("开始动画测试")
+                print("📝 UI已更新为默认状态")
         
         self.create_effect(update_card_style)
+        # 强制初始调用
+        update_card_style()
         
+        # 简化的布局 - 减少嵌套层级
         return VStack(
             children=[
                 Label("🎨 样式组合系统", font=current_theme().font(TextStyle.TITLE_2)),
-                demo_card_content,
-                Label("💡 支持样式扩展、合并和响应式计算", font=current_theme().font(TextStyle.FOOTNOTE))
+                status_label,
+                animation_button,  # 直接添加按钮，减少嵌套
+                Label("💡 测试按钮交互功能", font=current_theme().font(TextStyle.FOOTNOTE))
             ],
-            spacing=theme_spacing('lg'),
-            alignment="leading"  # 改为左对齐，更自然
+            spacing=theme_spacing('md'),
+            alignment="center"  # 居中对齐让按钮更显眼
         )
     
     def create_tokens_showcase(self) -> VStack:
