@@ -45,11 +45,27 @@ def VStack(
 ) -> NSStackView:
     """创建垂直堆栈布局
     
+    ⚠️ 重要警告：不要将 TableView 放入 VStack！
+    
+    VStack 使用 NSStackView，设置 translatesAutoresizingMaskIntoConstraints=False
+    来管理子视图约束。但 TableView (NSScrollView + NSTableView) 需要自己管理
+    内部约束，两者冲突会导致 NSLayoutConstraintNumberExceedsLimit 致命错误。
+    
+    ❌ 错误用法:
+        VStack(children=[TableView(...)])  # 会导致应用崩溃
+    
+    ✅ 安全的子视图:
+        - Label, Button, TextField 等基础控件
+        - 其他 VStack, HStack
+        - 简单的 NSView
+    
+    参考: TABLEVIEW_SOLUTION_REPORT.md
+    
     Args:
         spacing: 子视图间距
         padding: 内边距 (单个值或 (top, left, bottom, right) 元组)
         alignment: 对齐方式 ('leading', 'trailing', 'center', 'top', 'bottom')
-        children: 子视图列表
+        children: 子视图列表（不要包含 TableView）
         frame: 堆栈框架 (x, y, width, height)
     
     Returns:
@@ -100,11 +116,18 @@ def HStack(
 ) -> NSStackView:
     """创建水平堆栈布局
     
+    ⚠️ 重要警告：不要将 TableView 放入 HStack！
+    
+    与 VStack 相同，HStack 也使用 NSStackView 的约束管理系统，
+    会与 TableView 的内部约束冲突，导致 NSLayoutConstraintNumberExceedsLimit 错误。
+    
+    参考: TABLEVIEW_SOLUTION_REPORT.md
+    
     Args:
         spacing: 子视图间距
         padding: 内边距 (单个值或 (top, left, bottom, right) 元组)
         alignment: 对齐方式 ('leading', 'trailing', 'center', 'top', 'bottom')
-        children: 子视图列表
+        children: 子视图列表（不要包含 TableView）
         frame: 堆栈框架 (x, y, width, height)
     
     Returns:
@@ -468,6 +491,30 @@ def TableView(
 ) -> NSScrollView:
     """创建表格视图
     
+    ⚠️ 重要约束警告 - 请仔细阅读:
+    
+    TableView 不能与 VStack/HStack 组合使用！这会导致 NSLayoutConstraintNumberExceedsLimit 
+    致命错误。NSStackView 的约束系统与 NSTableView 内部约束冲突。
+    
+    ✅ 正确用法:
+        # 直接添加到窗口或简单的 NSView 容器
+        table = TableView(columns=..., data=...)
+        window.contentView().addSubview_(table)
+    
+    ❌ 错误用法:  
+        # 这会导致约束冲突和应用崩溃
+        VStack(children=[
+            Label("标题"),
+            TableView(...)  # ❌ 绝对不要这样做
+        ])
+    
+    技术原因:
+    - NSStackView 设置 translatesAutoresizingMaskIntoConstraints=False
+    - NSTableView 需要 translatesAutoresizingMaskIntoConstraints=True 来管理内部视图
+    - 两者冲突导致约束计算超出系统限制 (>1e6)
+    
+    参考: TABLEVIEW_SOLUTION_REPORT.md
+    
     Args:
         columns: 列配置列表，每个项目是一个字典：{"title": str, "key": str, "width": float}
         data: 表格数据 (支持响应式)
@@ -479,21 +526,29 @@ def TableView(
     
     Returns:
         NSScrollView 实例（包含 NSTableView）
+        注意：此视图不能放入 VStack/HStack，只能直接添加到容器视图
     """
     # 创建滚动视图 - 提供稳定的初始 Frame
     from Foundation import NSMakeRect
     scroll_view = NSScrollView.alloc().init()
-    scroll_view.setFrame_(NSMakeRect(0, 0, 100, 100))  # 步骤3: 提供稳定的初始Frame
+    scroll_view.setFrame_(NSMakeRect(0, 0, 100, 100))  # 提供稳定的初始Frame
     scroll_view.setHasVerticalScroller_(True)
     scroll_view.setHasHorizontalScroller_(True)
     scroll_view.setAutohidesScrollers_(True)
     
-    # 暂时保持 translatesAutoresizingMaskIntoConstraints=True (默认)
-    # 让 TableView 使用传统的 autoresizing 而不是 autolayout
+    # ✅ 关键修复：保持 translatesAutoresizingMaskIntoConstraints=True (默认值)
+    # 原因：NSScrollView 需要自己管理内部视图层次的约束
+    # 如果设置为 False，会与外部约束系统（如 NSStackView）冲突
+    # 参考：TABLEVIEW_SOLUTION_REPORT.md - 网络调查结果确认此做法
     
     # 创建表格视图 - 也提供稳定的初始 Frame
     table_view = NSTableView.alloc().init()
-    table_view.setFrame_(NSMakeRect(0, 0, 100, 100))  # 步骤3: 提供稳定的初始Frame
+    table_view.setFrame_(NSMakeRect(0, 0, 100, 100))  # 提供稳定的初始Frame
+    
+    # ✅ 关键：TableView 也必须使用 translatesAutoresizingMaskIntoConstraints=True
+    # NSTableView 有复杂的内部视图层次（header, clip view, scroll bars）
+    # 它应该自己管理这些内部约束，而不是被外部约束系统控制
+    
     table_view.setHeaderView_(None if not headers_visible else table_view.headerView())
     
     # 创建列
@@ -515,10 +570,11 @@ def TableView(
     # 设置表格到滚动视图
     scroll_view.setDocumentView_(table_view)
     
-    # 恢复 frame 设置（使用传统 autoresizing）
+    # ✅ 直接设置frame，避免使用可能有问题的layout_utils
     if frame:
-        from ..utils.layout_utils import safe_set_frame
-        safe_set_frame(scroll_view, frame)
+        # 不使用layout_utils，直接设置frame
+        safe_rect = NSMakeRect(frame[0], frame[1], frame[2], frame[3])
+        scroll_view.setFrame_(safe_rect)
     
     # 创建数据源 - 使用正确的内存管理
     from ..core.binding import EnhancedTableViewDataSource
@@ -541,9 +597,8 @@ def TableView(
             from ..core.signal import Effect
             effect = Effect(update_table_data)
             
-            # 使用内存管理器保持 Effect 引用
-            from ..core.memory_manager import associate_object
-            associate_object(scroll_view, "table_data_effect", effect)
+            # ✅ 直接使用objc关联对象保持Effect引用
+            objc.setAssociatedObject(scroll_view, b"table_data_effect", effect, objc.OBJC_ASSOCIATION_RETAIN)
             
         else:
             data_source.data = data
@@ -551,9 +606,9 @@ def TableView(
     # 设置数据源并使用内存管理器保持引用
     table_view.setDataSource_(data_source)
     
-    # 使用内存管理器保持数据源引用 - 这是关键！
-    from ..core.memory_manager import associate_object
-    associate_object(scroll_view, "table_data_source", data_source)
+    # ✅ 直接使用objc关联对象，避免自定义内存管理器可能的问题
+    import objc
+    objc.setAssociatedObject(scroll_view, b"table_data_source", data_source, objc.OBJC_ASSOCIATION_RETAIN)
     
     # 事件处理
     if on_select or on_double_click or (isinstance(selected_row, Signal)):
@@ -567,8 +622,8 @@ def TableView(
         
         table_view.setDelegate_(delegate)
         
-        # 使用内存管理器保持委托引用
-        associate_object(scroll_view, "table_delegate", delegate)
+        # ✅ 直接使用objc关联对象
+        objc.setAssociatedObject(scroll_view, b"table_delegate", delegate, objc.OBJC_ASSOCIATION_RETAIN)
         
         # 设置双击动作
         if on_double_click:

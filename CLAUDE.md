@@ -106,11 +106,15 @@ class WindowController(NSObject):
 
 ## Known Issues
 
-### TableView Component (CRITICAL)
-- **Status**: Currently broken with `NSLayoutConstraintNumberExceedsLimit` error
-- **Cause**: Auto Layout constraint conflicts between NSScrollView and NSTableView
-- **Workaround**: Use pure PyObjC implementations in `examples/tableview/` as reference
-- **Files**: See `TABLEVIEW_INVESTIGATION_REPORT.md` for detailed analysis
+### TableView Component (SOLVED)
+- **Status**: ✅ Root cause identified and solved
+- **Problem**: `NSLayoutConstraintNumberExceedsLimit` error when TableView used in VStack/HStack
+- **Root Cause**: NSStackView constraint system conflicts with NSTableView internal constraints
+- **Solution**: Never put TableView inside VStack/HStack - use simple NSView containers instead
+- **Files**: 
+  - Solution report: `TABLEVIEW_SOLUTION_REPORT.md`
+  - Working example: `examples/tableview_no_stack_fix.py`
+  - Correct usage: `examples/tableview_correct_usage.py`
 
 ### Working Components
 - ✅ Basic controls (Button, Label, TextField)
@@ -136,6 +140,28 @@ When creating new components:
 3. Implement `mount()` method returning NSView
 4. Use `ReactiveBinding.bind()` for property updates
 5. Follow NSTableView patterns for complex components (see examples/tableview/)
+
+### Critical Layout Constraint Rules
+
+**❌ NEVER do this:**
+```python
+VStack(children=[
+    TableView(...)  # Will cause NSLayoutConstraintNumberExceedsLimit crash
+])
+```
+
+**✅ Correct approach:**
+```python
+# Use simple NSView container with frame-based layout
+container = NSView.alloc().init()
+table = TableView(columns=..., frame=(x, y, w, h))
+container.addSubview_(table)
+```
+
+### Complex Component Guidelines
+- Components with internal constraint systems (like TableView) should use `translatesAutoresizingMaskIntoConstraints=True`
+- Never put NSScrollView/NSTableView inside NSStackView-based layouts
+- Use frame-based layout for complex components that manage their own constraints
 
 ## Testing Strategy
 
