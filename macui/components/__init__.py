@@ -1,7 +1,7 @@
 """UI Components for macUI v2"""
 
 # Export basic control components
-from .basic_controls import Button, Label, TextField
+from .basic_controls import Button, Label, TextField, LineBreakMode, LabelStyle
 
 # Export input control components  
 from .input_controls import Slider, Switch, Checkbox, RadioButton, SegmentedControl
@@ -28,6 +28,8 @@ __all__ = [
     "TextField",
     "TextArea", 
     "Label",
+    "LineBreakMode",
+    "LabelStyle",
     "Slider",
     "ProgressBar",
     "Checkbox",

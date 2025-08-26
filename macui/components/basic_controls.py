@@ -10,11 +10,108 @@ from AppKit import (
     NSButtonTypeMomentaryPushIn,
     NSTextField,
     NSTextFieldRoundedBezel,
+    NSLineBreakByWordWrapping,
+    NSLineBreakByCharWrapping,
+    NSLineBreakByClipping,
+    NSLineBreakByTruncatingTail,
+    NSLineBreakByTruncatingHead,
+    NSLineBreakByTruncatingMiddle,
 )
 from Foundation import NSMakeRect
+from enum import Enum
 
 from ..core.binding import EventBinding, ReactiveBinding, TwoWayBinding, EnhancedTextFieldDelegate
 from ..core.signal import Computed, Signal
+
+
+class LineBreakMode(Enum):
+    """文本换行模式枚举
+    
+    定义了NSTextField支持的各种文本换行和截断模式，
+    提供类型安全和易于理解的接口。
+    """
+    WORD_WRAPPING = NSLineBreakByWordWrapping      # 按单词换行（默认）
+    CHAR_WRAPPING = NSLineBreakByCharWrapping      # 按字符换行  
+    CLIPPING = NSLineBreakByClipping               # 超出部分裁剪
+    TRUNCATE_TAIL = NSLineBreakByTruncatingTail    # 尾部省略号...
+    TRUNCATE_HEAD = NSLineBreakByTruncatingHead    # 头部省略号...
+    TRUNCATE_MIDDLE = NSLineBreakByTruncatingMiddle # 中间省略号...
+
+
+class LabelStyle(Enum):
+    """Label预设样式枚举
+    
+    为常见使用场景提供预设配置，简化接口使用。
+    """
+    # 多行文本标签（默认）- 适用于描述、帮助文本等
+    MULTILINE = "multiline"
+    
+    # 单行标题标签 - 适用于标题、状态栏等  
+    TITLE = "title"
+    
+    # 单行截断标签 - 适用于列表项、表格单元格
+    TRUNCATED = "truncated"
+    
+    # 固定宽度标签 - 适用于表单字段、固定布局
+    FIXED_WIDTH = "fixed_width"
+
+
+def _apply_label_style_preset(style: LabelStyle) -> dict:
+    """根据预设样式返回配置字典
+    
+    为常见使用场景提供优化的预设配置，简化接口使用。
+    
+    Args:
+        style: 预设样式枚举
+        
+    Returns:
+        包含配置参数的字典
+    """
+    if style == LabelStyle.MULTILINE:
+        # 多行描述文本 - 默认配置，适合大多数场景
+        return {
+            'multiline': True,
+            'line_break_mode': LineBreakMode.WORD_WRAPPING,
+            'wraps': True,
+            'scrollable': False,
+            'preferred_max_width': 400.0
+        }
+    elif style == LabelStyle.TITLE:
+        # 单行标题 - 适合状态栏、标题等
+        return {
+            'multiline': False,
+            'line_break_mode': LineBreakMode.CLIPPING,
+            'wraps': False,
+            'scrollable': False,
+            'preferred_max_width': None  # 单行不需要最大宽度限制
+        }
+    elif style == LabelStyle.TRUNCATED:
+        # 单行截断 - 适合列表项、文件名等
+        return {
+            'multiline': False,
+            'line_break_mode': LineBreakMode.TRUNCATE_TAIL,
+            'wraps': False,
+            'scrollable': False,
+            'preferred_max_width': None
+        }
+    elif style == LabelStyle.FIXED_WIDTH:
+        # 固定宽度 - 适合表单字段、固定布局
+        return {
+            'multiline': True,
+            'line_break_mode': LineBreakMode.WORD_WRAPPING,
+            'wraps': True,
+            'scrollable': False,
+            'preferred_max_width': 200.0  # 较小的固定宽度
+        }
+    else:
+        # 默认配置（等同于MULTILINE）
+        return {
+            'multiline': True,
+            'line_break_mode': LineBreakMode.WORD_WRAPPING,
+            'wraps': True,
+            'scrollable': False,
+            'preferred_max_width': 400.0
+        }
 
 
 def Button(
@@ -172,9 +269,22 @@ def Label(
     alignment: Optional[Any] = None,
     font: Optional[Any] = None,
     selectable: bool = False,
-    tooltip: Optional[Union[str, Signal[str], Computed[str]]] = None
+    tooltip: Optional[Union[str, Signal[str], Computed[str]]] = None,
+    
+    # ✨ 新增：专业级文本布局控制参数
+    style: Optional[LabelStyle] = None,                                    # 预设样式（简化使用）
+    multiline: Optional[bool] = None,                                      # 是否多行模式
+    line_break_mode: Optional[Union[LineBreakMode, int]] = None,          # 换行/截断模式  
+    wraps: Optional[bool] = None,                                         # 是否启用文本换行
+    scrollable: Optional[bool] = None,                                    # 是否可滚动
+    preferred_max_width: Optional[float] = None,                          # 最大布局宽度
+    auto_resize: bool = True                                              # 是否自动调整尺寸
 ) -> NSTextField:
-    """创建响应式标签
+    """创建专业级响应式标签
+    
+    提供简化和高级两种使用方式：
+    - 简化方式：Label("文本", style=LabelStyle.TITLE) 
+    - 高级方式：Label("文本", multiline=False, line_break_mode=LineBreakMode.TRUNCATE_TAIL)
     
     Args:
         text: 显示文本 (支持响应式)
@@ -184,9 +294,30 @@ def Label(
         font: 字体
         selectable: 是否可选择文本
         tooltip: 工具提示 (支持响应式)
+        
+        # 专业级布局控制参数：
+        style: 预设样式 (LabelStyle.MULTILINE/TITLE/TRUNCATED/FIXED_WIDTH)
+        multiline: 是否多行模式 (默认True，适合大多数场景)
+        line_break_mode: 换行/截断模式 (默认按单词换行)
+        wraps: 是否启用文本换行 (默认True)
+        scrollable: 是否可滚动 (默认False，让Auto Layout控制尺寸)
+        preferred_max_width: 最大布局宽度 (默认400px，适合VStack使用)
+        auto_resize: 是否自动调整尺寸 (默认True)
     
     Returns:
         NSTextField 实例（作为标签使用）
+        
+    Examples:
+        # 简单使用（推荐）
+        Label("多行描述文本")                          # 使用默认多行配置
+        Label("状态：已连接", style=LabelStyle.TITLE)    # 单行标题样式
+        Label("长文件名.txt", style=LabelStyle.TRUNCATED) # 截断样式
+        
+        # 高级使用（精确控制）
+        Label("自定义文本", 
+              multiline=False,
+              line_break_mode=LineBreakMode.TRUNCATE_MIDDLE,
+              preferred_max_width=200.0)
     """
     label = NSTextField.alloc().init()
     
@@ -196,42 +327,71 @@ def Label(
     label.setEditable_(False)
     label.setSelectable_(selectable)
     
-    # ✅ 苹果Auto Layout专业配置：让NSTextField在NSStackView中正确工作
-    # 配置多行文本支持和正确的intrinsic content size计算
-    if hasattr(label, 'setUsesSingleLineMode_'):
-        label.setUsesSingleLineMode_(False)  # 支持多行
-    if hasattr(label, 'setLineBreakMode_'):
-        label.setLineBreakMode_(0)  # NSLineBreakByWordWrapping
-    if hasattr(label.cell(), 'setWraps_'):
-        label.cell().setWraps_(True)  # 启用文本换行
-    if hasattr(label.cell(), 'setScrollable_'):
-        label.cell().setScrollable_(False)  # 禁用滚动，让Auto Layout控制尺寸
+    # ✨ 智能配置系统：根据预设样式和用户参数确定最终配置
     
-    # 设置合理的最大布局宽度，让intrinsic content size正确计算
-    # 这是解决NSStackView中文本宽度问题的关键
-    if not frame:
-        # 为在StackView中使用的Label设置合理的默认最大宽度
-        label.setPreferredMaxLayoutWidth_(400.0)  # 苹果推荐做法
-        print(f"✅ Label设置preferredMaxLayoutWidth: 400.0 (解决StackView宽度问题)")
+    # 1. 获取基础配置（来自预设样式或默认值）
+    if style is not None:
+        config = _apply_label_style_preset(style)
+        config_source = f"预设样式{style.value}"
+    else:
+        # 使用默认配置（等同于MULTILINE）
+        config = _apply_label_style_preset(LabelStyle.MULTILINE)
+        config_source = "默认配置"
     
+    # 2. 用户自定义参数覆盖预设配置（优先级更高）
+    if multiline is not None:
+        config['multiline'] = multiline
+    if line_break_mode is not None:
+        config['line_break_mode'] = line_break_mode
+    if wraps is not None:
+        config['wraps'] = wraps
+    if scrollable is not None:
+        config['scrollable'] = scrollable
+    if preferred_max_width is not None:
+        config['preferred_max_width'] = preferred_max_width
+    
+    # 3. 应用配置到NSTextField（苹果Auto Layout专业实现）
+    
+    # 获取line_break_mode的实际值（支持枚举和整数）
+    if isinstance(config['line_break_mode'], LineBreakMode):
+        line_break_value = config['line_break_mode'].value
+    else:
+        line_break_value = config['line_break_mode']
+    
+    # 配置多行/单行模式
+    label.setUsesSingleLineMode_(not config['multiline'])
+    label.setLineBreakMode_(line_break_value)
+    
+    # 配置Cell属性
+    text_cell = label.cell()
+    text_cell.setWraps_(config['wraps'])
+    text_cell.setScrollable_(config['scrollable'])
+    
+    # 设置最大布局宽度（解决NSStackView宽度问题的关键）
     if frame:
         label.setFrame_(NSMakeRect(*frame))
-        # 如果有显式frame，使用frame宽度作为最大布局宽度
+        # 显式frame时，优先使用frame宽度
         if len(frame) >= 3:  # (x, y, width, height)
             label.setPreferredMaxLayoutWidth_(frame[2])
-            print(f"✅ Label使用frame宽度作为preferredMaxLayoutWidth: {frame[2]}")
+            print(f"✅ Label配置({config_source}): frame宽度={frame[2]}px")
+    else:
+        # 使用配置的最大宽度
+        if config['preferred_max_width'] is not None:
+            label.setPreferredMaxLayoutWidth_(config['preferred_max_width'])
+            width_info = f"最大宽度={config['preferred_max_width']}px"
+        else:
+            width_info = "无宽度限制"
+        
+        mode_info = "多行" if config['multiline'] else "单行"
+        print(f"✅ Label配置({config_source}): {mode_info}模式, {width_info}")
     
     # 文本绑定
     if isinstance(text, (Signal, Computed)):
         ReactiveBinding.bind(label, "text", text)
-        print(f"🏷️ Label绑定到响应式数据")
     else:
         label.setStringValue_(str(text))
-        print(f"🏷️ Label设置文本: '{str(text)}'")
-        
         # 文本变化后，需要重新计算intrinsic content size
         label.invalidateIntrinsicContentSize()
-        print(f"🔄 Label刷新intrinsic content size")
     
     # 设置颜色
     if color:
