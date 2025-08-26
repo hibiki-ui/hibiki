@@ -15,11 +15,16 @@ from .display_controls import ImageView, ProgressBar, TextArea
 # Export picker control components
 from .picker_controls import DatePicker, TimePicker
 
-# Export layout components  
+# Export layout components (traditional implementations)
 from .layout import (
-    HStack, OutlineView, ResponsiveStack, ScrollView, SplitView, TableView, TabView, VStack, ZStack,
-    # 混合布局系统
-    FrameContainer, LayoutMode, ResponsiveFrame
+    HStack, OutlineView, ResponsiveStack, ScrollView, SplitView, TableView, TabView, VStack, ZStack
+)
+
+# Export modern layout components (recommended)
+from .modern_layout import (
+    ModernVStack, ModernHStack,
+    VStack as ModernVStackCompat, HStack as ModernHStackCompat,  # Modern implementations with compatibility names
+    CenteredVStack, CenteredHStack, FlexVStack, FlexHStack
 )
 
 __all__ = [
@@ -44,7 +49,7 @@ __all__ = [
     "TimePicker",
     "ImageView",
 
-    # Layout components
+    # Layout components (traditional)
     "VStack",
     "HStack", 
     "ZStack",
@@ -55,8 +60,13 @@ __all__ = [
     "TableView",
     "OutlineView",
     
-    # 混合布局系统
-    "FrameContainer",
-    "LayoutMode", 
-    "ResponsiveFrame",
+    # Modern layout components (recommended)
+    "ModernVStack",
+    "ModernHStack",
+    "ModernVStackCompat",
+    "ModernHStackCompat", 
+    "CenteredVStack",
+    "CenteredHStack",
+    "FlexVStack", 
+    "FlexHStack",
 ]
