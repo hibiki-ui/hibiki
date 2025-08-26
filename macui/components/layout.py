@@ -1,14 +1,21 @@
 from typing import Any, List, Optional, Union
 
 from AppKit import (
+    NSCollectionView,
     NSLayoutAttributeBottom,
     NSLayoutAttributeCenterX,
     NSLayoutAttributeCenterY,
     NSLayoutAttributeLeading,
     NSLayoutAttributeTop,
     NSLayoutAttributeTrailing,
+    NSOutlineView,
     NSScrollView,
+    NSSplitView,
     NSStackView,
+    NSTableColumn,
+    NSTableView,
+    NSTabView,
+    NSTabViewItem,
     NSUserInterfaceLayoutOrientationHorizontal,
     NSUserInterfaceLayoutOrientationVertical,
     NSView,
@@ -187,7 +194,8 @@ def ScrollView(
 
     # 设置框架
     if frame:
-        scroll_view.setFrame_(NSMakeRect(*frame))
+        from ..utils.layout_utils import safe_set_frame
+        safe_set_frame(scroll_view, frame)
 
     # 配置滚动条
     scroll_view.setHasVerticalScroller_(has_vertical_scroller)
@@ -304,3 +312,313 @@ def HStackResponsive(
 ) -> ResponsiveStack:
     """创建响应式水平堆栈"""
     return ResponsiveStack("horizontal", spacing, padding, alignment, children)
+
+
+def TabView(
+    tabs: List[dict],  # [{"title": str, "content": Component}, ...]
+    selected: Optional[Union[int, Signal[int]]] = None,
+    on_change: Optional[Any] = None,
+    frame: Optional[tuple] = None
+) -> NSTabView:
+    """创建标签页视图
+    
+    Args:
+        tabs: 标签页配置列表，每个项目是一个字典：{"title": str, "content": Component}
+        selected: 当前选中的标签页索引 (支持响应式)
+        on_change: 标签页切换回调函数 (index, tab_item)
+        frame: 标签页视图框架
+    
+    Returns:
+        NSTabView 实例
+    """
+    tab_view = NSTabView.alloc().init()
+    
+    if frame:
+        from ..utils.layout_utils import safe_set_frame
+        safe_set_frame(tab_view, frame)
+    
+    # 添加标签页
+    for tab_config in tabs:
+        title = tab_config.get("title", "")
+        content = tab_config.get("content")
+        
+        # 创建标签页项
+        tab_item = NSTabViewItem.alloc().init()
+        tab_item.setLabel_(title)
+        
+        if content:
+            # 如果content是Component，需要获取其view
+            if hasattr(content, 'get_view'):
+                view = content.get_view()
+            elif hasattr(content, 'mount'):
+                view = content.mount()
+            else:
+                view = content
+            tab_item.setView_(view)
+        
+        tab_view.addTabViewItem_(tab_item)
+    
+    # 设置初始选中的标签页
+    if selected is not None:
+        if isinstance(selected, Signal):
+            # 响应式绑定选中索引
+            from ..core.binding import TwoWayBinding
+            TwoWayBinding.bind_tab_view(tab_view, selected)
+        else:
+            if 0 <= selected < len(tabs):
+                tab_view.selectTabViewItemAtIndex_(selected)
+    
+    # 事件处理
+    if on_change or (isinstance(selected, Signal)):
+        from ..core.binding import EnhancedTabViewDelegate
+        # 创建标签页委托
+        delegate = EnhancedTabViewDelegate.alloc().init()
+        delegate.on_change = on_change
+        delegate.signal = selected if isinstance(selected, Signal) else None
+        
+        tab_view.setDelegate_(delegate)
+        
+        # 保持委托引用 - 使用内存管理器
+        from ..core.memory_manager import associate_object
+        associate_object(tab_view, "enhanced_tab_delegate", delegate)
+    
+    return tab_view
+
+
+def SplitView(
+    orientation: str = "horizontal",  # "horizontal" or "vertical"
+    children: Optional[List[Any]] = None,
+    divider_style: str = "thin",  # "thin" or "thick"
+    on_resize: Optional[Any] = None,
+    frame: Optional[tuple] = None
+) -> NSSplitView:
+    """创建分割视图
+    
+    Args:
+        orientation: 分割方向 ("horizontal" 或 "vertical")
+        children: 子视图列表
+        divider_style: 分隔符样式 ("thin" 或 "thick")
+        on_resize: 尺寸调整回调函数
+        frame: 分割视图框架
+    
+    Returns:
+        NSSplitView 实例
+    """
+    split_view = NSSplitView.alloc().init()
+    
+    if frame:
+        from ..utils.layout_utils import safe_set_frame
+        safe_set_frame(split_view, frame)
+    
+    # 设置分割方向
+    from AppKit import NSSplitViewDividerStyleThin, NSSplitViewDividerStyleThick
+    if orientation == "vertical":
+        split_view.setVertical_(True)
+    else:
+        split_view.setVertical_(False)
+    
+    # 设置分隔符样式
+    if divider_style == "thick":
+        split_view.setDividerStyle_(NSSplitViewDividerStyleThick)
+    else:
+        split_view.setDividerStyle_(NSSplitViewDividerStyleThin)
+    
+    # 添加子视图
+    if children:
+        for child in children:
+            # 如果child是Component，需要获取其view
+            if hasattr(child, 'get_view'):
+                view = child.get_view()
+            elif hasattr(child, 'mount'):
+                view = child.mount()
+            else:
+                view = child
+            split_view.addSubview_(view)
+    
+    # 事件处理
+    if on_resize:
+        from ..core.binding import EnhancedSplitViewDelegate
+        # 创建分割视图委托
+        delegate = EnhancedSplitViewDelegate.alloc().init()
+        delegate.on_resize = on_resize
+        
+        split_view.setDelegate_(delegate)
+        
+        # 保持委托引用 - 使用内存管理器
+        from ..core.memory_manager import associate_object
+        associate_object(split_view, "enhanced_split_delegate", delegate)
+    
+    return split_view
+
+
+def TableView(
+    columns: List[dict],  # [{"title": str, "key": str, "width": float}, ...]
+    data: Optional[Union[List[Any], Signal[List[Any]]]] = None,
+    selected_row: Optional[Union[int, Signal[int]]] = None,
+    on_select: Optional[Any] = None,
+    on_double_click: Optional[Any] = None,
+    headers_visible: bool = True,
+    frame: Optional[tuple] = None
+) -> NSScrollView:
+    """创建表格视图
+    
+    Args:
+        columns: 列配置列表，每个项目是一个字典：{"title": str, "key": str, "width": float}
+        data: 表格数据 (支持响应式)
+        selected_row: 当前选中的行索引 (支持响应式)
+        on_select: 行选择回调函数
+        on_double_click: 双击行回调函数
+        headers_visible: 是否显示表头
+        frame: 表格视图框架
+    
+    Returns:
+        NSScrollView 实例（包含 NSTableView）
+    """
+    # 创建滚动视图
+    scroll_view = NSScrollView.alloc().init()
+    scroll_view.setHasVerticalScroller_(True)
+    scroll_view.setHasHorizontalScroller_(True)
+    scroll_view.setAutohidesScrollers_(True)
+    
+    # 创建表格视图
+    table_view = NSTableView.alloc().init()
+    table_view.setHeaderView_(None if not headers_visible else table_view.headerView())
+    
+    # 创建列
+    for col_config in columns:
+        title = col_config.get("title", "")
+        key = col_config.get("key", title)
+        width = col_config.get("width", 100.0)
+        
+        column = NSTableColumn.alloc().init()
+        column.setIdentifier_(key)
+        column.setWidth_(width)
+        
+        # 设置列标题
+        if headers_visible:
+            column.headerCell().setStringValue_(title)
+        
+        table_view.addTableColumn_(column)
+    
+    # 设置表格到滚动视图
+    scroll_view.setDocumentView_(table_view)
+    
+    if frame:
+        from ..utils.layout_utils import safe_set_frame
+        safe_set_frame(scroll_view, frame)
+    
+    # 创建数据源 - 使用正确的内存管理
+    from ..core.binding import EnhancedTableViewDataSource
+    
+    data_source = EnhancedTableViewDataSource.alloc().init()
+    data_source.columns = [col.get("key", col.get("title", "")) for col in columns]
+    
+    # 设置数据
+    if data is not None:
+        if isinstance(data, Signal):
+            # 响应式数据绑定
+            def update_table_data():
+                try:
+                    print(f"📊 更新表格数据: {len(data.value) if data.value else 0} 行")
+                    data_source.data = data.value
+                    table_view.reloadData()
+                except Exception as e:
+                    print(f"❌ 数据更新错误: {e}")
+            
+            from ..core.signal import Effect
+            effect = Effect(update_table_data)
+            
+            # 使用内存管理器保持 Effect 引用
+            from ..core.memory_manager import associate_object
+            associate_object(scroll_view, "table_data_effect", effect)
+            
+        else:
+            data_source.data = data
+    
+    # 设置数据源并使用内存管理器保持引用
+    table_view.setDataSource_(data_source)
+    
+    # 使用内存管理器保持数据源引用 - 这是关键！
+    from ..core.memory_manager import associate_object
+    associate_object(scroll_view, "table_data_source", data_source)
+    
+    # 事件处理
+    if on_select or on_double_click or (isinstance(selected_row, Signal)):
+        from ..core.binding import EnhancedTableViewDelegate
+        
+        # 创建表格委托
+        delegate = EnhancedTableViewDelegate.alloc().init()
+        delegate.on_select = on_select
+        delegate.on_double_click = on_double_click
+        delegate.selected_signal = selected_row if isinstance(selected_row, Signal) else None
+        
+        table_view.setDelegate_(delegate)
+        
+        # 使用内存管理器保持委托引用
+        associate_object(scroll_view, "table_delegate", delegate)
+        
+        # 设置双击动作
+        if on_double_click:
+            table_view.setDoubleAction_("tableViewDoubleClick:")
+            table_view.setTarget_(delegate)
+    
+    return scroll_view
+
+
+def OutlineView(
+    columns: List[dict],  # [{"title": str, "key": str, "width": float}, ...]
+    root_items: Optional[List[Any]] = None,
+    get_children: Optional[Any] = None,  # 函数，用于获取子项
+    is_expandable: Optional[Any] = None,  # 函数，用于判断是否可展开
+    on_select: Optional[Any] = None,
+    on_expand: Optional[Any] = None,
+    on_collapse: Optional[Any] = None,
+    headers_visible: bool = True,
+    frame: Optional[tuple] = None
+) -> NSScrollView:
+    """创建大纲视图（树形视图）
+    
+    Args:
+        columns: 列配置列表，每个项目是一个字典：{"title": str, "key": str, "width": float}
+        root_items: 根级项目列表
+        get_children: 获取子项的函数 (item) -> [children]
+        is_expandable: 判断是否可展开的函数 (item) -> bool
+        on_select: 选择项回调函数 (row, item)
+        on_expand: 展开项回调函数 (item)
+        on_collapse: 收缩项回调函数 (item)
+        headers_visible: 是否显示表头
+        frame: 大纲视图框架
+    
+    Returns:
+        NSScrollView 实例（包含 NSOutlineView）
+    """
+    print("⚠️  OutlineView 暂时被禁用，返回一个替代的 TableView")
+    
+    # 暂时用 TableView 替代，直到修复 OutlineView 的崩溃问题
+    # 将树形数据扁平化为列表
+    flat_data = []
+    if root_items:
+        for item in root_items:
+            # 添加根项目
+            if isinstance(item, dict):
+                flat_data.append(item)
+                # 添加子项目（如果有）
+                if get_children:
+                    children = get_children(item)
+                    if children:
+                        for child in children:
+                            if isinstance(child, dict):
+                                # 为子项目添加前缀以示层级
+                                child_copy = child.copy()
+                                if 'title' in child_copy:
+                                    child_copy['title'] = f"  └ {child_copy['title']}"
+                                flat_data.append(child_copy)
+    
+    # 使用 TableView 替代
+    return TableView(
+        columns=columns,
+        data=flat_data,
+        on_select=on_select,
+        headers_visible=headers_visible,
+        frame=frame
+    )

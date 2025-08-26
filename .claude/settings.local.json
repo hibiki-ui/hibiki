@@ -9,7 +9,14 @@
       "Bash(find:*)",
       "Bash(tree:*)",
       "Bash(uv add:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(timeout 8 uv run python examples/test_outline_simple.py)",
+      "Bash(timeout 15 uv run:*)",
+      "Bash(timeout 10 uv run:*)",
+      "Bash(timeout 8 uv run python examples/test_stage3_layout.py)",
+      "Bash(timeout 8 uv run python examples/test_tableview_only.py)",
+      "Bash(timeout 8 uv run python examples/test_tabview_only.py)",
+      "Bash(timeout 8 uv run:*)"
     ],
     "deny": [],
     "ask": []

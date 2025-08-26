@@ -431,6 +431,25 @@ class TwoWayBinding:
         # 返回清理函数
         return lambda: None
 
+    @staticmethod
+    def bind_tab_view(tab_view: Any, signal: Signal[int]) -> Callable[[], None]:
+        """为TabView创建双向绑定"""
+        # 单向绑定：signal -> tab view
+        def update_selected_tab():
+            if 0 <= signal.value < tab_view.numberOfTabViewItems():
+                tab_view.selectTabViewItemAtIndex_(signal.value)
+        
+        from .signal import Effect
+        effect = Effect(update_selected_tab)
+        
+        # 反向绑定：tab_view -> signal (通过委托处理)
+        existing_delegate = tab_view.delegate()
+        if existing_delegate and hasattr(existing_delegate, 'signal'):
+            existing_delegate.signal = signal
+
+        # 返回清理函数
+        return lambda: None
+
 
 class EnhancedPopUpDelegate(NSObject):
     """增强的下拉按钮委托"""
@@ -805,7 +824,7 @@ class EnhancedComboBoxDelegate(NSObject):
     """增强的 ComboBox 委托类，处理文本变更和选择事件"""
     
     def init(self):
-        self = super(EnhancedComboBoxDelegate, self).init()
+        self = objc.super(EnhancedComboBoxDelegate, self).init()
         if self is None:
             return None
             
@@ -862,7 +881,7 @@ class EnhancedMenuItemDelegate(NSObject):
     """增强的 MenuItem 委托类，处理菜单项点击事件"""
     
     def init(self):
-        self = super(EnhancedMenuItemDelegate, self).init()
+        self = objc.super(EnhancedMenuItemDelegate, self).init()
         if self is None:
             return None
             
@@ -888,7 +907,7 @@ class EnhancedDatePickerDelegate(NSObject):
     """增强的 DatePicker 委托类，处理日期时间变更事件"""
     
     def init(self):
-        self = super(EnhancedDatePickerDelegate, self).init()
+        self = objc.super(EnhancedDatePickerDelegate, self).init()
         if self is None:
             return None
             
@@ -930,3 +949,386 @@ class EnhancedDatePickerDelegate(NSObject):
                 self.on_change(date)
             except Exception as e:
                 logger.error(f"📅 文本日期变更处理器错误: {e}")
+
+
+class EnhancedTabViewDelegate(NSObject):
+    """增强的 TabView 委托类，处理标签页切换事件"""
+    
+    def init(self):
+        self = objc.super(EnhancedTabViewDelegate, self).init()
+        if self is None:
+            return None
+            
+        self.signal = None
+        self.on_change = None
+        
+        logger.info("📑 TabView委托对象已初始化")
+        return self
+    
+    def tabView_didSelectTabViewItem_(self, tab_view, tab_item):
+        """标签页选择发生变化"""
+        selected_index = tab_view.indexOfTabViewItem_(tab_item)
+        logger.info(f"📑 TabView标签页切换: 索引{selected_index}")
+        
+        # 更新信号
+        if self.signal and hasattr(self.signal, "value"):
+            self.signal.value = selected_index
+            
+        # 调用变更处理器
+        if self.on_change:
+            try:
+                self.on_change(selected_index, tab_item)
+            except Exception as e:
+                logger.error(f"📑 标签页变更处理器错误: {e}")
+
+
+class EnhancedSplitViewDelegate(NSObject):
+    """增强的 SplitView 委托类，处理分割视图调整事件"""
+    
+    def init(self):
+        self = objc.super(EnhancedSplitViewDelegate, self).init()
+        if self is None:
+            return None
+            
+        self.on_resize = None
+        
+        logger.info("📐 SplitView委托对象已初始化")
+        return self
+    
+    def splitViewDidResizeSubviews_(self, notification):
+        """分割视图子视图大小发生变化"""
+        split_view = notification.object()
+        logger.info("📐 SplitView子视图大小变化")
+        
+        # 调用调整处理器
+        if self.on_resize:
+            try:
+                # 获取所有子视图的frame
+                frames = []
+                for subview in split_view.subviews():
+                    frames.append(subview.frame())
+                self.on_resize(frames)
+            except Exception as e:
+                logger.error(f"📐 分割视图调整处理器错误: {e}")
+
+
+class EnhancedTableViewDataSource(NSObject):
+    """增强的 TableView 数据源，处理表格数据"""
+    
+    def init(self):
+        self = objc.super(EnhancedTableViewDataSource, self).init()
+        if self is None:
+            return None
+            
+        self.data = []
+        self.columns = []
+        
+        logger.info("📊 TableView数据源已初始化")
+        return self
+    
+    def numberOfRowsInTableView_(self, table_view):
+        """返回表格行数 - 安全版本"""
+        try:
+            if not hasattr(self, 'data') or self.data is None:
+                return 0
+            return len(self.data)
+        except Exception as e:
+            logger.error(f"📊 numberOfRowsInTableView 错误: {e}")
+            return 0
+    
+    def tableView_objectValueForTableColumn_row_(self, table_view, column, row):
+        """返回指定单元格的值 - 增强错误处理"""
+        try:
+            # 参数验证
+            if not self.data:
+                return ""
+            
+            # 检查 row 是否为有效整数
+            if row is None or not isinstance(row, int):
+                logger.debug(f"📊 行索引无效: {row} (类型: {type(row)})")
+                return ""
+            
+            if row < 0 or row >= len(self.data):
+                logger.warning(f"📊 行索引超出范围: {row} >= {len(self.data)}")
+                return ""
+            
+            # 获取行数据
+            row_data = self.data[row]
+            if row_data is None:
+                return ""
+            
+            # 安全获取列标识符
+            try:
+                column_id = column.identifier()
+                if column_id is None:
+                    logger.warning("📊 列标识符为 None")
+                    return ""
+            except Exception as e:
+                logger.error(f"📊 获取列标识符失败: {e}")
+                return ""
+            
+            # 处理不同类型的行数据
+            if isinstance(row_data, dict):
+                value = row_data.get(column_id, "")
+            elif isinstance(row_data, (list, tuple)):
+                try:
+                    col_index = int(column_id) if str(column_id).isdigit() else 0
+                    value = row_data[col_index] if col_index < len(row_data) else ""
+                except Exception:
+                    value = ""
+            else:
+                value = row_data
+            
+            # 安全转换为字符串
+            if value is None:
+                return ""
+            
+            try:
+                result = str(value)
+                # 确保返回的字符串不会导致编码问题
+                if isinstance(result, str):
+                    return result
+                else:
+                    return ""
+            except Exception as e:
+                logger.error(f"📊 字符串转换失败: {e}, value={value}, type={type(value)}")
+                return ""
+                
+        except Exception as e:
+            logger.error(f"📊 tableView_objectValueForTableColumn_row 严重错误: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return ""
+
+
+class EnhancedTableViewDelegate(NSObject):
+    """增强的 TableView 委托类，处理表格事件"""
+    
+    def init(self):
+        self = objc.super(EnhancedTableViewDelegate, self).init()
+        if self is None:
+            return None
+            
+        self.on_select = None
+        self.on_double_click = None
+        self.selected_signal = None
+        
+        logger.info("📊 TableView委托对象已初始化")
+        return self
+    
+    def tableViewSelectionDidChange_(self, notification):
+        """表格选择发生变化"""
+        table_view = notification.object()
+        selected_row = table_view.selectedRow()
+        
+        logger.info(f"📊 TableView选择变化: 行{selected_row}")
+        
+        # 更新信号
+        if self.selected_signal and hasattr(self.selected_signal, "value"):
+            self.selected_signal.value = selected_row
+        
+        # 调用选择处理器
+        if self.on_select:
+            try:
+                self.on_select(selected_row)
+            except Exception as e:
+                logger.error(f"📊 表格选择处理器错误: {e}")
+    
+    def tableView_shouldSelectRow_(self, table_view, row):
+        """是否允许选择指定行"""
+        return True
+    
+    def tableViewDoubleClick_(self, sender):
+        """表格双击事件"""
+        selected_row = sender.selectedRow()
+        logger.info(f"📊 TableView双击: 行{selected_row}")
+        
+        if self.on_double_click:
+            try:
+                self.on_double_click(selected_row)
+            except Exception as e:
+                logger.error(f"📊 表格双击处理器错误: {e}")
+
+
+class EnhancedOutlineViewDataSource(NSObject):
+    """增强的 OutlineView 数据源，处理树形数据"""
+    
+    def init(self):
+        self = objc.super(EnhancedOutlineViewDataSource, self).init()
+        if self is None:
+            return None
+            
+        self.root_items = []
+        self.get_children = None  # 函数，用于获取子项
+        self.is_expandable = None  # 函数，用于判断是否可展开
+        
+        logger.info("🌳 OutlineView数据源已初始化")
+        return self
+    
+    def outlineView_numberOfChildrenOfItem_(self, outline_view, item):
+        """返回指定项的子项数量 - NSOutlineViewDataSource 必需方法"""
+        try:
+            logger.info(f"🌳 numberOfChildren 被调用，item: {item}")
+            if item is None:
+                # 根级项目
+                count = len(self.root_items) if self.root_items else 0
+                logger.info(f"🌳 根级项目数量: {count}")
+                return count
+            else:
+                if self.get_children and callable(self.get_children):
+                    children = self.get_children(item)
+                    count = len(children) if children else 0
+                    logger.info(f"🌳 项目 {item} 的子项数量: {count}")
+                    return count
+                else:
+                    logger.warning(f"🌳 get_children 不可用或不可调用")
+                    return 0
+        except Exception as e:
+            logger.error(f"🌳 获取子项数量错误: {e}")
+            import traceback
+            traceback.print_exc()
+            return 0
+    
+    def outlineView_child_ofItem_(self, outline_view, index, item):
+        """返回指定项的子项 - NSOutlineViewDataSource 必需方法"""
+        try:
+            logger.info(f"🌳 child:ofItem 被调用，index: {index}, item: {item}")
+            
+            if item is None:
+                # 根级项目
+                if self.root_items and isinstance(self.root_items, list) and 0 <= index < len(self.root_items):
+                    child = self.root_items[index]
+                    logger.info(f"🌳 根级子项[{index}]: {child}")
+                    return child
+                else:
+                    logger.warning(f"🌳 无法获取根级子项[{index}]，root_items长度: {len(self.root_items) if self.root_items else 0}")
+                    return None
+            else:
+                if self.get_children and callable(self.get_children):
+                    children = self.get_children(item)
+                    if children and isinstance(children, list) and 0 <= index < len(children):
+                        child = children[index]
+                        logger.info(f"🌳 项目 {item} 的子项[{index}]: {child}")
+                        return child
+                    else:
+                        logger.warning(f"🌳 无法获取子项[{index}]，children: {children}")
+                        return None
+                else:
+                    logger.warning(f"🌳 get_children 不可用或不可调用")
+                    return None
+        except Exception as e:
+            logger.error(f"🌳 获取子项错误: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def outlineView_isItemExpandable_(self, outline_view, item):
+        """判断项目是否可展开 - NSOutlineViewDataSource 必需方法"""
+        try:
+            logger.info(f"🌳 isItemExpandable 被调用，item: {item}")
+            
+            if item is None:
+                logger.info(f"🌳 根项目不可展开")
+                return False
+                
+            if self.is_expandable and callable(self.is_expandable):
+                result = bool(self.is_expandable(item))
+                logger.info(f"🌳 项目 {item} 是否可展开 (用户函数): {result}")
+                return result
+            elif self.get_children and callable(self.get_children):
+                children = self.get_children(item)
+                result = len(children) > 0 if children else False
+                logger.info(f"🌳 项目 {item} 是否可展开 (子项检查): {result}")
+                return result
+            else:
+                logger.warning(f"🌳 无可用的展开判断函数")
+                return False
+        except Exception as e:
+            logger.error(f"🌳 判断是否可展开错误: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def outlineView_objectValueForTableColumn_byItem_(self, outline_view, column, item):
+        """返回指定单元格的值 - NSOutlineViewDataSource 必需方法"""
+        try:
+            logger.info(f"🌳 objectValue 被调用，column: {column}, item: {item}")
+            
+            if item is None:
+                logger.info(f"🌳 项目为空，返回空字符串")
+                return ""
+            
+            column_id = column.identifier() if column and hasattr(column, 'identifier') else "title"
+            
+            if isinstance(item, dict):
+                # 优先使用列标识符，然后尝试 title，最后转换为字符串
+                value = item.get(column_id)
+                if value is None:
+                    value = item.get('title')
+                if value is None:
+                    value = str(item)
+                
+                result = str(value) if value is not None else ""
+                logger.info(f"🌳 单元格值 {column_id}: '{result}'")
+                return result
+            else:
+                result = str(item)
+                logger.info(f"🌳 单元格值（非字典）: '{result}'")
+                return result
+        except Exception as e:
+            logger.error(f"🌳 获取单元格值错误: {e}")
+            import traceback
+            traceback.print_exc()
+            return ""
+
+
+class EnhancedOutlineViewDelegate(NSObject):
+    """增强的 OutlineView 委托类，处理大纲视图事件"""
+    
+    def init(self):
+        self = objc.super(EnhancedOutlineViewDelegate, self).init()
+        if self is None:
+            return None
+            
+        self.on_select = None
+        self.on_expand = None
+        self.on_collapse = None
+        
+        logger.info("🌳 OutlineView委托对象已初始化")
+        return self
+    
+    def outlineViewSelectionDidChange_(self, notification):
+        """大纲视图选择发生变化"""
+        outline_view = notification.object()
+        selected_row = outline_view.selectedRow()
+        selected_item = outline_view.itemAtRow_(selected_row) if selected_row >= 0 else None
+        
+        logger.info(f"🌳 OutlineView选择变化: 行{selected_row}")
+        
+        if self.on_select:
+            try:
+                self.on_select(selected_row, selected_item)
+            except Exception as e:
+                logger.error(f"🌳 大纲视图选择处理器错误: {e}")
+    
+    def outlineViewItemDidExpand_(self, notification):
+        """项目展开"""
+        item = notification.userInfo().get("NSObject")
+        logger.info(f"🌳 OutlineView项目展开: {item}")
+        
+        if self.on_expand:
+            try:
+                self.on_expand(item)
+            except Exception as e:
+                logger.error(f"🌳 项目展开处理器错误: {e}")
+    
+    def outlineViewItemDidCollapse_(self, notification):
+        """项目收缩"""
+        item = notification.userInfo().get("NSObject")
+        logger.info(f"🌳 OutlineView项目收缩: {item}")
+        
+        if self.on_collapse:
+            try:
+                self.on_collapse(item)
+            except Exception as e:
+                logger.error(f"🌳 项目收缩处理器错误: {e}")

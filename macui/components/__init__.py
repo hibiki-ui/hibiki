@@ -4,7 +4,7 @@
 from .controls import Button, Checkbox, ComboBox, ContextMenu, DatePicker, ImageView, Label, Menu, PopUpButton, ProgressBar, RadioButton, SegmentedControl, Slider, Switch, TextArea, TextField, TimePicker
 
 # Export layout components
-from .layout import HStack, ResponsiveStack, ScrollView, VStack, ZStack
+from .layout import HStack, OutlineView, ResponsiveStack, ScrollView, SplitView, TableView, TabView, VStack, ZStack
 
 __all__ = [
     # Control components
@@ -32,4 +32,8 @@ __all__ = [
     "ZStack",
     "ScrollView",
     "ResponsiveStack",
+    "TabView",
+    "SplitView",
+    "TableView",
+    "OutlineView",
 ]

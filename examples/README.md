@@ -82,6 +82,19 @@
   - 完整的事件处理和工具提示
   - 响应式UI更新
 
+#### 第三阶段布局组件 (TabView, SplitView, TableView, OutlineView)
+- **文件**: `test_stage3_layout.py`
+- **功能**: 展示第三阶段布局容器组件
+- **特性**:
+  - **TabView**: 标签页视图，支持多个标签页和内容切换
+  - **SplitView**: 分割视图，水平/垂直分割，可调整大小
+  - **TableView**: 表格视图，多列显示，支持选择、双击、动态数据
+  - **OutlineView**: 大纲视图，树形结构，可展开/收缩层级数据
+  - 完整的数据源和委托系统
+  - 响应式数据绑定和实时更新
+  - 复杂的组合布局演示
+  - CRUD 操作支持
+
 ## 如何运行示例
 
 确保你在项目根目录，然后运行：
@@ -97,6 +110,7 @@ uv run python examples/test_textarea_progressbar.py # TextArea 和 ProgressBar
 uv run python examples/test_selection_controls.py   # 选择控件
 uv run python examples/test_advanced_controls.py    # 高级选择控件
 uv run python examples/test_stage2_remaining.py     # 第二阶段剩余组件
+uv run python examples/test_stage3_layout.py        # 第三阶段布局组件
 ```
 
 ## 示例特点
