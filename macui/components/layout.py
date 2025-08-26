@@ -293,10 +293,14 @@ def _create_constraints_vstack(spacing, padding, alignment, children, frame):
     # 按照技术文档: 禁用 Autoresizing Mask 转换
     stack.setTranslatesAutoresizingMaskIntoConstraints_(False)
     
-    # 设置框架
+    # 设置框架 - 按照苹果Auto Layout设计原则
     if frame:
         stack.setFrame_(NSMakeRect(*frame))
         print(f"🎯 VStack设置frame: {frame}")
+    else:
+        # ✅ 苹果正确做法：不设置显式frame，依赖intrinsic content size
+        # NSStackView应该根据子视图的intrinsic content size自动调整尺寸
+        print(f"✅ VStack遵循苹果设计：依赖intrinsic content size，不设置显式frame")
 
     # 设置间距
     stack.setSpacing_(spacing)
@@ -339,11 +343,45 @@ def _create_constraints_vstack(spacing, padding, alignment, children, frame):
     for i, child in enumerate(children):
         child_view = child.get_view() if isinstance(child, Component) else child
         if child_view:
+            # ✅ 苹果规范：arranged subviews必须禁用autoresizing mask转换
+            child_view.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            print(f"✅ 子视图 {i+1} 已禁用autoresizing mask转换")
+            
             # 确保组件有合适的尺寸
             if hasattr(child_view, 'sizeToFit'):
                 child_view.sizeToFit()
                 size = child_view.frame().size
                 print(f"   📏 子视图 {i+1} sizeToFit后: {size.width:.1f} x {size.height:.1f}")
+            
+            # ✅ 特殊处理：为嵌套NSStackView提供必要的约束
+            # NSStackView没有intrinsic content size，需要明确的尺寸约束
+            if child_view.__class__.__name__ == 'NSStackView':
+                from AppKit import NSLayoutConstraint, NSLayoutRelationEqual, NSLayoutAttributeHeight, NSLayoutAttributeWidth
+                
+                # 根据该StackView的子视图数量估算高度约束
+                arranged_count = 0
+                if hasattr(child_view, 'arrangedSubviews'):
+                    arranged_count = len(child_view.arrangedSubviews())
+                
+                # 为嵌套VStack添加高度约束，避免0高度问题
+                estimated_height = max(50, arranged_count * 30 + 20)  # 保守估算
+                height_constraint = NSLayoutConstraint.constraintWithItem_attribute_relatedBy_toItem_attribute_multiplier_constant_(
+                    child_view, NSLayoutAttributeHeight,
+                    NSLayoutRelationEqual,
+                    None, 0, 1.0, estimated_height
+                )
+                child_view.addConstraint_(height_constraint)
+                print(f"   🔧 为嵌套VStack添加高度约束: {estimated_height}px")
+                
+                # ✅ 关键修复：同时添加宽度约束，解决4px宽度问题
+                estimated_width = 600  # 合理的默认宽度
+                width_constraint = NSLayoutConstraint.constraintWithItem_attribute_relatedBy_toItem_attribute_multiplier_constant_(
+                    child_view, NSLayoutAttributeWidth,
+                    NSLayoutRelationEqual,
+                    None, 0, 1.0, estimated_width
+                )
+                child_view.addConstraint_(width_constraint)
+                print(f"   🔧 为嵌套VStack添加宽度约束: {estimated_width}px")
                 
             stack.addArrangedSubview_(child_view)
             
@@ -364,8 +402,14 @@ def _create_constraints_vstack(spacing, padding, alignment, children, frame):
     actual_orientation = stack.orientation()
     print(f"🎯 VStack orientation: {actual_orientation} ({'Vertical' if actual_orientation == 1 else 'Horizontal'})")
     
-    # 强制触发布局更新
-    stack.layoutSubtreeIfNeeded()
+    # ✅ 苹果推荐做法：强制生成和更新约束
+    # 解决NSStackView可能不自动生成约束的问题
+    if hasattr(stack, 'updateConstraintsForSubtreeIfNeeded'):
+        stack.updateConstraintsForSubtreeIfNeeded()
+        print(f"🔄 VStack按苹果规范更新约束")
+    
+    # 强制触发布局更新 - 使用macOS NSView的正确方法
+    stack.layoutSubtreeIfNeeded()  
     print(f"🔄 VStack强制触发布局更新")
     
     # 检查布局后的子视图位置

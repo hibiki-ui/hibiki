@@ -196,14 +196,42 @@ def Label(
     label.setEditable_(False)
     label.setSelectable_(selectable)
     
+    # ✅ 苹果Auto Layout专业配置：让NSTextField在NSStackView中正确工作
+    # 配置多行文本支持和正确的intrinsic content size计算
+    if hasattr(label, 'setUsesSingleLineMode_'):
+        label.setUsesSingleLineMode_(False)  # 支持多行
+    if hasattr(label, 'setLineBreakMode_'):
+        label.setLineBreakMode_(0)  # NSLineBreakByWordWrapping
+    if hasattr(label.cell(), 'setWraps_'):
+        label.cell().setWraps_(True)  # 启用文本换行
+    if hasattr(label.cell(), 'setScrollable_'):
+        label.cell().setScrollable_(False)  # 禁用滚动，让Auto Layout控制尺寸
+    
+    # 设置合理的最大布局宽度，让intrinsic content size正确计算
+    # 这是解决NSStackView中文本宽度问题的关键
+    if not frame:
+        # 为在StackView中使用的Label设置合理的默认最大宽度
+        label.setPreferredMaxLayoutWidth_(400.0)  # 苹果推荐做法
+        print(f"✅ Label设置preferredMaxLayoutWidth: 400.0 (解决StackView宽度问题)")
+    
     if frame:
         label.setFrame_(NSMakeRect(*frame))
+        # 如果有显式frame，使用frame宽度作为最大布局宽度
+        if len(frame) >= 3:  # (x, y, width, height)
+            label.setPreferredMaxLayoutWidth_(frame[2])
+            print(f"✅ Label使用frame宽度作为preferredMaxLayoutWidth: {frame[2]}")
     
     # 文本绑定
     if isinstance(text, (Signal, Computed)):
         ReactiveBinding.bind(label, "text", text)
+        print(f"🏷️ Label绑定到响应式数据")
     else:
         label.setStringValue_(str(text))
+        print(f"🏷️ Label设置文本: '{str(text)}'")
+        
+        # 文本变化后，需要重新计算intrinsic content size
+        label.invalidateIntrinsicContentSize()
+        print(f"🔄 Label刷新intrinsic content size")
     
     # 设置颜色
     if color:
