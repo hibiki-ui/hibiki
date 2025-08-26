@@ -77,18 +77,21 @@ class MacUIDemo(NSObject):
     
     def run(self):
         """运行应用"""
+        # 初始化应用实例
+        app = NSApplication.sharedApplication()
+        
         # 设置应用
-        NSApp.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+        app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
         
         # 创建菜单
-        self.create_menu()
+        self.create_menu(app)
         
         # 创建窗口
         self.create_window()
         
         # 显示窗口
         self.window.makeKeyAndOrderFront_(None)
-        NSApp.activateIgnoringOtherApps_(True)
+        app.activateIgnoringOtherApps_(True)
         
         print("✅ macUI演示应用已启动!")
         print("🎯 核心演示：TableView在VStack中正常工作")
@@ -98,12 +101,12 @@ class MacUIDemo(NSObject):
         # 运行事件循环
         AppHelper.runEventLoop()
     
-    def create_menu(self):
+    def create_menu(self, app):
         """创建菜单栏"""
         menubar = NSMenu.alloc().init()
         app_item = NSMenuItem.alloc().init()
         menubar.addItem_(app_item)
-        NSApp.setMainMenu_(menubar)
+        app.setMainMenu_(menubar)
         
         app_menu = NSMenu.alloc().init()
         quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(

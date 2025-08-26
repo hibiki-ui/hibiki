@@ -118,7 +118,7 @@ def TextField(
     if value is not None:
         if isinstance(value, Signal):
             # 双向绑定
-            TwoWayBinding.bind(text_field, "stringValue", value)
+            TwoWayBinding.bind_text_field(text_field, value)
         else:
             text_field.setStringValue_(str(value))
     
