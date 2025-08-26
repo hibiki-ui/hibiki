@@ -141,12 +141,12 @@ def to_rect(
     right: Optional[LengthValue] = None,
     bottom: Optional[LengthValue] = None, 
     left: Optional[LengthValue] = None,
-    all: Optional[LengthValue] = None
+    all_sides: Optional[LengthValue] = None
 ) -> Optional[Rect]:
     """创建Rect对象 - 支持CSS简写形式"""
-    if all is not None:
+    if all_sides is not None:
         # 所有边都相同
-        l = to_length(all)
+        l = to_length(all_sides)
         return Rect(top=l, right=l, bottom=l, left=l)
     
     if all([x is None for x in [top, right, bottom, left]]):
@@ -252,7 +252,7 @@ class LayoutStyle:
             right=self.margin_right,
             bottom=self.margin_bottom,
             left=self.margin_left,
-            all=self.margin
+            all_sides=self.margin
         )
         if margin is not None:
             kwargs['margin'] = margin
@@ -263,7 +263,7 @@ class LayoutStyle:
             right=self.padding_right,
             bottom=self.padding_bottom,
             left=self.padding_left,
-            all=self.padding
+            all_sides=self.padding
         )
         if padding is not None:
             kwargs['padding'] = padding
