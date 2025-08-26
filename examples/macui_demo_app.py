@@ -209,34 +209,33 @@ class MacUIDemo(NSObject):
                 
                 # 数据操作区域
                 VStack(
-                    spacing=10,
+                    spacing=8,
                     children=[
                         Label("🛠️ 数据管理操作"),
                         
-                        # 添加商品
+                        # 添加商品行
                         HStack(
-                            spacing=8,
+                            spacing=12,
                             children=[
                                 Label("新商品："),
                                 self.input_field,
-                                Button("➕ 添加", on_click=self.add_product),
-                                Button("🎲 随机", on_click=self.add_random)
+                                Button("➕ 添加", on_click=self.add_product)
                             ]
                         ),
                         
-                        # 操作按钮
+                        # 基础操作行
                         HStack(
-                            spacing=10,
+                            spacing=12,  
                             children=[
+                                Button("🎲 随机添加", on_click=self.add_random),
                                 Button("✏️ 编辑选中", on_click=self.edit_selected),
-                                Button("🗑️ 删除选中", on_click=self.delete_selected),
-                                Button("🗑️ 删除最后", on_click=self.delete_last)
+                                Button("🗑️ 删除选中", on_click=self.delete_selected)
                             ]
                         ),
                         
-                        # 批量操作
+                        # 批量操作行
                         HStack(
-                            spacing=10,
+                            spacing=12,
                             children=[
                                 Button("📊 生成测试数据", on_click=self.generate_data),
                                 Button("🧹 清空所有", on_click=self.clear_all),
