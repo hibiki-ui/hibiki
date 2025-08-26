@@ -1,13 +1,50 @@
-# macUI 组件示例
+# macUI Examples
 
-这个文件夹包含了各种 macUI 组件的示例和测试代码。
+macUI v2框架的完整示例集合，按功能分类组织。
 
-## 示例目录
+## 📁 目录结构 (更新于 2025-08-26)
 
-### 核心功能示例
+### 🔰 [basic/](basic/) - 基础示例
+最适合初学者，展示macUI的核心概念：
+- **counter.py** - 响应式计数器（推荐入门）
+- **test_enhanced_textfield.py** - 文本输入处理
+
+### 🎛️ [input/](input/) - 输入控件示例  
+各种用户输入方式：
+- **test_slider.py** - 滑块控件完整演示
+- **test_selection_controls.py** - 选择控件集合
+
+### 📺 [display/](display/) - 显示控件示例
+内容展示和进度指示：
+- **test_textarea_progressbar.py** - 文本区域和进度条
+
+### 📐 [layout/](layout/) - 布局示例
+界面布局和组织：
+- **test_stage3_layout.py** - 高级堆叠布局
+
+### 🔧 [complex/](complex/) - 复杂控件示例
+高级UI组件：
+- **test_splitview_only.py** - 分割视图
+- **test_tabview_only.py** - 标签页视图
+- **test_outlineview_only.py** - 大纲/树形视图
+
+### 🗂️ [tableview/](tableview/) - TableView专项示例
+TableView相关的所有工作示例（解决约束冲突问题后）：
+- **simple_pure_tableview.py** - 纯PyObjC实现（推荐）
+- **advanced_pure_tableview_simple.py** - 高级功能演示
+
+## 🚀 快速开始
+
+### 推荐学习路径
+1. **新手**: `basic/counter.py` → `basic/test_enhanced_textfield.py`
+2. **进阶**: `input/test_slider.py` → `layout/test_stage3_layout.py` 
+3. **高级**: `complex/` 目录下的复杂控件
+4. **TableView**: `tableview/` 目录下的专项示例
+
+### 核心功能示例 (已移至 basic/)
 
 #### Counter 计数器应用
-- **文件**: `counter.py`
+- **文件**: `basic/counter.py`
 - **功能**: 展示 macUI 的核心响应式系统
 - **特性**:
   - 基础计数器: Signal、Computed、Effect 系统演示
@@ -15,102 +52,40 @@
   - 响应式编程模型完整展示
   - 组件系统和布局管理
 
-### 组件功能示例
+## 🎯 运行示例
 
-#### TextField 增强功能
-- **文件**: `test_enhanced_textfield.py`
-- **功能**: 展示 TextField 的所有增强功能
-- **特性**:
-  - 基础文本输入和双向绑定
-  - 密码框（文本隐藏）
-  - 邮箱验证（必须包含@和.）
-  - 电话号码自动格式化
-  - 回车键和焦点事件
-  - 最大长度限制
-  - 工具提示
-
-#### Slider 滑块控件
-- **文件**: `test_slider.py`
-- **功能**: 展示 Slider 的各种配置
-- **特性**:
-  - 基础滑块（0-100）
-  - 音量滑块（步长5）
-  - 温度滑块（负数范围）
-  - 精密滑块（步长0.25）
-  - 垂直滑块
-  - 双向数据绑定
-  - 工具提示
-
-#### TextArea 和 ProgressBar
-- **文件**: `test_textarea_progressbar.py`
-- **功能**: 展示多行文本区域和进度条
-- **特性**:
-  - **TextArea**: 多行文本编辑和滚动、双向数据绑定、实时文本统计
-  - **ProgressBar**: 静态进度显示、动态进度更新、不确定进度动画
-  - 响应式UI更新
-
-#### 选择控件 (Checkbox, RadioButton, Switch)
-- **文件**: `test_selection_controls.py`
-- **功能**: 展示各种选择和开关控件
-- **特性**:
-  - **Checkbox**: 多选复选框，独立状态控制
-  - **Switch**: 开关控件，布尔值切换
-  - **RadioButton**: 单选按钮组，互斥选择
-  - 双向数据绑定和实时状态更新
-  - 批量控制功能（切换所有、重置所有）
-  - 完整的事件回调和工具提示
-
-#### 高级选择控件 (SegmentedControl, PopUpButton)
-- **文件**: `test_advanced_controls.py`
-- **功能**: 展示高级选择和下拉控件
-- **特性**:
-  - **SegmentedControl**: 分段选择控件，适合显示3-5个选项
-  - **PopUpButton**: 下拉选择按钮，适合多个选项的列表选择
-  - 双向数据绑定和实时状态更新
-  - 批量控制功能（随机设置、重置所有）
-  - 完整的选项管理和事件回调
-
-#### 第二阶段剩余组件 (ComboBox, Menu, DatePicker, TimePicker)
-- **文件**: `test_stage2_remaining.py`
-- **功能**: 展示第二阶段剩余的组件功能
-- **特性**:
-  - **ComboBox**: 可编辑组合框，支持搜索建议和分类选择
-  - **Menu/ContextMenu**: 菜单系统，主菜单和右键菜单
-  - **DatePicker**: 日期选择器，支持多种样式（文本框、步进器、日历）
-  - **TimePicker**: 时间选择器，基于DatePicker实现
-  - 双向数据绑定和实时状态更新
-  - 完整的事件处理和工具提示
-  - 响应式UI更新
-
-#### 第三阶段布局组件 (TabView, SplitView, TableView, OutlineView)
-- **文件**: `test_stage3_layout.py`
-- **功能**: 展示第三阶段布局容器组件
-- **特性**:
-  - **TabView**: 标签页视图，支持多个标签页和内容切换
-  - **SplitView**: 分割视图，水平/垂直分割，可调整大小
-  - **TableView**: 表格视图，多列显示，支持选择、双击、动态数据
-  - **OutlineView**: 大纲视图，树形结构，可展开/收缩层级数据
-  - 完整的数据源和委托系统
-  - 响应式数据绑定和实时更新
-  - 复杂的组合布局演示
-  - CRUD 操作支持
-
-## 如何运行示例
-
-确保你在项目根目录，然后运行：
-
+### 按分类运行
 ```bash
-# 核心功能示例 - 计数器应用
-uv run python examples/counter.py
+# 基础示例（推荐新手从这里开始）
+uv run python examples/basic/counter.py
+uv run python examples/basic/test_enhanced_textfield.py
 
-# 组件功能示例
-uv run python examples/test_enhanced_textfield.py   # TextField 增强功能
-uv run python examples/test_slider.py               # Slider 控件
-uv run python examples/test_textarea_progressbar.py # TextArea 和 ProgressBar
-uv run python examples/test_selection_controls.py   # 选择控件
-uv run python examples/test_advanced_controls.py    # 高级选择控件
-uv run python examples/test_stage2_remaining.py     # 第二阶段剩余组件
-uv run python examples/test_stage3_layout.py        # 第三阶段布局组件
+# 输入控件示例
+uv run python examples/input/test_slider.py
+uv run python examples/input/test_selection_controls.py
+
+# 显示控件示例
+uv run python examples/display/test_textarea_progressbar.py
+
+# 布局示例
+uv run python examples/layout/test_stage3_layout.py
+
+# 复杂控件示例
+uv run python examples/complex/test_splitview_only.py
+uv run python examples/complex/test_tabview_only.py
+uv run python examples/complex/test_outlineview_only.py
+
+# TableView专项示例（推荐）
+uv run python examples/tableview/simple_pure_tableview.py
+uv run python examples/tableview/advanced_pure_tableview_simple.py
+```
+
+### 遗留未分类示例
+以下示例还未分类整理，保持原有运行方式：
+```bash
+# 第二阶段剩余组件
+uv run python examples/test_stage2_remaining.py     
+uv run python examples/test_advanced_controls.py    
 ```
 
 ## 示例特点

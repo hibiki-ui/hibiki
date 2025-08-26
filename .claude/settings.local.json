@@ -17,7 +17,8 @@
       "Bash(timeout 8 uv run python examples/test_tableview_only.py)",
       "Bash(timeout 8 uv run python examples/test_tabview_only.py)",
       "Bash(timeout 8 uv run:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(timeout 5 uv run:*)"
     ],
     "deny": [],
     "ask": []

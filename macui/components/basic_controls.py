@@ -188,7 +188,7 @@ def Label(
     
     # 文本绑定
     if isinstance(text, (Signal, Computed)):
-        ReactiveBinding.bind(label, "stringValue", text)
+        ReactiveBinding.bind(label, "text", text)
     else:
         label.setStringValue_(str(text))
     

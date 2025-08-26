@@ -36,9 +36,17 @@ uv build
 
 ### Running Examples
 ```bash
-# Run specific examples
-uv run python examples/counter.py
-uv run python examples/advanced_counter.py
+# Basic examples
+uv run python examples/basic/counter.py
+uv run python examples/basic/advanced_counter.py
+
+# Input control examples  
+uv run python examples/input/slider_example.py
+uv run python examples/input/checkbox_example.py
+
+# Layout examples
+uv run python examples/layout/stack_example.py
+uv run python examples/layout/responsive_example.py
 
 # TableView examples (reference implementations)
 uv run python examples/tableview/simple_pure_tableview.py
@@ -116,9 +124,27 @@ class WindowController(NSObject):
   - Working example: `examples/tableview_no_stack_fix.py`
   - Correct usage: `examples/tableview_correct_usage.py`
 
+### Component Organization (Updated 2025-08-26)
+
+Components are now organized by logical groups for better maintainability and Claude Code efficiency:
+
+**File Structure**:
+- `basic_controls.py` (213 lines) - Button, Label, TextField
+- `input_controls.py` (385 lines) - Slider, Switch, Checkbox, RadioButton, SegmentedControl  
+- `selection_controls.py` (224 lines) - PopUpButton, ComboBox, Menu, ContextMenu
+- `display_controls.py` (217 lines) - ImageView, ProgressBar, TextArea
+- `picker_controls.py` (174 lines) - DatePicker, TimePicker
+- `layout.py` (692 lines) - VStack, HStack, ScrollView, TableView, etc.
+
+**API Compatibility**: All imports remain the same - `from macui.components import Button` still works.
+
 ### Working Components
-- ✅ Basic controls (Button, Label, TextField)
-- ✅ Layout components (VStack, HStack)
+- ✅ All basic controls (Button, Label, TextField)
+- ✅ All input controls (Slider, Switch, Checkbox, etc.)
+- ✅ All selection controls (PopUpButton, ComboBox, Menu, etc.)  
+- ✅ All display controls (ImageView, ProgressBar, TextArea)
+- ✅ All picker controls (DatePicker, TimePicker)
+- ✅ Layout components (VStack, HStack, ScrollView)
 - ✅ Reactive system (Signal, Computed, Effect)
 - ✅ Window and app management
 
