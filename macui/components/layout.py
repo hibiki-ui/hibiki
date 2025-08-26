@@ -256,36 +256,73 @@ def VStack(
     if not children:
         children = []
     
+    print(f"\n📐 VStack布局开始: 子视图数={len(children)}, 间距={spacing}, padding={padding}, 对齐={alignment}")
+    if frame:
+        print(f"🎯 VStack指定frame: {frame}")
+    
     # 选择布局策略
     effective_mode = LayoutStrategy.choose_layout_mode(children, layout_mode)
+    print(f"🎯 VStack布局模式决策: 请求={layout_mode} → 生效={effective_mode}")
     
     # 约束布局模式 - 原有行为（适合简单组件）
     if effective_mode == LayoutMode.CONSTRAINTS:
+        print(f"🔧 VStack使用约束布局模式")
         return _create_constraints_vstack(spacing, padding, alignment, children, frame)
     
     # Frame布局模式 - 新功能（适合复杂组件）  
     elif effective_mode == LayoutMode.FRAME:
+        print(f"🔧 VStack使用Frame布局模式")
         return _create_frame_vstack(spacing, padding, alignment, children, frame)
     
     # 混合布局模式 - 智能组合
     else:  # LayoutMode.HYBRID
+        print(f"🔧 VStack使用混合布局模式")
         return _create_hybrid_vstack(spacing, padding, alignment, children, frame)
 
 def _create_constraints_vstack(spacing, padding, alignment, children, frame):
     """创建基于约束的VStack（原有实现）"""
     stack = NSStackView.alloc().init()
-    stack.setOrientation_(NSUserInterfaceLayoutOrientationVertical)
+    # 明确设置为垂直方向（1 = Vertical, 0 = Horizontal）
+    stack.setOrientation_(1)  # 强制设置为Vertical
+    print(f"🔧 VStack强制设置orientation为1 (Vertical)")
+    
+    # 立即验证设置是否生效
+    check_orientation = stack.orientation()
+    print(f"🔍 VStack设置后立即检查orientation: {check_orientation} ({'成功' if check_orientation == 1 else '失败'})")
+    
+    # 按照技术文档: 禁用 Autoresizing Mask 转换
+    stack.setTranslatesAutoresizingMaskIntoConstraints_(False)
     
     # 设置框架
     if frame:
         stack.setFrame_(NSMakeRect(*frame))
+        print(f"🎯 VStack设置frame: {frame}")
 
     # 设置间距
     stack.setSpacing_(spacing)
+    check_after_spacing = stack.orientation()
+    print(f"🔍 VStack设置spacing后orientation: {check_after_spacing}")
 
-    # 设置对齐
-    alignment_constant = ALIGNMENT_MAP.get(alignment, NSLayoutAttributeCenterX)
+    # 设置对齐 - 为VStack使用正确的对齐常量
+    # VStack需要水平方向的对齐常量
+    vstack_alignment_map = {
+        "leading": NSLayoutAttributeLeading,
+        "trailing": NSLayoutAttributeTrailing,
+        "center": NSLayoutAttributeCenterX,  # 垂直布局用水平居中
+        "centerX": NSLayoutAttributeCenterX,
+    }
+    alignment_constant = vstack_alignment_map.get(alignment, NSLayoutAttributeCenterX)
+    print(f"🔧 VStack使用对齐常量: {alignment} → {alignment_constant}")
+    
     stack.setAlignment_(alignment_constant)
+    check_after_alignment = stack.orientation()
+    print(f"🔍 VStack设置alignment后orientation: {check_after_alignment} ({'期望保持1' if check_after_alignment == 1 else '⚠️被改变了!'})")
+
+    # 设置分布方式 - 让子视图根据内容大小自然分布
+    stack.setDistribution_(NSStackViewDistributionGravityAreas)
+    check_after_distribution = stack.orientation()
+    print(f"🔍 VStack设置distribution后orientation: {check_after_distribution}")
+    print(f"📊 VStack distribution设置为: GravityAreas")
 
     # 设置内边距
     if isinstance(padding, (int, float)):
@@ -298,10 +335,52 @@ def _create_constraints_vstack(spacing, padding, alignment, children, frame):
     stack.setEdgeInsets_(insets)
 
     # 添加子视图
-    for child in children:
+    print(f"🚀 创建VStack (约束模式): 将添加 {len(children)} 个子视图")
+    for i, child in enumerate(children):
         child_view = child.get_view() if isinstance(child, Component) else child
         if child_view:
+            # 确保组件有合适的尺寸
+            if hasattr(child_view, 'sizeToFit'):
+                child_view.sizeToFit()
+                size = child_view.frame().size
+                print(f"   📏 子视图 {i+1} sizeToFit后: {size.width:.1f} x {size.height:.1f}")
+                
             stack.addArrangedSubview_(child_view)
+            
+            # 调试信息：记录添加的子视图
+            component_name = ""
+            if hasattr(child_view, '__class__'):
+                component_name = child_view.__class__.__name__
+            if hasattr(child_view, 'title') and child_view.title():
+                component_name += f" ('{child_view.title()}')"
+            elif hasattr(child_view, 'stringValue') and child_view.stringValue():
+                component_name += f" ('{child_view.stringValue()}')"
+                
+            print(f"🔧 VStack添加子视图 {i+1}: {component_name}")
+    
+    # 调试信息：输出VStack配置
+    print(f"📐 VStack配置: spacing={spacing}, alignment={alignment}")
+    print(f"📦 VStack最终frame: {stack.frame()}")
+    actual_orientation = stack.orientation()
+    print(f"🎯 VStack orientation: {actual_orientation} ({'Vertical' if actual_orientation == 1 else 'Horizontal'})")
+    
+    # 强制触发布局更新
+    stack.layoutSubtreeIfNeeded()
+    print(f"🔄 VStack强制触发布局更新")
+    
+    # 检查布局后的子视图位置
+    if hasattr(stack, 'arrangedSubviews'):
+        arranged_views = stack.arrangedSubviews()
+        print(f"🔍 VStack布局更新后检查子视图位置:")
+        for i, subview in enumerate(arranged_views):
+            frame = subview.frame()
+            component_name = subview.__class__.__name__
+            if hasattr(subview, 'title') and subview.title():
+                component_name += f" '{subview.title()}'"
+            elif hasattr(subview, 'stringValue') and subview.stringValue():
+                component_name += f" '{subview.stringValue()}'"
+                
+            print(f"   子视图 {i+1} {component_name}: Frame(x={frame.origin.x:.1f}, y={frame.origin.y:.1f}, w={frame.size.width:.1f}, h={frame.size.height:.1f})")
 
     return stack
 
@@ -309,9 +388,14 @@ def _create_frame_vstack(spacing, padding, alignment, children, frame):
     """创建基于frame的VStack（新实现）"""
     container = NSView.alloc().init()
     
+    print(f"🚀 创建VStack (Frame模式): 将添加 {len(children)} 个子视图")
+    
     # 设置容器frame
     if frame:
         container.setFrame_(NSMakeRect(*frame))
+        print(f"🎯 VStack Frame模式容器frame: {frame}")
+    else:
+        print(f"⚠️  VStack Frame模式没有设置容器frame")
     
     # 解析padding
     if isinstance(padding, (int, float)):
@@ -321,12 +405,18 @@ def _create_frame_vstack(spacing, padding, alignment, children, frame):
     else:
         pad_top = pad_left = pad_bottom = pad_right = 0
     
+    print(f"📏 VStack Frame模式padding: top={pad_top}, left={pad_left}, bottom={pad_bottom}, right={pad_right}")
+    
     # 计算子视图位置
     current_y = container.frame().size.height - pad_top if frame else 0
     container_width = container.frame().size.width if frame else 300
     available_width = container_width - pad_left - pad_right
     
-    for child in children:
+    print(f"📐 VStack Frame模式布局参数:")
+    print(f"   容器宽度: {container_width}, 可用宽度: {available_width}")
+    print(f"   初始Y位置: {current_y}, 间距: {spacing}")
+    
+    for i, child in enumerate(children):
         # 获取子视图
         if hasattr(child, 'get_view'):
             child_view = child.get_view()
@@ -336,10 +426,18 @@ def _create_frame_vstack(spacing, padding, alignment, children, frame):
             child_view = child
         
         if child_view:
+            print(f"🔧 处理子视图 {i+1}: {child_view.__class__.__name__}")
+            
+            # 检查子视图当前frame
+            existing_frame = child_view.frame()
+            print(f"   子视图现有frame: x={existing_frame.origin.x:.1f}, y={existing_frame.origin.y:.1f}, w={existing_frame.size.width:.1f}, h={existing_frame.size.height:.1f}")
+            
             # 如果子视图没有设置frame，为其计算默认frame
             if not hasattr(child_view, 'frame') or child_view.frame().size.width == 0:
                 child_height = 30  # 默认高度
                 child_width = available_width
+                
+                print(f"   子视图需要默认frame，计算中...")
                 
                 # 根据对齐方式计算x位置
                 if alignment == "leading":
@@ -352,33 +450,85 @@ def _create_frame_vstack(spacing, padding, alignment, children, frame):
                 current_y -= child_height
                 child_frame = NSMakeRect(child_x, current_y, child_width, child_height)
                 child_view.setFrame_(child_frame)
+                print(f"   ✅ 设置子视图frame: x={child_x:.1f}, y={current_y:.1f}, w={child_width:.1f}, h={child_height}")
+                current_y -= spacing
+            else:
+                # 子视图已有frame，调整其Y位置以适应VStack布局
+                existing_size = child_view.frame().size
+                
+                # 根据对齐方式计算x位置
+                if alignment == "leading":
+                    child_x = pad_left
+                elif alignment == "trailing":
+                    child_x = container_width - pad_right - existing_size.width
+                else:  # center
+                    child_x = pad_left + (available_width - existing_size.width) / 2
+                
+                current_y -= existing_size.height
+                child_frame = NSMakeRect(child_x, current_y, existing_size.width, existing_size.height)
+                child_view.setFrame_(child_frame)
+                print(f"   ✅ 调整子视图位置: x={child_x:.1f}, y={current_y:.1f}, w={existing_size.width:.1f}, h={existing_size.height:.1f}")
                 current_y -= spacing
             
             container.addSubview_(child_view)
+            print(f"   📦 子视图 {i+1} 已添加到容器")
+    
+    print(f"📦 VStack Frame模式创建完成，最终容器frame: {container.frame()}")
+    print(f"🔍 VStack Frame模式子视图数量: {container.subviews().count() if hasattr(container, 'subviews') else 'Unknown'}")
     
     return container
 
 def _create_hybrid_vstack(spacing, padding, alignment, children, frame):
     """创建混合布局VStack（智能组合）"""
+    print(f"\n🔀 混合VStack开始分析组件 ({len(children)} 个子视图)")
+    
     # 分离简单组件和复杂组件
     simple_children = []
     complex_children = []
     
-    for child in children:
-        if LayoutStrategy.detect_component_type(child) == "complex":
+    for i, child in enumerate(children):
+        child_type = LayoutStrategy.detect_component_type(child)
+        if child_type == "complex":
             complex_children.append(child)
+            # 识别复杂组件类型
+            if hasattr(child, 'get_view'):
+                view = child.get_view()
+                print(f"📊 复杂组件 {i+1}: {view.__class__.__name__} (Component wrapper)")
+            else:
+                print(f"📊 复杂组件 {i+1}: {child.__class__.__name__}")
         else:
             simple_children.append(child)
+            # 识别简单组件类型
+            if hasattr(child, 'get_view'):
+                view = child.get_view()
+                title = ""
+                if hasattr(view, 'title') and view.title():
+                    title = f" ('{view.title()}')"
+                elif hasattr(view, 'stringValue') and view.stringValue():
+                    title = f" ('{view.stringValue()}')"
+                print(f"🔧 简单组件 {i+1}: {view.__class__.__name__}{title} (Component wrapper)")
+            else:
+                title = ""
+                if hasattr(child, 'title') and child.title():
+                    title = f" ('{child.title()}')"
+                elif hasattr(child, 'stringValue') and child.stringValue():
+                    title = f" ('{child.stringValue()}')"
+                print(f"🔧 简单组件 {i+1}: {child.__class__.__name__}{title}")
+    
+    print(f"📈 分析结果: 简单组件={len(simple_children)}, 复杂组件={len(complex_children)}")
     
     # 如果只有复杂组件，使用frame布局
     if complex_children and not simple_children:
+        print(f"🎯 混合VStack决策: 只有复杂组件 → 使用frame布局")
         return _create_frame_vstack(spacing, padding, alignment, children, frame)
     
     # 如果只有简单组件，使用约束布局
     if simple_children and not complex_children:
+        print(f"🎯 混合VStack决策: 只有简单组件 → 使用约束布局")
         return _create_constraints_vstack(spacing, padding, alignment, children, frame)
     
     # 混合情况：创建frame容器，简单组件用VStack，复杂组件直接添加
+    print(f"🎯 混合VStack决策: 混合组件 → 回退到frame布局")
     container = NSView.alloc().init()
     if frame:
         container.setFrame_(NSMakeRect(*frame))
