@@ -402,6 +402,8 @@ Complete project documentation for design decisions, investigations, and archite
 - **Layout System Research Report**: `docs/LAYOUT_SYSTEM_RESEARCH.md` - Comprehensive research on Auto Layout systems, modern frameworks (React Native, Flutter), and architectural recommendations for professional layout implementation
 - **Layout Problem Investigation**: `docs/LAYOUT_PROBLEM_INVESTIGATION.md` - Detailed technical investigation of NSStackView negative coordinate positioning bugs, systematic debugging process, and emergency fixes applied
 - **Layout Engine v3.0 Implementation**: `docs/LAYOUT_ENGINE_V3_IMPLEMENTATION.md` - Complete implementation report for the professional Stretchable-based layout system (方案B), including architecture, performance metrics, and technical achievements
+- **Component Refactoring Plan**: `docs/COMPONENT_REFACTORING_PLAN.md` - Comprehensive plan for refactoring existing components to work with the new layout system, including prioritization, migration strategies, and implementation roadmap
+- **Component Refactoring Progress**: `docs/COMPONENT_REFACTORING_PROGRESS.md` - First phase completion report for LayoutAwareComponent base class and modern component implementation, including technical details, test results, and next phase planning
 
 ## Current Development Focus
 
