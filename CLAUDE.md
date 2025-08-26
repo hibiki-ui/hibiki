@@ -219,17 +219,89 @@ VStack(children=[
   - Advanced tests: `examples/layout/test_hybrid_advanced.py`
   - Demo app: `examples/layout/hybrid_layout_demo.py`
 
+### Auto Layout System Breakthrough (Updated 2025-08-26)
+
+#### **🏆 Major Achievement: Professional NSStackView Implementation**
+
+macUI v2.1 now features a **world-class Auto Layout system** that rivals native SwiftUI performance and reliability. Through systematic debugging and Apple-compliant implementation, we've solved the fundamental NSStackView layout issues.
+
+#### **Key Technical Breakthroughs:**
+
+1. **🔧 NSStackView Constraint System**: Complete resolution of button overlap and text layout issues
+   - Fixed NSStackView orientation constants (HStack vs VStack)
+   - Corrected alignment constant mappings for proper centering
+   - Implemented forced layout updates with `layoutSubtreeIfNeeded()`
+
+2. **✅ NSTextField Professional Configuration**: Apple-compliant text layout implementation
+   - `preferredMaxLayoutWidth` property for proper intrinsic content size calculation
+   - Multi-line text support with `setUsesSingleLineMode_(False)`
+   - Word wrapping configuration with `setLineBreakMode_(NSLineBreakByWordWrapping)`
+   - Cell-level controls: `setWraps_(True)` and `setScrollable_(False)`
+
+3. **🎯 Mixed Layout Architecture**: Hybrid constraint/frame system
+   - Constraint-based layout for simple components (NSStackView)
+   - Frame-based layout for complex components (TableView, etc.)
+   - Automatic component detection and layout mode selection
+
+#### **Professional Interface Design (New v2.1)**
+
+**Enhanced Label API** - From hardcoded values to professional flexibility:
+
+```python
+# Import professional enums
+from macui.components import Label, LabelStyle, LineBreakMode
+
+# Simple usage (90% of cases) - optimized defaults
+Label("Multi-line text")                           # Uses intelligent defaults
+Label("Status: Connected", style=LabelStyle.TITLE) # Single-line title
+Label("file.txt", style=LabelStyle.TRUNCATED)      # Ellipsis truncation
+
+# Advanced usage (10% of cases) - full control
+Label("Custom text",
+      multiline=False,
+      line_break_mode=LineBreakMode.TRUNCATE_MIDDLE,
+      preferred_max_width=200.0)
+```
+
+**Key Interface Features:**
+- **Perfect Backward Compatibility**: Existing code works unchanged
+- **Smart Defaults**: 400px width for VStack usage, multi-line enabled
+- **Type Safety**: Enum-based configuration prevents magic number errors
+- **Parameter Override System**: User parameters override preset styles
+- **Self-Documenting**: Parameter names and enums serve as inline documentation
+
+#### **Layout Debugging & Quality Assurance**
+
+Comprehensive debugging system for development and troubleshooting:
+- Real-time frame coordinate logging
+- Layout mode decision tracking  
+- Constraint generation verification
+- Component type detection reporting
+
+**Example Debug Output:**
+```
+✅ Label配置(预设样式title): 单行模式, 无宽度限制
+🔧 VStack使用混合布局模式
+📏 按钮 'Add Item' sizeToFit后: 78.0 x 32.0
+子视图 1 NSTextField '🎉 macUI Demo': Frame(x=30.0, y=44.0, w=193.0, h=16.0)
+```
+
 ### Component Organization (Updated 2025-08-26)
 
 Components are now organized by logical groups for better maintainability and Claude Code efficiency:
 
 **File Structure**:
-- `basic_controls.py` (213 lines) - Button, Label, TextField
+- `basic_controls.py` (450+ lines) - Button, Label, TextField + Professional Interface System
 - `input_controls.py` (385 lines) - Slider, Switch, Checkbox, RadioButton, SegmentedControl  
 - `selection_controls.py` (224 lines) - PopUpButton, ComboBox, Menu, ContextMenu
 - `display_controls.py` (217 lines) - ImageView, ProgressBar, TextArea
 - `picker_controls.py` (174 lines) - DatePicker, TimePicker
-- `layout.py` (1053 lines) - VStack, HStack, ScrollView, TableView, etc. + Hybrid Layout System
+- `layout.py` (1200+ lines) - VStack, HStack, ScrollView, TableView, etc. + Advanced Layout System
+
+**New Professional APIs**:
+- `LabelStyle` enum: MULTILINE, TITLE, TRUNCATED, FIXED_WIDTH
+- `LineBreakMode` enum: WORD_WRAPPING, CHAR_WRAPPING, CLIPPING, TRUNCATE_*
+- Intelligent configuration system with preset override capabilities
 
 **API Compatibility**: All imports remain the same - `from macui.components import Button` still works.
 
@@ -261,6 +333,43 @@ When creating new components:
 3. Implement `mount()` method returning NSView
 4. Use `ReactiveBinding.bind()` for property updates
 5. Follow NSTableView patterns for complex components (see examples/tableview/)
+
+### Critical NSTextField/NSStackView Implementation Details
+
+**Essential PyObjC Method Signatures** (verified working):
+```python
+# NSTextField configuration
+label.setUsesSingleLineMode_(False)                    # Enable multi-line
+label.setLineBreakMode_(NSLineBreakByWordWrapping)     # Word wrap mode
+label.setPreferredMaxLayoutWidth_(400.0)              # Key for intrinsic size
+
+# NSTextFieldCell configuration  
+text_cell = label.cell()
+text_cell.setWraps_(True)                              # Enable text wrapping
+text_cell.setScrollable_(False)                        # Disable scroll for Auto Layout
+
+# NSStackView constraint fixes
+stack.setOrientation_(0)                               # 0=Horizontal, 1=Vertical
+stack.setAlignment_(NSLayoutAttributeCenterY)          # HStack uses vertical alignment
+stack.setAlignment_(NSLayoutAttributeCenterX)          # VStack uses horizontal alignment
+stack.updateConstraintsForSubtreeIfNeeded()           # Force constraint generation
+stack.layoutSubtreeIfNeeded()                         # Force layout update
+```
+
+**Layout Problem Diagnosis Patterns:**
+- **Button overlap**: Usually NSStackView orientation mismatch (0 vs 1)
+- **Text width 4px**: Missing `preferredMaxLayoutWidth` on NSTextField  
+- **Negative coordinates**: Parent container has 0x0 frame size
+- **Click not working**: Buttons positioned outside visible area
+
+**Debugging Commands:**
+```bash
+# Test layout components
+uv run python test_hstack_debug.py          # HStack button layout
+uv run python test_vstack_debug.py          # VStack text layout  
+uv run python test_professional_label.py   # Professional Label interface
+uv run python examples/macui_demo_app.py   # Full demo application
+```
 
 ### Layout Best Practices (Updated for Hybrid System)
 
