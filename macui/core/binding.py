@@ -395,6 +395,42 @@ class TwoWayBinding:
         # 返回清理函数
         return lambda: None
 
+    @staticmethod
+    def bind_combo_box(combo: Any, signal: Signal[str]) -> Callable[[], None]:
+        """为ComboBox创建双向绑定"""
+        # 单向绑定：signal -> combo box
+        def update_combo_text():
+            combo.setStringValue_(signal.value)
+        
+        from .signal import Effect
+        effect = Effect(update_combo_text)
+        
+        # 反向绑定：combo -> signal (通过委托处理)
+        existing_delegate = combo.delegate()
+        if existing_delegate and hasattr(existing_delegate, 'signal'):
+            existing_delegate.signal = signal
+
+        # 返回清理函数
+        return lambda: None
+
+    @staticmethod
+    def bind_date_picker(picker: Any, signal) -> Callable[[], None]:
+        """为DatePicker创建双向绑定"""
+        # 单向绑定：signal -> date picker
+        def update_date():
+            picker.setDateValue_(signal.value)
+        
+        from .signal import Effect
+        effect = Effect(update_date)
+        
+        # 反向绑定：picker -> signal (通过委托处理)
+        existing_delegate = picker.delegate()
+        if existing_delegate and hasattr(existing_delegate, 'signal'):
+            existing_delegate.signal = signal
+
+        # 返回清理函数
+        return lambda: None
+
 
 class EnhancedPopUpDelegate(NSObject):
     """增强的下拉按钮委托"""
@@ -763,3 +799,134 @@ class EventBinding:
         objc.setAssociatedObject(text_field, b"text_delegate", delegate, objc.OBJC_ASSOCIATION_RETAIN)
 
         return delegate
+
+
+class EnhancedComboBoxDelegate(NSObject):
+    """增强的 ComboBox 委托类，处理文本变更和选择事件"""
+    
+    def init(self):
+        self = super(EnhancedComboBoxDelegate, self).init()
+        if self is None:
+            return None
+            
+        self.signal = None
+        self.on_change = None
+        self.on_select = None
+        
+        logger.info("🎛️ ComboBox委托对象已初始化")
+        return self
+    
+    def comboBoxSelectionDidChange_(self, notification):
+        """ComboBox 选择发生变化"""
+        combo_box = notification.object()
+        selected_index = combo_box.indexOfSelectedItem()
+        selected_text = combo_box.stringValue()
+        
+        logger.info(f"🎛️ ComboBox选择变化 - 索引: {selected_index}, 文本: '{selected_text}'")
+        
+        # 更新信号（如果绑定的是文本）
+        if self.signal and hasattr(self.signal, "value"):
+            self.signal.value = selected_text
+            
+        # 调用选择变更处理器
+        if self.on_select:
+            try:
+                self.on_select(selected_index, selected_text)
+            except Exception as e:
+                logger.error(f"🎛️ 选择处理器错误: {e}")
+    
+    def controlTextDidChange_(self, notification):
+        """文本输入发生变化（可编辑模式）"""
+        combo_box = notification.object()
+        new_value = combo_box.stringValue()
+        
+        logger.info(f"🎛️ ComboBox文本变化: '{new_value}'")
+        
+        # 更新信号
+        if self.signal and hasattr(self.signal, "value"):
+            self.signal.value = new_value
+            
+        # 调用变更处理器
+        if self.on_change:
+            try:
+                self.on_change(new_value)
+            except Exception as e:
+                logger.error(f"🎛️ 文本变更处理器错误: {e}")
+    
+    def controlTextDidEndEditing_(self, notification):
+        """文本编辑结束"""
+        logger.info("🎛️ ComboBox文本编辑结束")
+
+
+class EnhancedMenuItemDelegate(NSObject):
+    """增强的 MenuItem 委托类，处理菜单项点击事件"""
+    
+    def init(self):
+        self = super(EnhancedMenuItemDelegate, self).init()
+        if self is None:
+            return None
+            
+        self.on_click = None
+        self.item_id = None
+        
+        logger.info("📋 MenuItem委托对象已初始化")
+        return self
+    
+    def menuItemClicked_(self, sender):
+        """菜单项被点击"""
+        logger.info(f"📋 菜单项被点击: {self.item_id}")
+        
+        # 调用点击处理器
+        if self.on_click:
+            try:
+                self.on_click(self.item_id, sender)
+            except Exception as e:
+                logger.error(f"📋 菜单项点击处理器错误: {e}")
+
+
+class EnhancedDatePickerDelegate(NSObject):
+    """增强的 DatePicker 委托类，处理日期时间变更事件"""
+    
+    def init(self):
+        self = super(EnhancedDatePickerDelegate, self).init()
+        if self is None:
+            return None
+            
+        self.signal = None
+        self.on_change = None
+        
+        logger.info("📅 DatePicker委托对象已初始化")
+        return self
+    
+    def datePickerCell_dateChanged_(self, cell, date):
+        """日期选择器日期变更"""
+        logger.info(f"📅 DatePicker日期变更: {date}")
+        
+        # 更新信号
+        if self.signal and hasattr(self.signal, "value"):
+            self.signal.value = date
+            
+        # 调用变更处理器
+        if self.on_change:
+            try:
+                self.on_change(date)
+            except Exception as e:
+                logger.error(f"📅 日期变更处理器错误: {e}")
+    
+    def controlTextDidChange_(self, notification):
+        """文本输入模式的日期变更"""
+        date_picker = notification.object()
+        date = date_picker.dateValue()
+        
+        logger.info(f"📅 DatePicker文本日期变更: {date}")
+        
+        # 更新信号
+        if self.signal and hasattr(self.signal, "value"):
+            self.signal.value = date
+            
+        # 调用变更处理器
+        if self.on_change:
+            try:
+                self.on_change(date)
+            except Exception as e:
+                logger.error(f"📅 文本日期变更处理器错误: {e}")

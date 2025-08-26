@@ -70,6 +70,18 @@
   - 批量控制功能（随机设置、重置所有）
   - 完整的选项管理和事件回调
 
+#### 第二阶段剩余组件 (ComboBox, Menu, DatePicker, TimePicker)
+- **文件**: `test_stage2_remaining.py`
+- **功能**: 展示第二阶段剩余的组件功能
+- **特性**:
+  - **ComboBox**: 可编辑组合框，支持搜索建议和分类选择
+  - **Menu/ContextMenu**: 菜单系统，主菜单和右键菜单
+  - **DatePicker**: 日期选择器，支持多种样式（文本框、步进器、日历）
+  - **TimePicker**: 时间选择器，基于DatePicker实现
+  - 双向数据绑定和实时状态更新
+  - 完整的事件处理和工具提示
+  - 响应式UI更新
+
 ## 如何运行示例
 
 确保你在项目根目录，然后运行：
@@ -84,6 +96,7 @@ uv run python examples/test_slider.py               # Slider 控件
 uv run python examples/test_textarea_progressbar.py # TextArea 和 ProgressBar
 uv run python examples/test_selection_controls.py   # 选择控件
 uv run python examples/test_advanced_controls.py    # 高级选择控件
+uv run python examples/test_stage2_remaining.py     # 第二阶段剩余组件
 ```
 
 ## 示例特点
