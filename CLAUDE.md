@@ -91,6 +91,84 @@ double = Computed(lambda: count.value * 2)
 effect = Effect(lambda: print(f"Count: {count.value}"))
 ```
 
+## Hybrid Layout System (New in v2.1)
+
+The framework now features a revolutionary **Hybrid Layout System** that automatically resolves the TableView constraint conflicts and provides seamless layout capabilities.
+
+### Key Features
+
+1. **Automatic Component Detection**: Intelligently detects simple vs complex components
+2. **Dynamic Layout Selection**: Automatically chooses the best layout strategy
+3. **Zero Breaking Changes**: Existing code continues to work unchanged
+4. **Enhanced Capabilities**: Complex components now work in VStack/HStack
+
+### Layout Modes
+
+```python
+from macui.components import VStack, LayoutMode
+
+# Auto mode (default) - intelligent selection
+VStack(children=[...])  # layout_mode="auto" implicit
+
+# Force specific modes
+VStack(layout_mode=LayoutMode.CONSTRAINTS, children=[...])  # NSStackView
+VStack(layout_mode=LayoutMode.FRAME, children=[...])       # NSView + frame
+VStack(layout_mode=LayoutMode.HYBRID, children=[...])      # Smart combination
+```
+
+### Component Classification
+
+- **Simple Components**: Button, Label, TextField, Slider, etc. → Constraints layout
+- **Complex Components**: TableView, OutlineView, SplitView, etc. → Frame layout
+
+### Usage Examples
+
+```python
+# Simple components - uses efficient NSStackView (unchanged behavior)
+VStack(children=[
+    Label("Title"),
+    Button("Click Me"),
+    TextField(value="Input")
+])
+
+# Complex components - automatically switches to frame layout
+VStack(children=[
+    Label("Data Management"),
+    TableView(columns=..., data=...),    # ✅ Now works!
+    HStack(children=[
+        Button("Add Row"), 
+        Button("Delete Row")
+    ])
+])
+
+# Manual frame layout for precise control
+FrameContainer(
+    frame=(0, 0, 400, 300),
+    children=[
+        TableView(frame=(10, 50, 380, 200), ...),
+        Button(frame=(10, 10, 100, 30), ...)
+    ]
+)
+
+# Responsive frame calculations
+frame = ResponsiveFrame(x=0, y=0, width=100, height=50)
+frame.relative_to_parent(parent, width_ratio=0.8, height_ratio=0.6)
+```
+
+### Migration Path
+
+**For Simple Applications**: No changes required! Existing code works identically.
+
+**For Complex Applications**: Simply use TableView in VStack/HStack - it now works automatically!
+
+```python
+# Before (would crash):
+# VStack(children=[TableView(...)])  # ❌ NSLayoutConstraintNumberExceedsLimit
+
+# After (works perfectly):
+VStack(children=[TableView(...)])     # ✅ Automatic frame layout
+```
+
 ## PyObjC Best Practices
 
 All PyObjC applications in this project must follow the 4 core requirements:
@@ -114,15 +192,32 @@ class WindowController(NSObject):
 
 ## Known Issues
 
-### TableView Component (SOLVED)
-- **Status**: ✅ Root cause identified and solved
-- **Problem**: `NSLayoutConstraintNumberExceedsLimit` error when TableView used in VStack/HStack
-- **Root Cause**: NSStackView constraint system conflicts with NSTableView internal constraints
-- **Solution**: Never put TableView inside VStack/HStack - use simple NSView containers instead
-- **Files**: 
-  - Solution report: `TABLEVIEW_SOLUTION_REPORT.md`
-  - Working example: `examples/tableview_no_stack_fix.py`
-  - Correct usage: `examples/tableview_correct_usage.py`
+### TableView Component & Hybrid Layout System (FULLY SOLVED)
+- **Status**: ✅ Completely resolved with hybrid layout system
+- **Old Problem**: `NSLayoutConstraintNumberExceedsLimit` error when TableView used in VStack/HStack
+- **Revolutionary Solution**: Hybrid Layout System automatically handles complex components
+- **New Capability**: TableView now works seamlessly in VStack/HStack!
+
+**🎉 What's New:**
+```python
+# This now works perfectly! 🎉
+VStack(children=[
+    Label("Data Table"),
+    TableView(columns=..., data=...),  # ✅ No more crashes!
+    HStack(children=[Button("Add"), Button("Delete")])
+])
+```
+
+**Technical Implementation:**
+- Automatic component type detection (simple vs complex)
+- Dynamic layout mode selection (constraints vs frame vs hybrid)
+- Zero-cost abstraction for simple applications
+- Seamless upgrade path for complex applications
+
+**Test Files:**
+  - Basic tests: `examples/layout/test_hybrid_basic.py`
+  - Advanced tests: `examples/layout/test_hybrid_advanced.py`
+  - Demo app: `examples/layout/hybrid_layout_demo.py`
 
 ### Component Organization (Updated 2025-08-26)
 
@@ -134,7 +229,7 @@ Components are now organized by logical groups for better maintainability and Cl
 - `selection_controls.py` (224 lines) - PopUpButton, ComboBox, Menu, ContextMenu
 - `display_controls.py` (217 lines) - ImageView, ProgressBar, TextArea
 - `picker_controls.py` (174 lines) - DatePicker, TimePicker
-- `layout.py` (692 lines) - VStack, HStack, ScrollView, TableView, etc.
+- `layout.py` (1053 lines) - VStack, HStack, ScrollView, TableView, etc. + Hybrid Layout System
 
 **API Compatibility**: All imports remain the same - `from macui.components import Button` still works.
 
@@ -167,27 +262,22 @@ When creating new components:
 4. Use `ReactiveBinding.bind()` for property updates
 5. Follow NSTableView patterns for complex components (see examples/tableview/)
 
-### Critical Layout Constraint Rules
+### Layout Best Practices (Updated for Hybrid System)
 
-**❌ NEVER do this:**
+With the new Hybrid Layout System, complex component usage is now seamless:
+
+**✅ Now fully supported:**
 ```python
 VStack(children=[
-    TableView(...)  # Will cause NSLayoutConstraintNumberExceedsLimit crash
+    TableView(...)  # ✅ Works perfectly with hybrid layout!
 ])
 ```
 
-**✅ Correct approach:**
-```python
-# Use simple NSView container with frame-based layout
-container = NSView.alloc().init()
-table = TableView(columns=..., frame=(x, y, w, h))
-container.addSubview_(table)
-```
-
-### Complex Component Guidelines
-- Components with internal constraint systems (like TableView) should use `translatesAutoresizingMaskIntoConstraints=True`
-- Never put NSScrollView/NSTableView inside NSStackView-based layouts
-- Use frame-based layout for complex components that manage their own constraints
+**🎯 Layout Guidelines:**
+- Simple components automatically use efficient constraint-based layout
+- Complex components automatically switch to frame-based layout
+- Manual layout control available when needed via `layout_mode` parameter
+- Responsive frame calculations for advanced positioning
 
 ## Testing Strategy
 
@@ -198,7 +288,8 @@ container.addSubview_(table)
 
 ## Current Development Focus
 
-1. **Fix TableView**: Resolve constraint conflicts in layout.py:460-578
+1. **✅ TableView & Layout Issues**: Fully resolved with Hybrid Layout System v2.1
 2. **Component Library**: Expand available UI components
-3. **Documentation**: Complete API documentation
+3. **Documentation**: Complete API documentation 
 4. **Performance**: Optimize batch updates and memory usage
+5. **Advanced Features**: Enhanced responsive layout capabilities

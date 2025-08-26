@@ -15,8 +15,12 @@ from .display_controls import ImageView, ProgressBar, TextArea
 # Export picker control components
 from .picker_controls import DatePicker, TimePicker
 
-# Export layout components
-from .layout import HStack, OutlineView, ResponsiveStack, ScrollView, SplitView, TableView, TabView, VStack, ZStack
+# Export layout components  
+from .layout import (
+    HStack, OutlineView, ResponsiveStack, ScrollView, SplitView, TableView, TabView, VStack, ZStack,
+    # 混合布局系统
+    FrameContainer, LayoutMode, ResponsiveFrame
+)
 
 __all__ = [
     # Control components
@@ -40,7 +44,7 @@ __all__ = [
 
     # Layout components
     "VStack",
-    "HStack",
+    "HStack", 
     "ZStack",
     "ScrollView",
     "ResponsiveStack",
@@ -48,4 +52,9 @@ __all__ = [
     "SplitView",
     "TableView",
     "OutlineView",
+    
+    # 混合布局系统
+    "FrameContainer",
+    "LayoutMode", 
+    "ResponsiveFrame",
 ]
