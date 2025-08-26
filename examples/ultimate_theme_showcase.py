@@ -141,10 +141,13 @@ class UltimateThemeShowcase(Component):
             print(f"❌ 加载日落主题失败: {e}")
     
     def toggle_style_animation(self):
-        """切换样式动画"""
-        print(f"🎬 toggle_style_animation被调用: {self.style_animation.value} -> {not self.style_animation.value}")
-        self.style_animation.value = not self.style_animation.value
-        print(f"🎬 动画状态已更新为: {self.style_animation.value}")
+        """切换状态（无动画版本）"""
+        old_value = self.style_animation.value
+        new_value = not old_value
+        print(f"🔄 BUTTON_CLICK: toggle_style_animation被调用: {old_value} -> {new_value}")
+        self.style_animation.value = new_value
+        print(f"🔄 BUTTON_CLICK: 状态已更新为: {self.style_animation.value}")
+        print("🔄 BUTTON_CLICK: 切换完成！")
     
     def toggle_card_elevation(self):
         """切换卡片提升效果"""
@@ -242,36 +245,35 @@ class UltimateThemeShowcase(Component):
         # 创建独立的按钮，不嵌套在复杂VStack中
         def create_animation_button():
             animation_button = Button(
-                "开始动画测试",  # 更明确的标题
+                "切换到激活",  # 无动画版本的标题
                 on_click=self.toggle_style_animation,
                 frame=(0, 0, 150, 40)  # 更大的按钮尺寸
             )
-            print(f"🔧 动画按钮已创建: {animation_button}")
+            print(f"🔧 状态切换按钮已创建（无动画）: {animation_button}")
             return animation_button
         
         animation_button = create_animation_button()
         
-        # 状态指示标签
+        # 状态指示标签 - 无动画版本
         status_label = Label(
-            "🎭 点击按钮测试动画效果",
+            "⭕ 状态：关闭（无动画测试）",
             font=current_theme().font(TextStyle.HEADLINE)
         )
         
-        # 简化的响应式更新
+        # 完全无动画的简化更新 - 只改变文本，无任何样式效果
         def update_card_style():
             animated = self.style_animation.value
             print(f"🔄 update_card_style被调用，animated={animated}")
             
             if animated:
-                status_label.setStringValue_("🚀 动画已激活！")
-                status_label.setTextColor_(theme_color(ColorRole.ACCENT_COLOR).value)
-                animation_button.setTitle_("停止动画")
-                print("📝 UI已更新为动画状态")
+                # 只更改文本，不应用任何颜色或样式效果
+                status_label.setStringValue_("✅ 状态已切换：激活")
+                animation_button.setTitle_("切换到关闭")
+                print("📝 文本已更新为激活状态（无动画效果）")
             else:
-                status_label.setStringValue_("🎭 点击按钮测试动画效果")
-                status_label.setTextColor_(theme_color(ColorRole.PRIMARY_TEXT).value)
-                animation_button.setTitle_("开始动画测试")
-                print("📝 UI已更新为默认状态")
+                status_label.setStringValue_("⭕ 状态已切换：关闭")
+                animation_button.setTitle_("切换到激活")
+                print("📝 文本已更新为关闭状态（无动画效果）")
         
         self.create_effect(update_card_style)
         # 强制初始调用
@@ -280,10 +282,10 @@ class UltimateThemeShowcase(Component):
         # 简化的布局 - 减少嵌套层级
         return VStack(
             children=[
-                Label("🎨 样式组合系统", font=current_theme().font(TextStyle.TITLE_2)),
+                Label("🎨 状态切换系统（无动画）", font=current_theme().font(TextStyle.TITLE_2)),
                 status_label,
                 animation_button,  # 直接添加按钮，减少嵌套
-                Label("💡 测试按钮交互功能", font=current_theme().font(TextStyle.FOOTNOTE))
+                Label("💡 测试按钮是否可点击（已移除动画效果）", font=current_theme().font(TextStyle.FOOTNOTE))
             ],
             spacing=theme_spacing('md'),
             alignment="center"  # 居中对齐让按钮更显眼
@@ -291,6 +293,7 @@ class UltimateThemeShowcase(Component):
     
     def create_tokens_showcase(self) -> VStack:
         """创建设计令牌展示"""
+        print("📐 开始创建设计令牌展示...")
         tokens = current_theme().design_tokens
         
         spacing_demo = HStack(
@@ -309,7 +312,7 @@ class UltimateThemeShowcase(Component):
             font=current_theme().font(TextStyle.BODY)
         )
         
-        return VStack(
+        result = VStack(
             children=[
                 Label("📐 设计令牌系统", font=current_theme().font(TextStyle.TITLE_2)),
                 Label("📏 间距系统:", font=current_theme().font(TextStyle.HEADLINE)),
@@ -322,9 +325,12 @@ class UltimateThemeShowcase(Component):
             spacing=theme_spacing('md'),
             alignment="leading"
         )
+        print(f"📐 设计令牌展示已创建: {result}")
+        return result
     
     def create_features_list(self) -> VStack:
         """创建功能特性列表"""
+        print("🚀 开始创建功能特性列表...")
         features = [
             "✅ 响应式颜色 - 实时跟随主题变化",
             "✅ 样式组合 - 可扩展、可合并的样式对象", 
@@ -341,7 +347,7 @@ class UltimateThemeShowcase(Component):
             for feature in features
         ]
         
-        return VStack(
+        result = VStack(
             children=[
                 Label("🚀 增强主题系统特性", font=current_theme().font(TextStyle.TITLE_2)),
                 *feature_labels,
@@ -350,38 +356,42 @@ class UltimateThemeShowcase(Component):
             spacing=theme_spacing('xs'),
             alignment="leading"
         )
+        print(f"🚀 功能特性列表已创建: {result}, 特性数量={len(features)}")
+        return result
     
     def mount(self):
         """挂载应用"""
         # 主题选择器
         theme_selector = self.create_theme_selector()
         
-        # 演示内容区域
-        demo_content = HStack(
+        # 演示内容区域 - 添加详细坐标调试
+        print("🚀 开始创建主要演示内容HStack...")
+        left_section = VStack(
             children=[
-                # 左侧：颜色和样式
-                VStack(
-                    children=[
-                        self.create_color_showcase(),
-                        self.create_style_showcase()
-                    ],
-                    spacing=theme_spacing('xl'),
-                    alignment="leading"
-                ),
-                
-                # 右侧：令牌和特性
-                VStack(
-                    children=[
-                        self.create_tokens_showcase(),
-                        self.create_features_list()
-                    ],
-                    spacing=theme_spacing('xl'),
-                    alignment="leading"
-                )
+                self.create_color_showcase(),
+                self.create_style_showcase()
             ],
+            spacing=theme_spacing('xl'),
+            alignment="leading"
+        )
+        print(f"✅ 左侧VStack已创建: {left_section}")
+        
+        right_section = VStack(
+            children=[
+                self.create_tokens_showcase(),
+                self.create_features_list()
+            ],
+            spacing=theme_spacing('xl'),
+            alignment="leading"
+        )
+        print(f"✅ 右侧VStack已创建: {right_section}")
+        
+        demo_content = HStack(
+            children=[left_section, right_section],
             spacing=theme_spacing('xxl'),
             alignment="top"  # 确保左右两侧顶部对齐
         )
+        print(f"🎯 主要HStack已创建: {demo_content}, 子视图数=2")
         
         # 主布局
         main_layout = VStack(
