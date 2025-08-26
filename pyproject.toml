@@ -46,6 +46,7 @@ dependencies = [
     "pyobjc-core>=10.0",
     "pyobjc-framework-cocoa>=10.0",
     "pyobjc-framework-Quartz>=10.0",
+    "stretchable>=1.1.7",
 ]
 
 [project.optional-dependencies]

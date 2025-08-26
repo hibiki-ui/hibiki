@@ -336,11 +336,12 @@ def _create_constraints_vstack(spacing, padding, alignment, children, frame):
     check_after_alignment = stack.orientation()
     print(f"🔍 VStack设置alignment后orientation: {check_after_alignment} ({'期望保持1' if check_after_alignment == 1 else '⚠️被改变了!'})")
 
-    # 🎯 关键修复4：使用安全的分布方式
-    stack.setDistribution_(NSStackViewDistributionGravityAreas)
+    # 🎯 关键修复4：使用最安全的分布方式 - Fill
+    # GravityAreas可能导致负坐标和重叠，改用Fill
+    stack.setDistribution_(NSStackViewDistributionFill)
     check_after_distribution = stack.orientation()
     print(f"🔍 VStack设置distribution后orientation: {check_after_distribution}")
-    print(f"🔧 VStack使用安全的distribution: GravityAreas")
+    print(f"🔧 VStack使用最安全的distribution: Fill")
 
     # 🎯 关键修复5：保守的padding设置，避免负边距
     if isinstance(padding, (int, float)):
@@ -684,9 +685,10 @@ def _create_constraints_hstack(spacing, padding, alignment, children, frame):
     stack.setAlignment_(NSLayoutAttributeCenterY)
     print(f"🔧 HStack使用最安全的alignment: centerY")
     
-    # 🎯 关键修复：使用安全的分布方式
-    stack.setDistribution_(NSStackViewDistributionGravityAreas)
-    print(f"🔧 HStack使用安全的distribution: GravityAreas")
+    # 🎯 关键修复：使用最安全的分布方式 - Fill
+    # GravityAreas可能导致负坐标，改用Fill
+    stack.setDistribution_(NSStackViewDistributionFill)
+    print(f"🔧 HStack使用最安全的distribution: Fill")
 
     # 🎯 关键修复：保守的padding设置，避免负边距
     if isinstance(padding, (int, float)):
@@ -746,7 +748,7 @@ def _create_constraints_hstack(spacing, padding, alignment, children, frame):
     stack.layoutSubtreeIfNeeded()
     print(f"🔄 强制触发布局更新")
     
-    # 检查布局后的子视图位置
+    # 检查布局后的子视图位置，并修正负坐标
     if hasattr(stack, 'arrangedSubviews'):
         arranged_views = stack.arrangedSubviews()
         print(f"🔍 布局更新后立即检查子视图位置:")
@@ -754,6 +756,13 @@ def _create_constraints_hstack(spacing, padding, alignment, children, frame):
             frame = subview.frame()
             title = subview.title() if hasattr(subview, 'title') else "Unknown"
             print(f"   子视图 {i+1} '{title}': x={frame.origin.x:.1f}, w={frame.size.width:.1f}")
+            
+            # 🔥 关键修复：强制修正负坐标
+            if frame.origin.x < 0:
+                print(f"   🚨 发现负坐标 x={frame.origin.x:.1f}，强制修正为 x=0")
+                corrected_frame = NSMakeRect(0, frame.origin.y, frame.size.width, frame.size.height)
+                subview.setFrame_(corrected_frame)
+                print(f"   ✅ 修正后位置: x=0, y={frame.origin.y:.1f}")
     
     return stack
 

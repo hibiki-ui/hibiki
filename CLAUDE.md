@@ -395,9 +395,16 @@ VStack(children=[
 - Reference implementations in `examples/` for validation
 - TableView: Use pure PyObjC examples to validate NSTableView functionality
 
+## Documentation Index
+
+Complete project documentation for design decisions, investigations, and architecture:
+
+- **Layout System Research Report**: `docs/LAYOUT_SYSTEM_RESEARCH.md` - Comprehensive research on Auto Layout systems, modern frameworks (React Native, Flutter), and architectural recommendations for professional layout implementation
+- **Layout Problem Investigation**: `docs/LAYOUT_PROBLEM_INVESTIGATION.md` - Detailed technical investigation of NSStackView negative coordinate positioning bugs, systematic debugging process, and emergency fixes applied
+
 ## Current Development Focus
 
-1. **✅ TableView & Layout Issues**: Fully resolved with Hybrid Layout System v2.1
+1. **⚠️ Layout System Architecture Upgrade**: Transitioning from hack fixes to professional Stretchable-based layout engine (方案B)
 2. **Component Library**: Expand available UI components
 3. **Documentation**: Complete API documentation 
 4. **Performance**: Optimize batch updates and memory usage
