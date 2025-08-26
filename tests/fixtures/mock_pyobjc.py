@@ -394,3 +394,62 @@ def assert_mock_method_not_called(mock_obj, method_name):
 def get_mock_property(mock_obj, property_name):
     """获取 Mock 对象的属性值"""
     return getattr(mock_obj, f'_{property_name}', None)
+
+
+class MockNSSecureTextField(MockNSTextField):
+    """NSSecureTextField Mock 类"""
+    
+    def __init__(self):
+        super().__init__()
+        self._secure = True
+
+
+class MockReactiveBinding:
+    """ReactiveBinding Mock 类"""
+    
+    call_history = []
+    
+    @classmethod
+    def bind(cls, view, property_name, signal):
+        cls.call_history.append(('bind', view, property_name, signal))
+    
+    @classmethod
+    def reset(cls):
+        cls.call_history.clear()
+
+
+class MockTwoWayBinding:
+    """TwoWayBinding Mock 类"""
+    
+    call_history = []
+    
+    @classmethod
+    def bind(cls, view, property_name, signal):
+        cls.call_history.append(('bind', view, property_name, signal))
+    
+    @classmethod
+    def reset(cls):
+        cls.call_history.clear()
+
+
+class MockEventBinding:
+    """EventBinding Mock 类"""
+    
+    call_history = []
+    
+    @classmethod
+    def bind_click(cls, view, handler):
+        cls.call_history.append(('bind_click', view, handler))
+    
+    @classmethod
+    def reset(cls):
+        cls.call_history.clear()
+
+
+class MockEnhancedTextFieldDelegate(MockNSObject):
+    """EnhancedTextFieldDelegate Mock 类"""
+    
+    def __init__(self):
+        super().__init__()
+        self.on_change = None
+        self.on_enter = None
