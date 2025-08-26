@@ -49,6 +49,27 @@
   - **ProgressBar**: 静态进度显示、动态进度更新、不确定进度动画
   - 响应式UI更新
 
+#### 选择控件 (Checkbox, RadioButton, Switch)
+- **文件**: `test_selection_controls.py`
+- **功能**: 展示各种选择和开关控件
+- **特性**:
+  - **Checkbox**: 多选复选框，独立状态控制
+  - **Switch**: 开关控件，布尔值切换
+  - **RadioButton**: 单选按钮组，互斥选择
+  - 双向数据绑定和实时状态更新
+  - 批量控制功能（切换所有、重置所有）
+  - 完整的事件回调和工具提示
+
+#### 高级选择控件 (SegmentedControl, PopUpButton)
+- **文件**: `test_advanced_controls.py`
+- **功能**: 展示高级选择和下拉控件
+- **特性**:
+  - **SegmentedControl**: 分段选择控件，适合显示3-5个选项
+  - **PopUpButton**: 下拉选择按钮，适合多个选项的列表选择
+  - 双向数据绑定和实时状态更新
+  - 批量控制功能（随机设置、重置所有）
+  - 完整的选项管理和事件回调
+
 ## 如何运行示例
 
 确保你在项目根目录，然后运行：
@@ -58,9 +79,11 @@
 uv run python examples/counter.py
 
 # 组件功能示例
-uv run python examples/test_enhanced_textfield.py  # TextField 增强功能
-uv run python examples/test_slider.py              # Slider 控件
+uv run python examples/test_enhanced_textfield.py   # TextField 增强功能
+uv run python examples/test_slider.py               # Slider 控件
 uv run python examples/test_textarea_progressbar.py # TextArea 和 ProgressBar
+uv run python examples/test_selection_controls.py   # 选择控件
+uv run python examples/test_advanced_controls.py    # 高级选择控件
 ```
 
 ## 示例特点

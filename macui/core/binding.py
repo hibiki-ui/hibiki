@@ -357,6 +357,100 @@ class TwoWayBinding:
         # 返回清理函数
         return lambda: None
 
+    @staticmethod
+    def bind_segmented_control(segmented: Any, signal: Signal[int]) -> Callable[[], None]:
+        """为分段控件创建双向绑定"""
+        # 单向绑定：signal -> segmented control
+        def update_segmented_selection():
+            if 0 <= signal.value < segmented.segmentCount():
+                segmented.setSelectedSegment_(signal.value)
+        
+        from .signal import Effect
+        effect = Effect(update_segmented_selection)
+        
+        # 反向绑定：segmented -> signal (通过现有的委托处理)
+        existing_delegate = segmented.target()
+        if existing_delegate and hasattr(existing_delegate, 'signal'):
+            existing_delegate.signal = signal
+
+        # 返回清理函数
+        return lambda: None
+
+    @staticmethod
+    def bind_popup_button(popup: Any, signal: Signal[int]) -> Callable[[], None]:
+        """为下拉按钮创建双向绑定"""
+        # 单向绑定：signal -> popup button
+        def update_popup_selection():
+            if 0 <= signal.value < popup.numberOfItems():
+                popup.selectItemAtIndex_(signal.value)
+        
+        from .signal import Effect
+        effect = Effect(update_popup_selection)
+        
+        # 反向绑定：popup -> signal (通过现有的委托处理)
+        existing_delegate = popup.target()
+        if existing_delegate and hasattr(existing_delegate, 'signal'):
+            existing_delegate.signal = signal
+
+        # 返回清理函数
+        return lambda: None
+
+
+class EnhancedPopUpDelegate(NSObject):
+    """增强的下拉按钮委托"""
+
+    def init(self):
+        self = objc.super(EnhancedPopUpDelegate, self).init()
+        if self is None:
+            return None
+        self.signal = None
+        self.on_change = None
+        logger.info(f"📋 EnhancedPopUpDelegate初始化: {id(self)}")
+        return self
+
+    def popUpChanged_(self, sender):
+        """下拉选择改变时的处理"""
+        new_index = sender.indexOfSelectedItem()
+        logger.info(f"📋 下拉按钮选择改变: {new_index}")
+
+        # 更新信号
+        if self.signal:
+            # 防止循环更新
+            if self.signal.value != new_index:
+                self.signal.value = new_index
+
+        # 调用回调
+        if self.on_change:
+            self.on_change(new_index)
+
+
+class EnhancedSegmentedDelegate(NSObject):
+    """增强的分段控件委托"""
+
+    def init(self):
+        self = objc.super(EnhancedSegmentedDelegate, self).init()
+        if self is None:
+            return None
+        self.signal = None
+        self.on_change = None
+        logger.info(f"🎛️ EnhancedSegmentedDelegate初始化: {id(self)}")
+        return self
+
+    def segmentChanged_(self, sender):
+        """分段选择改变时的处理"""
+        new_segment = sender.selectedSegment()
+        logger.info(f"🎛️ 分段控件选择改变: {new_segment}")
+
+        # 更新信号
+        if self.signal:
+            # 防止循环更新
+            if self.signal.value != new_segment:
+                self.signal.value = new_segment
+
+        # 调用回调
+        if self.on_change:
+            self.on_change(new_segment)
+
 
 class EnhancedButtonDelegate(NSObject):
     """增强的按钮委托，支持Switch/Checkbox状态改变事件"""

@@ -6,7 +6,9 @@ from AppKit import (
     NSButtonTypeSwitch,
     NSButtonTypeRadio,
     NSImageView,
+    NSPopUpButton,
     NSProgressIndicator,
+    NSSegmentedControl,
     NSSlider,
     NSTextField,
     NSTextFieldRoundedBezel,
@@ -15,7 +17,7 @@ from AppKit import (
 )
 from Foundation import NSMakeRect
 
-from ..core.binding import EventBinding, ReactiveBinding, TwoWayBinding, EnhancedTextFieldDelegate, EnhancedSliderDelegate, EnhancedTextViewDelegate, EnhancedButtonDelegate, EnhancedRadioDelegate
+from ..core.binding import EventBinding, ReactiveBinding, TwoWayBinding, EnhancedTextFieldDelegate, EnhancedSliderDelegate, EnhancedTextViewDelegate, EnhancedButtonDelegate, EnhancedRadioDelegate, EnhancedSegmentedDelegate, EnhancedPopUpDelegate
 from ..core.signal import Computed, Signal
 
 
@@ -562,6 +564,151 @@ def RadioButton(
         objc.setAssociatedObject(radio, b"enhanced_radio_delegate", delegate, objc.OBJC_ASSOCIATION_RETAIN)
 
     return radio
+
+
+def SegmentedControl(
+    segments: list[str],
+    selected: Optional[Union[int, Signal[int]]] = None,
+    enabled: Optional[Union[bool, Signal[bool], Computed[bool]]] = None,
+    on_change: Optional[Callable[[int], None]] = None,
+    tooltip: Optional[Union[str, Signal[str], Computed[str]]] = None,
+    frame: Optional[tuple] = None
+) -> NSSegmentedControl:
+    """创建分段选择控件
+    
+    Args:
+        segments: 分段标题列表
+        selected: 当前选中的分段索引 (支持双向绑定)
+        enabled: 启用状态 (支持响应式)
+        on_change: 选中分段改变回调
+        tooltip: 工具提示 (支持响应式)
+        frame: 控件框架
+    
+    Returns:
+        NSSegmentedControl 实例
+    """
+    segmented = NSSegmentedControl.alloc().init()
+
+    if frame:
+        segmented.setFrame_(NSMakeRect(*frame))
+
+    # 设置分段数量和标题
+    segmented.setSegmentCount_(len(segments))
+    for i, title in enumerate(segments):
+        segmented.setLabel_forSegment_(title, i)
+        segmented.setWidth_forSegment_(0, i)  # 自动宽度
+
+    # 初始选中状态
+    initial_selected = 0
+    if selected is not None:
+        initial_selected = selected.value if isinstance(selected, Signal) else int(selected)
+        if 0 <= initial_selected < len(segments):
+            segmented.setSelectedSegment_(initial_selected)
+
+    # 启用状态绑定
+    if enabled is not None:
+        if isinstance(enabled, (Signal, Computed)):
+            ReactiveBinding.bind(segmented, "enabled", enabled)
+        else:
+            segmented.setEnabled_(bool(enabled))
+
+    # 工具提示绑定
+    if tooltip is not None:
+        if isinstance(tooltip, (Signal, Computed)):
+            ReactiveBinding.bind(segmented, "tooltip", tooltip)
+        else:
+            segmented.setToolTip_(str(tooltip))
+
+    # 双向绑定和事件处理
+    if selected is not None and isinstance(selected, Signal):
+        TwoWayBinding.bind_segmented_control(segmented, selected)
+    
+    if on_change:
+        # 创建分段控件委托
+        delegate = EnhancedSegmentedDelegate.alloc().init()
+        delegate.on_change = on_change
+        delegate.signal = selected if isinstance(selected, Signal) else None
+        
+        segmented.setTarget_(delegate)
+        segmented.setAction_("segmentChanged:")
+        
+        # 保持委托引用
+        import objc
+        objc.setAssociatedObject(segmented, b"enhanced_segmented_delegate", delegate, objc.OBJC_ASSOCIATION_RETAIN)
+
+    return segmented
+
+
+def PopUpButton(
+    items: list[str],
+    selected: Optional[Union[int, Signal[int]]] = None,
+    enabled: Optional[Union[bool, Signal[bool], Computed[bool]]] = None,
+    on_change: Optional[Callable[[int], None]] = None,
+    tooltip: Optional[Union[str, Signal[str], Computed[str]]] = None,
+    frame: Optional[tuple] = None
+) -> NSPopUpButton:
+    """创建下拉选择按钮
+    
+    Args:
+        items: 选项列表
+        selected: 当前选中的项目索引 (支持双向绑定)
+        enabled: 启用状态 (支持响应式)
+        on_change: 选项改变回调
+        tooltip: 工具提示 (支持响应式)
+        frame: 控件框架
+    
+    Returns:
+        NSPopUpButton 实例
+    """
+    popup = NSPopUpButton.alloc().init()
+
+    if frame:
+        popup.setFrame_(NSMakeRect(*frame))
+
+    # 添加选项
+    popup.removeAllItems()
+    for item in items:
+        popup.addItemWithTitle_(item)
+
+    # 初始选中状态
+    initial_selected = 0
+    if selected is not None:
+        initial_selected = selected.value if isinstance(selected, Signal) else int(selected)
+        if 0 <= initial_selected < len(items):
+            popup.selectItemAtIndex_(initial_selected)
+
+    # 启用状态绑定
+    if enabled is not None:
+        if isinstance(enabled, (Signal, Computed)):
+            ReactiveBinding.bind(popup, "enabled", enabled)
+        else:
+            popup.setEnabled_(bool(enabled))
+
+    # 工具提示绑定
+    if tooltip is not None:
+        if isinstance(tooltip, (Signal, Computed)):
+            ReactiveBinding.bind(popup, "tooltip", tooltip)
+        else:
+            popup.setToolTip_(str(tooltip))
+
+    # 双向绑定和事件处理
+    if selected is not None and isinstance(selected, Signal):
+        TwoWayBinding.bind_popup_button(popup, selected)
+    
+    if on_change:
+        # 创建下拉按钮委托
+        delegate = EnhancedPopUpDelegate.alloc().init()
+        delegate.on_change = on_change
+        delegate.signal = selected if isinstance(selected, Signal) else None
+        
+        popup.setTarget_(delegate)
+        popup.setAction_("popUpChanged:")
+        
+        # 保持委托引用
+        import objc
+        objc.setAssociatedObject(popup, b"enhanced_popup_delegate", delegate, objc.OBJC_ASSOCIATION_RETAIN)
+
+    return popup
 
 
 def ImageView(
