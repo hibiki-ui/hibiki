@@ -42,8 +42,9 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
+    "pyobjc>=11.1",
     "pyobjc-core>=10.0",
-    "pyobjc-framework-Cocoa>=10.0",
+    "pyobjc-framework-cocoa>=10.0",
     "pyobjc-framework-Quartz>=10.0",
 ]
 
