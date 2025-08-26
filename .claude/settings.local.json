@@ -6,7 +6,9 @@
       "Bash(uv run:*)",
       "Bash(uv build:*)",
       "Bash(uv sync:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(uv add:*)"
     ],
     "deny": [],
     "ask": []
