@@ -3,14 +3,19 @@ from typing import Any, Callable, Optional, Union
 from AppKit import (
     NSButton,
     NSButtonTypeMomentaryPushIn,
+    NSButtonTypeSwitch,
+    NSButtonTypeRadio,
     NSImageView,
+    NSProgressIndicator,
     NSSlider,
     NSTextField,
     NSTextFieldRoundedBezel,
+    NSTextView,
+    NSScrollView,
 )
 from Foundation import NSMakeRect
 
-from ..core.binding import EventBinding, ReactiveBinding, TwoWayBinding
+from ..core.binding import EventBinding, ReactiveBinding, TwoWayBinding, EnhancedTextFieldDelegate, EnhancedSliderDelegate, EnhancedTextViewDelegate, EnhancedButtonDelegate, EnhancedRadioDelegate
 from ..core.signal import Computed, Signal
 
 
@@ -67,44 +72,89 @@ def Button(
 
 
 def TextField(
-    value: Optional[Signal[str]] = None,
+    value: Optional[Union[str, Signal[str]]] = None,
     placeholder: str = "",
     enabled: Optional[Union[bool, Signal[bool], Computed[bool]]] = None,
+    editable: Optional[Union[bool, Signal[bool], Computed[bool]]] = None,
+    secure: bool = False,
+    multiline: bool = False,
+    font_size: Optional[float] = None,
+    alignment: str = "left",  # "left", "center", "right"
+    max_length: Optional[int] = None,
+    validation: Optional[Callable[[str], bool]] = None,
+    formatting: Optional[Callable[[str], str]] = None,
     on_change: Optional[Callable[[str], None]] = None,
     on_enter: Optional[Callable[[], None]] = None,
+    on_focus: Optional[Callable[[], None]] = None,
+    on_blur: Optional[Callable[[], None]] = None,
+    tooltip: Optional[Union[str, Signal[str], Computed[str]]] = None,
     frame: Optional[tuple] = None
 ) -> NSTextField:
-    """创建响应式文本框 (支持双向绑定)
+    """创建增强的响应式文本框
     
     Args:
-        value: 文本值信号 (双向绑定)
+        value: 文本值 (字符串或Signal，支持双向绑定)
         placeholder: 占位符文本
         enabled: 启用状态 (支持响应式)
+        editable: 可编辑状态 (支持响应式)
+        secure: 是否为密码框 (隐藏文本)
+        multiline: 是否支持多行 (创建NSTextView)
+        font_size: 字体大小
+        alignment: 文本对齐 ("left", "center", "right")
+        max_length: 最大字符长度限制
+        validation: 输入验证函数
+        formatting: 文本格式化函数
         on_change: 文本改变回调
         on_enter: 回车键回调
+        on_focus: 获得焦点回调
+        on_blur: 失去焦点回调
+        tooltip: 工具提示 (支持响应式)
         frame: 文本框框架
     
     Returns:
-        NSTextField 实例
+        NSTextField 或 NSSecureTextField 或 NSTextView 实例
     """
-    field = NSTextField.alloc().init()
-    field.setBezelStyle_(NSTextFieldRoundedBezel)
+    # 根据类型创建不同的文本控件
+    if secure:
+        from AppKit import NSSecureTextField
+        field = NSSecureTextField.alloc().init()
+    elif multiline:
+        from AppKit import NSTextView
+        field = NSTextView.alloc().init()
+        # NSTextView 需要滚动容器
+        from AppKit import NSScrollView
+        scroll_view = NSScrollView.alloc().init()
+        scroll_view.setDocumentView_(field)
+        field._scroll_container = scroll_view
+    else:
+        field = NSTextField.alloc().init()
+        field.setBezelStyle_(NSTextFieldRoundedBezel)
 
+    # 设置框架
     if frame:
-        field.setFrame_(NSMakeRect(*frame))
+        if multiline and hasattr(field, '_scroll_container'):
+            field._scroll_container.setFrame_(NSMakeRect(*frame))
+        else:
+            field.setFrame_(NSMakeRect(*frame))
 
-    # 占位符
-    if placeholder:
+    # 占位符 (NSTextView 不支持占位符)
+    if placeholder and not multiline:
         field.setPlaceholderString_(placeholder)
 
-    # 值绑定
+    # 初始值设置
     if value is not None:
-        if isinstance(value, Signal):
-            # 双向绑定
-            TwoWayBinding.bind_text_field(field, value)
+        initial_value = value.value if isinstance(value, Signal) else str(value)
+        if multiline:
+            field.setString_(initial_value)
         else:
-            # 单向绑定
-            ReactiveBinding.bind(field, "text", value)
+            field.setStringValue_(initial_value)
+
+    # 可编辑状态
+    if editable is not None:
+        if isinstance(editable, (Signal, Computed)):
+            ReactiveBinding.bind(field, "editable" if multiline else "editable", editable)
+        else:
+            field.setEditable_(bool(editable))
 
     # 启用状态绑定
     if enabled is not None:
@@ -113,14 +163,56 @@ def TextField(
         else:
             field.setEnabled_(bool(enabled))
 
-    # 事件处理
-    if value and isinstance(value, Signal):
-        # 双向绑定 - 文本变更时更新信号
-        EventBinding.bind_text_change(field, signal=value, handler=on_change)
-    elif on_change:
-        # 只有变更处理器
-        EventBinding.bind_text_change(field, handler=on_change)
+    # 字体大小
+    if font_size:
+        from AppKit import NSFont
+        font = NSFont.systemFontOfSize_(font_size)
+        field.setFont_(font)
 
+    # 文本对齐
+    if alignment != "left" and not multiline:
+        from AppKit import NSTextAlignment
+        alignment_map = {
+            "left": NSTextAlignment.NSLeftTextAlignment,
+            "center": NSTextAlignment.NSCenterTextAlignment,
+            "right": NSTextAlignment.NSRightTextAlignment
+        }
+        if alignment in alignment_map:
+            field.setAlignment_(alignment_map[alignment])
+
+    # 工具提示绑定
+    if tooltip is not None:
+        if isinstance(tooltip, (Signal, Computed)):
+            ReactiveBinding.bind(field, "tooltip", tooltip)
+        else:
+            field.setToolTip_(str(tooltip))
+
+    # 值绑定（双向绑定）
+    if value is not None and isinstance(value, Signal):
+        TwoWayBinding.bind_text_field(field, value)
+
+    # 事件处理增强
+    if on_change or on_enter or on_focus or on_blur or validation or formatting or max_length:
+        # 创建增强的委托类
+        delegate = EnhancedTextFieldDelegate.alloc().init()
+        delegate.on_change = on_change
+        delegate.on_enter = on_enter
+        delegate.on_focus = on_focus
+        delegate.on_blur = on_blur
+        delegate.validation = validation
+        delegate.formatting = formatting
+        delegate.max_length = max_length
+        delegate.signal = value if isinstance(value, Signal) else None
+        
+        field.setDelegate_(delegate)
+        
+        # 保持委托引用
+        import objc
+        objc.setAssociatedObject(field, b"enhanced_delegate", delegate, objc.OBJC_ASSOCIATION_RETAIN)
+
+    # 返回适当的控件
+    if multiline and hasattr(field, '_scroll_container'):
+        return field._scroll_container
     return field
 
 
@@ -180,18 +272,24 @@ def Slider(
     value: Optional[Signal[float]] = None,
     min_value: float = 0.0,
     max_value: float = 100.0,
+    step_size: Optional[float] = None,
+    orientation: str = "horizontal",  # "horizontal", "vertical"
     enabled: Optional[Union[bool, Signal[bool], Computed[bool]]] = None,
     on_change: Optional[Callable[[float], None]] = None,
+    tooltip: Optional[Union[str, Signal[str], Computed[str]]] = None,
     frame: Optional[tuple] = None
 ) -> NSSlider:
-    """创建响应式滑块
+    """创建增强的响应式滑块
     
     Args:
         value: 滑块值信号 (双向绑定)
         min_value: 最小值
         max_value: 最大值
+        step_size: 步长值 (可选)
+        orientation: 方向 ("horizontal", "vertical")
         enabled: 启用状态 (支持响应式)
         on_change: 值改变回调
+        tooltip: 工具提示 (支持响应式)
         frame: 滑块框架
     
     Returns:
@@ -205,14 +303,23 @@ def Slider(
     # 设置范围
     slider.setMinValue_(min_value)
     slider.setMaxValue_(max_value)
+    
+    # 设置步长
+    if step_size is not None:
+        # NSSlider doesn't have direct step support, but we can handle it in the delegate
+        pass
 
-    # 值绑定
+    # 设置方向
+    if orientation == "vertical":
+        slider.setVertical_(True)
+    else:
+        slider.setVertical_(False)
+
+    # 初始值设置
+    initial_value = 0.0
     if value is not None:
-        if isinstance(value, Signal):
-            # 双向绑定 (需要在实际实现中处理)
-            ReactiveBinding.bind(slider, "doubleValue", value)
-        else:
-            slider.setDoubleValue_(float(value))
+        initial_value = value.value if isinstance(value, Signal) else float(value)
+        slider.setDoubleValue_(initial_value)
 
     # 启用状态绑定
     if enabled is not None:
@@ -221,10 +328,31 @@ def Slider(
         else:
             slider.setEnabled_(bool(enabled))
 
-    # 事件处理
-    if on_change:
-        # 在实际实现中设置目标-动作
-        pass
+    # 工具提示绑定
+    if tooltip is not None:
+        if isinstance(tooltip, (Signal, Computed)):
+            ReactiveBinding.bind(slider, "tooltip", tooltip)
+        else:
+            slider.setToolTip_(str(tooltip))
+
+    # 值绑定和事件处理
+    if value is not None and isinstance(value, Signal):
+        # 双向绑定：Slider -> Signal
+        TwoWayBinding.bind_slider(slider, value)
+    
+    if on_change or step_size is not None:
+        # 创建增强的委托类来处理事件
+        delegate = EnhancedSliderDelegate.alloc().init()
+        delegate.on_change = on_change
+        delegate.step_size = step_size
+        delegate.signal = value if isinstance(value, Signal) else None
+        
+        slider.setTarget_(delegate)
+        slider.setAction_("sliderChanged:")
+        
+        # 保持委托引用
+        import objc
+        objc.setAssociatedObject(slider, b"enhanced_delegate", delegate, objc.OBJC_ASSOCIATION_RETAIN)
 
     return slider
 
@@ -233,6 +361,7 @@ def Switch(
     value: Optional[Signal[bool]] = None,
     enabled: Optional[Union[bool, Signal[bool], Computed[bool]]] = None,
     on_change: Optional[Callable[[bool], None]] = None,
+    tooltip: Optional[Union[str, Signal[str], Computed[str]]] = None,
     frame: Optional[tuple] = None
 ) -> NSButton:
     """创建响应式开关 (NSButton configured as switch)
@@ -241,6 +370,7 @@ def Switch(
         value: 开关状态信号 (双向绑定)
         enabled: 启用状态 (支持响应式)
         on_change: 状态改变回调
+        tooltip: 工具提示 (支持响应式)
         frame: 开关框架
     
     Returns:
@@ -252,17 +382,11 @@ def Switch(
     if frame:
         switch.setFrame_(NSMakeRect(*frame))
 
-    # 状态绑定
+    # 初始状态设置
+    initial_state = False
     if value is not None:
-        if isinstance(value, Signal):
-            # 双向绑定 (需要在实际实现中处理)
-            def update_switch_state():
-                switch.setState_(1 if value.value else 0)
-
-            from ..core.signal import Effect
-            Effect(update_switch_state)
-        else:
-            switch.setState_(1 if bool(value) else 0)
+        initial_state = value.value if isinstance(value, Signal) else bool(value)
+    switch.setState_(1 if initial_state else 0)
 
     # 启用状态绑定
     if enabled is not None:
@@ -271,12 +395,173 @@ def Switch(
         else:
             switch.setEnabled_(bool(enabled))
 
-    # 事件处理
+    # 工具提示绑定
+    if tooltip is not None:
+        if isinstance(tooltip, (Signal, Computed)):
+            ReactiveBinding.bind(switch, "tooltip", tooltip)
+        else:
+            switch.setToolTip_(str(tooltip))
+
+    # 状态绑定和事件处理
+    if value is not None and isinstance(value, Signal):
+        TwoWayBinding.bind_button_state(switch, value)
+    
     if on_change:
-        # 在实际实现中设置目标-动作
-        pass
+        # 创建按钮状态委托
+        delegate = EnhancedButtonDelegate.alloc().init()
+        delegate.on_change = on_change
+        delegate.signal = value if isinstance(value, Signal) else None
+        
+        switch.setTarget_(delegate)
+        switch.setAction_("buttonStateChanged:")
+        
+        # 保持委托引用
+        import objc
+        objc.setAssociatedObject(switch, b"enhanced_delegate", delegate, objc.OBJC_ASSOCIATION_RETAIN)
 
     return switch
+
+
+def Checkbox(
+    value: Optional[Signal[bool]] = None,
+    text: str = "",
+    enabled: Optional[Union[bool, Signal[bool], Computed[bool]]] = None,
+    on_change: Optional[Callable[[bool], None]] = None,
+    tooltip: Optional[Union[str, Signal[str], Computed[str]]] = None,
+    frame: Optional[tuple] = None
+) -> NSButton:
+    """创建复选框组件
+    
+    Args:
+        value: 复选框状态信号 (双向绑定)
+        text: 复选框旁边的文本
+        enabled: 启用状态 (支持响应式)
+        on_change: 状态改变回调
+        tooltip: 工具提示 (支持响应式)
+        frame: 复选框框架
+    
+    Returns:
+        NSButton 实例 (configured as checkbox)
+    """
+    checkbox = NSButton.alloc().init()
+    checkbox.setButtonType_(NSButtonTypeSwitch)  # Switch type for checkbox
+
+    if frame:
+        checkbox.setFrame_(NSMakeRect(*frame))
+
+    # 设置文本
+    if text:
+        checkbox.setTitle_(text)
+
+    # 初始状态设置
+    initial_state = False
+    if value is not None:
+        initial_state = value.value if isinstance(value, Signal) else bool(value)
+    checkbox.setState_(1 if initial_state else 0)
+
+    # 启用状态绑定
+    if enabled is not None:
+        if isinstance(enabled, (Signal, Computed)):
+            ReactiveBinding.bind(checkbox, "enabled", enabled)
+        else:
+            checkbox.setEnabled_(bool(enabled))
+
+    # 工具提示绑定
+    if tooltip is not None:
+        if isinstance(tooltip, (Signal, Computed)):
+            ReactiveBinding.bind(checkbox, "tooltip", tooltip)
+        else:
+            checkbox.setToolTip_(str(tooltip))
+
+    # 状态绑定和事件处理
+    if value is not None and isinstance(value, Signal):
+        TwoWayBinding.bind_button_state(checkbox, value)
+    
+    if on_change:
+        # 创建按钮状态委托
+        delegate = EnhancedButtonDelegate.alloc().init()
+        delegate.on_change = on_change
+        delegate.signal = value if isinstance(value, Signal) else None
+        
+        checkbox.setTarget_(delegate)
+        checkbox.setAction_("buttonStateChanged:")
+        
+        # 保持委托引用
+        import objc
+        objc.setAssociatedObject(checkbox, b"enhanced_delegate", delegate, objc.OBJC_ASSOCIATION_RETAIN)
+
+    return checkbox
+
+
+def RadioButton(
+    value: Signal[str],
+    option_value: str,
+    text: str = "",
+    enabled: Optional[Union[bool, Signal[bool], Computed[bool]]] = None,
+    on_change: Optional[Callable[[str], None]] = None,
+    tooltip: Optional[Union[str, Signal[str], Computed[str]]] = None,
+    frame: Optional[tuple] = None
+) -> NSButton:
+    """创建单选按钮组件
+    
+    Args:
+        value: 单选按钮组的值信号 (所有按钮共享同一个Signal)
+        option_value: 这个按钮代表的选项值
+        text: 单选按钮旁边的文本
+        enabled: 启用状态 (支持响应式)
+        on_change: 状态改变回调
+        tooltip: 工具提示 (支持响应式)
+        frame: 单选按钮框架
+    
+    Returns:
+        NSButton 实例 (configured as radio button)
+    """
+    radio = NSButton.alloc().init()
+    radio.setButtonType_(NSButtonTypeRadio)
+
+    if frame:
+        radio.setFrame_(NSMakeRect(*frame))
+
+    # 设置文本
+    if text:
+        radio.setTitle_(text)
+
+    # 初始状态设置
+    initial_selected = value.value == option_value
+    radio.setState_(1 if initial_selected else 0)
+
+    # 启用状态绑定
+    if enabled is not None:
+        if isinstance(enabled, (Signal, Computed)):
+            ReactiveBinding.bind(radio, "enabled", enabled)
+        else:
+            radio.setEnabled_(bool(enabled))
+
+    # 工具提示绑定
+    if tooltip is not None:
+        if isinstance(tooltip, (Signal, Computed)):
+            ReactiveBinding.bind(radio, "tooltip", tooltip)
+        else:
+            radio.setToolTip_(str(tooltip))
+
+    # 双向绑定和事件处理
+    TwoWayBinding.bind_radio_button(radio, value, option_value)
+    
+    if on_change:
+        # 创建单选按钮委托
+        delegate = EnhancedRadioDelegate.alloc().init()
+        delegate.on_change = on_change
+        delegate.signal = value
+        delegate.option_value = option_value
+        
+        radio.setTarget_(delegate)
+        radio.setAction_("radioButtonChanged:")
+        
+        # 保持委托引用
+        import objc
+        objc.setAssociatedObject(radio, b"enhanced_radio_delegate", delegate, objc.OBJC_ASSOCIATION_RETAIN)
+
+    return radio
 
 
 def ImageView(
@@ -301,3 +586,177 @@ def ImageView(
         image_view.setImage_(image)
 
     return image_view
+
+
+def ProgressBar(
+    value: Optional[Union[float, Signal[float]]] = None,
+    min_value: float = 0.0,
+    max_value: float = 100.0,
+    indeterminate: bool = False,
+    style: str = "bar",  # "bar", "spinning"
+    enabled: Optional[Union[bool, Signal[bool], Computed[bool]]] = None,
+    tooltip: Optional[Union[str, Signal[str], Computed[str]]] = None,
+    frame: Optional[tuple] = None
+) -> NSProgressIndicator:
+    """创建进度条组件
+    
+    Args:
+        value: 进度值 (0-100 或 min_value-max_value 范围)
+        min_value: 最小值
+        max_value: 最大值
+        indeterminate: 是否为不确定进度条 (旋转动画)
+        style: 进度条样式 ("bar", "spinning")
+        enabled: 启用状态 (支持响应式)
+        tooltip: 工具提示 (支持响应式)
+        frame: 进度条框架
+    
+    Returns:
+        NSProgressIndicator 实例
+    """
+    progress = NSProgressIndicator.alloc().init()
+
+    if frame:
+        progress.setFrame_(NSMakeRect(*frame))
+
+    # 设置范围
+    progress.setMinValue_(min_value)
+    progress.setMaxValue_(max_value)
+
+    # 设置样式
+    if style == "spinning" or indeterminate:
+        progress.setStyle_(1)  # NSProgressIndicatorSpinningStyle
+        progress.setIndeterminate_(True)
+    else:
+        progress.setStyle_(0)  # NSProgressIndicatorBarStyle
+        progress.setIndeterminate_(indeterminate)
+
+    # 初始值设置
+    if value is not None and not indeterminate:
+        initial_value = value.value if isinstance(value, Signal) else float(value)
+        progress.setDoubleValue_(initial_value)
+
+    # 启用状态绑定
+    if enabled is not None:
+        if isinstance(enabled, (Signal, Computed)):
+            ReactiveBinding.bind(progress, "enabled", enabled)
+        else:
+            progress.setEnabled_(bool(enabled))
+
+    # 工具提示绑定
+    if tooltip is not None:
+        if isinstance(tooltip, (Signal, Computed)):
+            ReactiveBinding.bind(progress, "tooltip", tooltip)
+        else:
+            progress.setToolTip_(str(tooltip))
+
+    # 值绑定 (单向绑定，进度条通常不需要用户交互)
+    if value is not None and isinstance(value, Signal) and not indeterminate:
+        ReactiveBinding.bind(progress, "doubleValue", value)
+
+    # 如果是不确定进度条，开始动画
+    if indeterminate:
+        progress.startAnimation_(None)
+
+    return progress
+
+
+def TextArea(
+    value: Optional[Union[str, Signal[str]]] = None,
+    placeholder: str = "",
+    enabled: Optional[Union[bool, Signal[bool], Computed[bool]]] = None,
+    editable: Optional[Union[bool, Signal[bool], Computed[bool]]] = None,
+    font_size: Optional[float] = None,
+    on_change: Optional[Callable[[str], None]] = None,
+    tooltip: Optional[Union[str, Signal[str], Computed[str]]] = None,
+    frame: Optional[tuple] = None
+) -> NSScrollView:
+    """创建多行文本区域组件
+    
+    Args:
+        value: 文本值 (字符串或Signal，支持双向绑定)
+        placeholder: 占位符文本 (NSTextView不直接支持，但可以模拟)
+        enabled: 启用状态 (支持响应式)
+        editable: 可编辑状态 (支持响应式)
+        font_size: 字体大小
+        on_change: 文本改变回调
+        tooltip: 工具提示 (支持响应式)
+        frame: 文本区域框架
+    
+    Returns:
+        NSScrollView 包含 NSTextView 的实例
+    """
+    # 创建 NSTextView
+    text_view = NSTextView.alloc().init()
+    
+    # 创建滚动容器
+    scroll_view = NSScrollView.alloc().init()
+    scroll_view.setDocumentView_(text_view)
+    scroll_view.setHasVerticalScroller_(True)
+    scroll_view.setHasHorizontalScroller_(False)
+    scroll_view.setAutohidesScrollers_(True)
+    
+    # 设置文本视图属性
+    text_view.setVerticallyResizable_(True)
+    text_view.setHorizontallyResizable_(False)
+    text_view.textContainer().setWidthTracksTextView_(True)
+    
+    if frame:
+        scroll_view.setFrame_(NSMakeRect(*frame))
+        # 调整文本视图大小
+        text_view.setFrame_(NSMakeRect(0, 0, frame[2], frame[3]))
+
+    # 初始值设置
+    if value is not None:
+        initial_value = value.value if isinstance(value, Signal) else str(value)
+        text_view.setString_(initial_value)
+
+    # 可编辑状态
+    if editable is not None:
+        if isinstance(editable, (Signal, Computed)):
+            ReactiveBinding.bind(text_view, "editable", editable)
+        else:
+            text_view.setEditable_(bool(editable))
+
+    # 启用状态绑定
+    if enabled is not None:
+        if isinstance(enabled, (Signal, Computed)):
+            ReactiveBinding.bind(text_view, "enabled", enabled)
+        else:
+            text_view.setSelectable_(bool(enabled))
+            text_view.setEditable_(bool(enabled) and (editable if editable is not None else True))
+
+    # 字体大小
+    if font_size:
+        from AppKit import NSFont
+        font = NSFont.systemFontOfSize_(font_size)
+        text_view.setFont_(font)
+
+    # 工具提示绑定
+    if tooltip is not None:
+        if isinstance(tooltip, (Signal, Computed)):
+            ReactiveBinding.bind(scroll_view, "tooltip", tooltip)
+        else:
+            scroll_view.setToolTip_(str(tooltip))
+
+    # 值绑定和事件处理
+    if value is not None and isinstance(value, Signal):
+        # 双向绑定需要特殊处理 NSTextView
+        TwoWayBinding.bind_text_view(text_view, value)
+    
+    if on_change:
+        # 创建文本视图委托
+        delegate = EnhancedTextViewDelegate.alloc().init()
+        delegate.on_change = on_change
+        delegate.signal = value if isinstance(value, Signal) else None
+        
+        text_view.setDelegate_(delegate)
+        
+        # 保持委托引用
+        import objc
+        objc.setAssociatedObject(text_view, b"enhanced_delegate", delegate, objc.OBJC_ASSOCIATION_RETAIN)
+    
+    # 将 text_view 引用存储到 scroll_view 中，方便访问
+    import objc
+    objc.setAssociatedObject(scroll_view, b"text_view", text_view, objc.OBJC_ASSOCIATION_RETAIN)
+    
+    return scroll_view

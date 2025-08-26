@@ -29,6 +29,7 @@ class ReactiveBinding:
         "alpha": lambda v, val: ReactiveBinding._set_with_log(v, "setAlphaValue_", float(val)),
         "frame": lambda v, val: ReactiveBinding._set_with_log(v, "setFrame_", val),
         "tooltip": lambda v, val: ReactiveBinding._set_with_log(v, "setToolTip_", str(val) if val is not None else ""),
+        "doubleValue": lambda v, val: ReactiveBinding._set_with_log(v, "setDoubleValue_", float(val)),
     }
 
     @staticmethod
@@ -226,6 +227,44 @@ class ReactiveBinding:
         return cleanup_all
 
 
+class EnhancedSliderDelegate(NSObject):
+    """增强的滑块委托，支持步长和事件处理"""
+
+    def init(self):
+        self = objc.super(EnhancedSliderDelegate, self).init()
+        if self is None:
+            return None
+        self.signal = None
+        self.on_change = None
+        self.step_size = None
+        logger.info(f"🎚️ EnhancedSliderDelegate初始化: {id(self)}")
+        return self
+
+    def sliderChanged_(self, sender):
+        """滑块值改变时的处理"""
+        new_value = sender.doubleValue()
+        logger.info(f"🎚️ 滑块值改变: {new_value}")
+
+        # 步长处理
+        if self.step_size is not None:
+            # 将值调整到最近的步长
+            stepped_value = round(new_value / self.step_size) * self.step_size
+            if stepped_value != new_value:
+                sender.setDoubleValue_(stepped_value)
+                new_value = stepped_value
+                logger.info(f"🎚️ 滑块值调整到步长: {stepped_value}")
+
+        # 更新信号
+        if self.signal:
+            # 防止循环更新
+            if self.signal.value != new_value:
+                self.signal.value = new_value
+
+        # 调用回调
+        if self.on_change:
+            self.on_change(new_value)
+
+
 class TwoWayBinding:
     """双向绑定工具"""
 
@@ -245,6 +284,168 @@ class TwoWayBinding:
 
         # 返回组合的清理函数
         return lambda: one_way_cleanup()
+
+    @staticmethod
+    def bind_slider(slider: Any, signal: Signal[float]) -> Callable[[], None]:
+        """为滑块创建双向绑定"""
+        # 单向绑定：signal -> slider
+        one_way_cleanup = ReactiveBinding.bind(slider, "doubleValue", signal)
+
+        # 反向绑定：slider -> signal (通过现有的委托处理)
+        # 如果滑块已有委托，确保信号被正确设置
+        existing_delegate = slider.target()
+        if existing_delegate and hasattr(existing_delegate, 'signal'):
+            existing_delegate.signal = signal
+
+        # 返回清理函数
+        return lambda: one_way_cleanup()
+
+    @staticmethod  
+    def bind_text_view(text_view: Any, signal: Signal[str]) -> Callable[[], None]:
+        """为NSTextView创建双向绑定"""
+        # 单向绑定：signal -> text_view (需要特殊处理NSTextView)
+        def update_text_view():
+            if hasattr(text_view, 'setString_'):
+                text_view.setString_(signal.value)
+        
+        from .signal import Effect
+        effect = Effect(update_text_view)
+        
+        # 反向绑定：text_view -> signal (通过现有的委托处理)
+        # 如果文本视图已有委托，确保信号被正确设置
+        existing_delegate = text_view.delegate()
+        if existing_delegate and hasattr(existing_delegate, 'signal'):
+            existing_delegate.signal = signal
+
+        # 返回清理函数
+        return lambda: None  # NSTextView 清理较复杂，暂时简化
+
+    @staticmethod
+    def bind_button_state(button: Any, signal: Signal[bool]) -> Callable[[], None]:
+        """为按钮状态（Switch/Checkbox）创建双向绑定"""
+        # 单向绑定：signal -> button state
+        def update_button_state():
+            button.setState_(1 if signal.value else 0)
+        
+        from .signal import Effect
+        effect = Effect(update_button_state)
+        
+        # 反向绑定：button -> signal (通过现有的委托处理)
+        existing_delegate = button.target()
+        if existing_delegate and hasattr(existing_delegate, 'signal'):
+            existing_delegate.signal = signal
+
+        # 返回清理函数
+        return lambda: None
+
+    @staticmethod
+    def bind_radio_button(radio: Any, signal: Signal[str], option_value: str) -> Callable[[], None]:
+        """为单选按钮创建双向绑定"""
+        # 单向绑定：signal -> radio state
+        def update_radio_state():
+            radio.setState_(1 if signal.value == option_value else 0)
+        
+        from .signal import Effect
+        effect = Effect(update_radio_state)
+        
+        # 反向绑定：radio -> signal (通过现有的委托处理)
+        existing_delegate = radio.target()
+        if existing_delegate and hasattr(existing_delegate, 'signal'):
+            existing_delegate.signal = signal
+            existing_delegate.option_value = option_value
+
+        # 返回清理函数
+        return lambda: None
+
+
+class EnhancedButtonDelegate(NSObject):
+    """增强的按钮委托，支持Switch/Checkbox状态改变事件"""
+
+    def init(self):
+        self = objc.super(EnhancedButtonDelegate, self).init()
+        if self is None:
+            return None
+        self.signal = None
+        self.on_change = None
+        logger.info(f"🔘 EnhancedButtonDelegate初始化: {id(self)}")
+        return self
+
+    def buttonStateChanged_(self, sender):
+        """按钮状态改变时的处理"""
+        new_state = sender.state() == 1
+        logger.info(f"🔘 按钮状态改变: {new_state}")
+
+        # 更新信号
+        if self.signal:
+            # 防止循环更新
+            if self.signal.value != new_state:
+                self.signal.value = new_state
+
+        # 调用回调
+        if self.on_change:
+            self.on_change(new_state)
+
+
+class EnhancedRadioDelegate(NSObject):
+    """增强的单选按钮委托"""
+
+    def init(self):
+        self = objc.super(EnhancedRadioDelegate, self).init()
+        if self is None:
+            return None
+        self.signal = None
+        self.on_change = None
+        self.option_value = None
+        logger.info(f"📻 EnhancedRadioDelegate初始化: {id(self)}")
+        return self
+
+    def radioButtonChanged_(self, sender):
+        """单选按钮改变时的处理"""
+        if sender.state() == 1:  # 只处理选中状态
+            logger.info(f"📻 单选按钮选中: {self.option_value}")
+
+            # 更新信号
+            if self.signal and self.option_value is not None:
+                # 防止循环更新
+                if self.signal.value != self.option_value:
+                    self.signal.value = self.option_value
+
+            # 调用回调
+            if self.on_change and self.option_value is not None:
+                self.on_change(self.option_value)
+
+
+class EnhancedTextViewDelegate(NSObject):
+    """增强的文本视图委托，支持NSTextView的文本改变事件"""
+
+    def init(self):
+        self = objc.super(EnhancedTextViewDelegate, self).init()
+        if self is None:
+            return None
+        self.signal = None
+        self.on_change = None
+        logger.info(f"📝 EnhancedTextViewDelegate初始化: {id(self)}")
+        return self
+
+    def textDidChange_(self, notification):
+        """文本改变时的处理"""
+        text_view = notification.object()
+        if hasattr(text_view, 'string'):
+            new_value = str(text_view.string())
+        else:
+            new_value = ""
+        
+        logger.info(f"📝 文本视图内容改变: '{new_value[:50]}...' (长度: {len(new_value)})")
+
+        # 更新信号
+        if self.signal:
+            # 防止循环更新
+            if self.signal.value != new_value:
+                self.signal.value = new_value
+
+        # 调用回调
+        if self.on_change:
+            self.on_change(new_value)
 
 
 # 事件处理委托类
@@ -304,6 +505,120 @@ class MacUITextFieldDelegate(NSObject):
 
     def controlTextDidEndEditing_(self, notification):
         """文本编辑结束处理"""
+        pass
+
+
+class EnhancedTextFieldDelegate(NSObject):
+    """增强的文本框委托类 - 支持验证、格式化等高级功能"""
+
+    def init(self):
+        self = objc.super(EnhancedTextFieldDelegate, self).init()
+        if self is None:
+            return None
+        self.signal = None
+        self.on_change = None
+        self.on_enter = None
+        self.on_focus = None
+        self.on_blur = None
+        self.validation = None
+        self.formatting = None
+        self.max_length = None
+        logger.info(f"🔧 EnhancedTextFieldDelegate初始化: {id(self)}")
+        return self
+
+    def controlTextDidChange_(self, notification):
+        """文本改变时的处理 - 包含验证和长度限制"""
+        text_field = notification.object()
+        new_value = str(text_field.stringValue())
+        logger.info(f"🔧 文本改变: '{new_value}'")
+
+        # 长度限制
+        if self.max_length and len(new_value) > self.max_length:
+            truncated_value = new_value[:self.max_length]
+            text_field.setStringValue_(truncated_value)
+            new_value = truncated_value
+            logger.info(f"🔧 文本截断到最大长度 {self.max_length}: '{truncated_value}'")
+
+        # 验证
+        if self.validation:
+            try:
+                is_valid = self.validation(new_value)
+                if not is_valid:
+                    logger.info(f"🔧 文本验证失败: '{new_value}'")
+                    # 可以在这里添加视觉反馈
+                    return
+            except Exception as e:
+                logger.error(f"🔧 验证函数错误: {e}")
+
+        # 格式化
+        if self.formatting:
+            try:
+                formatted_value = self.formatting(new_value)
+                if formatted_value != new_value:
+                    text_field.setStringValue_(formatted_value)
+                    new_value = formatted_value
+                    logger.info(f"🔧 文本格式化: '{new_value}'")
+            except Exception as e:
+                logger.error(f"🔧 格式化函数错误: {e}")
+
+        # 更新信号
+        if self.signal and hasattr(self.signal, "value"):
+            self.signal.value = new_value
+
+        # 调用变更处理器
+        if self.on_change:
+            try:
+                self.on_change(new_value)
+            except Exception as e:
+                logger.error(f"🔧 文本变更处理器错误: {e}")
+
+    def controlTextDidEndEditing_(self, notification):
+        """文本编辑结束处理 - 检查回车键"""
+        logger.info("🔧 文本编辑结束")
+        
+        # 检查是否按了回车键
+        if self.on_enter:
+            # 获取结束编辑的原因
+            user_info = notification.userInfo()
+            if user_info:
+                movement = user_info.get("NSTextMovement")
+                if movement == 16:  # NSReturnTextMovement
+                    try:
+                        logger.info("🔧 检测到回车键，调用on_enter")
+                        self.on_enter()
+                    except Exception as e:
+                        logger.error(f"🔧 回车处理器错误: {e}")
+
+        # 失去焦点回调
+        if self.on_blur:
+            try:
+                self.on_blur()
+            except Exception as e:
+                logger.error(f"🔧 失去焦点处理器错误: {e}")
+
+    def controlTextDidBeginEditing_(self, notification):
+        """文本开始编辑处理 - 获得焦点"""
+        logger.info("🔧 文本开始编辑")
+        
+        if self.on_focus:
+            try:
+                self.on_focus()
+            except Exception as e:
+                logger.error(f"🔧 获得焦点处理器错误: {e}")
+
+    def control_textView_doCommandBySelector_(self, control, text_view, command):
+        """处理特殊键盘命令"""
+        logger.info(f"🔧 键盘命令: {command}")
+        
+        # 处理回车键（另一种方式）
+        if command == "insertNewline:" and self.on_enter:
+            try:
+                self.on_enter()
+                return True  # 阻止默认行为
+            except Exception as e:
+                logger.error(f"🔧 回车命令处理错误: {e}")
+        
+        return False  # 允许默认处理
 
 
 # 事件绑定工具

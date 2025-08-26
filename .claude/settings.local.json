@@ -8,7 +8,8 @@
       "Bash(uv sync:*)",
       "Bash(find:*)",
       "Bash(tree:*)",
-      "Bash(uv add:*)"
+      "Bash(uv add:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
