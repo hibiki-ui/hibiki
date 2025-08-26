@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-最简 TableView 测试 - 只包含必要的组件
+TableView 状态测试 - 详细监控应用状态
 """
 
 import sys
 import os
+import time
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -16,42 +17,27 @@ from macui.app import MacUIApp
 
 set_log_level("INFO")
 
-class MinimalTableViewApp(Component):
-    """最简 TableView 应用"""
+class TableViewStatusApp(Component):
+    """监控 TableView 状态的测试应用"""
     
     def __init__(self):
         super().__init__()
-        print("🔧 初始化最简TableView组件...")
+        print("🔧 初始化 TableView 状态监控...")
         
-        # 最简状态
-        self.message = self.create_signal("TableView Test Ready")
-        
-        # TableView 数据 - 最小数据集
         self.table_data = self.create_signal([
             {"name": "Test1", "value": "A"},
         ])
         
         self.selected_row = self.create_signal(-1)
-        
-        # 状态文本
-        self.status_text = self.create_computed(
-            lambda: f"Status: {self.message.value}"
-        )
     
     def on_row_select(self, row):
-        """行选择回调"""
         print(f"📊 Row selected: {row}")
-        self.message.value = f"Selected row: {row}"
     
     def mount(self):
-        """构建最简视图"""
-        print("🏗️ Building minimal TableView...")
+        print("🏗️ Building TableView with status monitoring...")
         
         return VStack(spacing=10, padding=10, children=[
-            Label("Minimal TableView Test"),
-            Label(self.status_text),
-            
-            # 最简 TableView - 无 frame，让系统自动布局
+            Label("TableView Status Test"),
             TableView(
                 columns=[
                     {"title": "Name", "key": "name", "width": 80},
@@ -60,41 +46,45 @@ class MinimalTableViewApp(Component):
                 data=self.table_data,
                 selected_row=self.selected_row,
                 on_select=self.on_row_select
-                # 移除 frame 参数，让系统自动布局
             ),
         ])
 
 def main():
-    """主函数"""
-    print("🚀 Minimal TableView Test Starting...")
+    print("🚀 TableView Status Test Starting...")
     
-    app = MacUIApp("Minimal TableView Test")
+    app = MacUIApp("TableView Status Test")
     
-    print("📱 Creating minimal component...")
-    test_component = MinimalTableViewApp()
+    print("📱 Creating component...")
+    test_component = TableViewStatusApp()
     
+    print("🏠 Creating window...")
     window = app.create_window(
-        title="Minimal TableView Test", 
-        size=(250, 200),
+        title="TableView Status Test", 
+        size=(200, 150),
         resizable=True,
         content=test_component
     )
     
     print("👀 Showing window...")
     window.show()
-    print("✅ Window should be visible now")
+    print("✅ Window.show() completed")
     
-    print("🎬 Starting application...")
+    print("⏰ Waiting 2 seconds...")
+    time.sleep(2)
+    
+    print("🎬 Starting application run loop...")
     try:
+        print("📍 About to call app.run()...")
         app.run()
+        print("📍 app.run() returned normally")
     except KeyboardInterrupt:
         print("\n👋 User interrupted")
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n❌ Error in app.run(): {e}")
         import traceback
         traceback.print_exc()
     finally:
-        print("✅ Minimal test ended")
+        print("✅ Application ended")
 
 if __name__ == "__main__":
     main()

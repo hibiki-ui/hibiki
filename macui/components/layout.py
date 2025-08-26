@@ -57,6 +57,8 @@ def VStack(
     """
     stack = NSStackView.alloc().init()
     stack.setOrientation_(NSUserInterfaceLayoutOrientationVertical)
+    
+    # 暂时恢复默认设置进行测试
 
     # 设置框架
     if frame:
@@ -109,7 +111,11 @@ def HStack(
         NSStackView 实例
     """
     stack = NSStackView.alloc().init()
+    stack.setFrame_(NSMakeRect(0, 0, 100, 100))  # 提供稳定的初始Frame
     stack.setOrientation_(NSUserInterfaceLayoutOrientationHorizontal)
+    
+    # 按照技术文档: 禁用 Autoresizing Mask 转换
+    stack.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
     # 设置框架
     if frame:
@@ -474,14 +480,20 @@ def TableView(
     Returns:
         NSScrollView 实例（包含 NSTableView）
     """
-    # 创建滚动视图
+    # 创建滚动视图 - 提供稳定的初始 Frame
+    from Foundation import NSMakeRect
     scroll_view = NSScrollView.alloc().init()
+    scroll_view.setFrame_(NSMakeRect(0, 0, 100, 100))  # 步骤3: 提供稳定的初始Frame
     scroll_view.setHasVerticalScroller_(True)
     scroll_view.setHasHorizontalScroller_(True)
     scroll_view.setAutohidesScrollers_(True)
     
-    # 创建表格视图
+    # 暂时保持 translatesAutoresizingMaskIntoConstraints=True (默认)
+    # 让 TableView 使用传统的 autoresizing 而不是 autolayout
+    
+    # 创建表格视图 - 也提供稳定的初始 Frame
     table_view = NSTableView.alloc().init()
+    table_view.setFrame_(NSMakeRect(0, 0, 100, 100))  # 步骤3: 提供稳定的初始Frame
     table_view.setHeaderView_(None if not headers_visible else table_view.headerView())
     
     # 创建列
@@ -503,6 +515,7 @@ def TableView(
     # 设置表格到滚动视图
     scroll_view.setDocumentView_(table_view)
     
+    # 恢复 frame 设置（使用传统 autoresizing）
     if frame:
         from ..utils.layout_utils import safe_set_frame
         safe_set_frame(scroll_view, frame)
