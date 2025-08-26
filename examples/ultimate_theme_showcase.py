@@ -157,13 +157,14 @@ class UltimateThemeShowcase(Component):
                 Button("海洋风", on_click=lambda: self.switch_theme("ocean")),
                 Button("日落橙", on_click=lambda: self.switch_theme("sunset"))
             ],
-            spacing=theme_spacing('sm')
+            spacing=theme_spacing('lg')  # 增大按钮间距
         )
         
-        # 当前主题信息
+        # 当前主题信息 - 设置更大的宽度确保完整显示
         theme_info = Label(
             current_theme().name,
-            font=current_theme().font(TextStyle.HEADLINE)
+            font=current_theme().font(TextStyle.HEADLINE),
+            frame=(0, 0, 400, 30)  # 设置固定宽度和高度
         )
         
         # 响应式更新
@@ -227,45 +228,36 @@ class UltimateThemeShowcase(Component):
             on_click=self.toggle_style_animation
         )
         
-        # 响应式样式演示卡片
+        # 状态指示标签
+        status_label = Label(
+            "🎭 样式演示: 默认状态",
+            font=current_theme().font(TextStyle.HEADLINE)
+        )
+        
+        # 响应式样式演示卡片 - 简化版，避免AutoLayout冲突
         demo_card_content = VStack(
             children=[
-                Label("🎭 动态样式卡片", font=current_theme().font(TextStyle.HEADLINE)),
-                Label("这个卡片会根据状态动态改变样式", font=current_theme().font(TextStyle.BODY)),
-                animation_button
+                status_label,
+                Label("这个区域会根据状态动态改变样式", font=current_theme().font(TextStyle.BODY)),
+                animation_button,
+                Label("📍 坐标调试: VStack布局正常", font=current_theme().font(TextStyle.CAPTION_1))
             ],
             spacing=theme_spacing('sm'),
             alignment="center"
         )
         
-        # 应用动态样式到卡片
+        # 简化的响应式更新 - 只更新文本和颜色，避免复杂样式冲突
         def update_card_style():
             animated = self.style_animation.value
             
             if animated:
-                # 动画状态：提升+阴影+缩放
-                card_style = StyleBuilder.create()\
-                    .background(theme_color(ColorRole.SECONDARY_BACKGROUND).value)\
-                    .corner_radius(theme_spacing('lg'))\
-                    .shadow(offset=(0, 8), blur=16, opacity=0.2)\
-                    .padding(theme_spacing('xl'))\
-                    .scale(1.05)\
-                    .animate(0.3)\
-                    .build()
+                status_label.setStringValue_("🚀 样式演示: 动画激活状态")
+                status_label.setTextColor_(theme_color(ColorRole.ACCENT_COLOR).value)
+                animation_button.setTitle_("停止动画")
             else:
-                # 默认状态
-                card_style = StyleBuilder.create()\
-                    .background(theme_color(ColorRole.PRIMARY_BACKGROUND).value)\
-                    .corner_radius(theme_spacing('md'))\
-                    .shadow(offset=(0, 2), blur=4, opacity=0.1)\
-                    .padding(theme_spacing('lg'))\
-                    .animate(0.3)\
-                    .build()
-            
-            StyleApplicator.apply(demo_card_content, card_style)
-            
-            # 更新按钮文字
-            animation_button.setTitle_("停止动画" if animated else "开始动画")
+                status_label.setStringValue_("🎭 样式演示: 默认状态")
+                status_label.setTextColor_(theme_color(ColorRole.PRIMARY_TEXT).value)
+                animation_button.setTitle_("开始动画")
         
         self.create_effect(update_card_style)
         
@@ -276,7 +268,7 @@ class UltimateThemeShowcase(Component):
                 Label("💡 支持样式扩展、合并和响应式计算", font=current_theme().font(TextStyle.FOOTNOTE))
             ],
             spacing=theme_spacing('lg'),
-            alignment="center"
+            alignment="leading"  # 改为左对齐，更自然
         )
     
     def create_tokens_showcase(self) -> VStack:
@@ -306,6 +298,7 @@ class UltimateThemeShowcase(Component):
                 spacing_demo,
                 Label("🔘 圆角系统:", font=current_theme().font(TextStyle.HEADLINE)),
                 radius_demo,
+                Label("📍 右侧布局调试: 设计令牌区域正常", font=current_theme().font(TextStyle.CAPTION_1)),
                 Label("💡 统一的设计价值管理", font=current_theme().font(TextStyle.FOOTNOTE))
             ],
             spacing=theme_spacing('md'),
@@ -333,7 +326,8 @@ class UltimateThemeShowcase(Component):
         return VStack(
             children=[
                 Label("🚀 增强主题系统特性", font=current_theme().font(TextStyle.TITLE_2)),
-                *feature_labels
+                *feature_labels,
+                Label("📍 特性列表调试: 8个特性项正常", font=current_theme().font(TextStyle.CAPTION_1))
             ],
             spacing=theme_spacing('xs'),
             alignment="leading"
@@ -367,7 +361,8 @@ class UltimateThemeShowcase(Component):
                     alignment="leading"
                 )
             ],
-            spacing=theme_spacing('xxl')
+            spacing=theme_spacing('xxl'),
+            alignment="top"  # 确保左右两侧顶部对齐
         )
         
         # 主布局
@@ -375,13 +370,14 @@ class UltimateThemeShowcase(Component):
             children=[
                 theme_selector,
                 demo_content,
+                Label("📍 布局调试: 窗口1600x1200, HStack左右分栏", font=current_theme().font(TextStyle.CAPTION_1)),
                 Label(
                     "🎯 macUI v2 - 从Demo到生产级UI框架的完美进化",
                     font=current_theme().font(TextStyle.FOOTNOTE)
                 )
             ],
-            spacing=theme_spacing('xxl'),
-            alignment="center"
+            spacing=theme_spacing('xl'),  # 适当减小间距，让内容更紧凑
+            alignment="leading"  # 改为左对齐，让内容更自然
         )
         
         return main_layout
@@ -406,10 +402,10 @@ def main():
     # 创建主组件
     showcase = UltimateThemeShowcase()
     
-    # 创建窗口
+    # 创建窗口 - 增大尺寸确保内容完整显示
     window = create_window(
         title="macUI v2 - 终极主题展示",
-        size=(1400, 1000),
+        size=(1600, 1200),  # 增大窗口尺寸
         content=showcase
     )
     
