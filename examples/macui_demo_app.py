@@ -118,7 +118,7 @@ class MacUIDemo(NSObject):
     def create_window(self):
         """创建主窗口"""
         self.window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
-            NSMakeRect(100, 100, 850, 650),
+            NSMakeRect(100, 100, 900, 700),
             NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable,
             NSBackingStoreBuffered,
             False
@@ -147,7 +147,7 @@ class MacUIDemo(NSObject):
             on_select=self.on_select,
             on_double_click=self.on_double_click,
             headers_visible=True,
-            frame=(0, 0, 750, 280)
+            frame=(0, 0, 800, 200)
         )
         
         # 创建输入框
@@ -157,11 +157,22 @@ class MacUIDemo(NSObject):
             frame=(0, 0, 200, 24)
         )
         
+        # 创建响应式标签
+        self.count_label = Label("📊 商品总数：10")
+        self.selected_label = Label("🔍 当前选择：未选择") 
+        self.status_label = Label("📱 状态：应用已启动")
+        
+        # 绑定响应式数据
+        from macui.core.binding import ReactiveBinding
+        ReactiveBinding.bind(self.count_label, "text", lambda: f"📊 商品总数：{self.item_count.value}")
+        ReactiveBinding.bind(self.selected_label, "text", lambda: f"🔍 当前选择：{self.selected_item.value}")
+        ReactiveBinding.bind(self.status_label, "text", lambda: f"📱 状态：{self.status.value}")
+        
         # 🎉 关键：混合布局演示
         # TableView在VStack中，重构前会崩溃，现在完美工作
         main_ui = VStack(
-            spacing=16,
-            padding=24,
+            spacing=12,
+            padding=20,
             children=[
                 # 标题区域
                 VStack(
@@ -169,7 +180,7 @@ class MacUIDemo(NSObject):
                     children=[
                         Label("🎉 macUI v2.1 混合布局系统演示"),
                         Label("TableView现在可以完美地在VStack中工作！"),
-                        Label(f"📊 商品总数：{self.item_count}")
+                        self.count_label
                     ]
                 ),
                 
@@ -191,8 +202,8 @@ class MacUIDemo(NSObject):
                 VStack(
                     spacing=4,
                     children=[
-                        Label(f"🔍 当前选择：{self.selected_item}"),
-                        Label(f"📱 状态：{self.status}")
+                        self.selected_label,
+                        self.status_label
                     ]
                 ),
                 
@@ -248,7 +259,7 @@ class MacUIDemo(NSObject):
                     ]
                 )
             ],
-            frame=(0, 0, 810, 610)
+            frame=(20, 20, 860, 660)
         )
         
         print(f"✅ 主界面创建成功：{type(main_ui)}")
