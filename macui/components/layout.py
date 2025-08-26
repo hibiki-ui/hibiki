@@ -12,6 +12,12 @@ from AppKit import (
     NSScrollView,
     NSSplitView,
     NSStackView,
+    NSStackViewDistributionGravityAreas,
+    NSStackViewDistributionFill,
+    NSStackViewDistributionFillEqually,
+    NSStackViewDistributionFillProportionally,
+    NSStackViewDistributionEqualSpacing,
+    NSStackViewDistributionEqualCentering,
     NSTableColumn,
     NSTableView,
     NSTabView,
@@ -430,7 +436,13 @@ def _create_constraints_hstack(spacing, padding, alignment, children, frame):
     """创建基于约束的HStack（原有实现）"""
     stack = NSStackView.alloc().init()
     stack.setFrame_(NSMakeRect(0, 0, 100, 100))  # 提供稳定的初始Frame
-    stack.setOrientation_(NSUserInterfaceLayoutOrientationHorizontal)
+    # 明确设置为水平方向（0 = Horizontal, 1 = Vertical）
+    stack.setOrientation_(0)  # 强制设置为Horizontal
+    print(f"🔧 强制设置orientation为0 (Horizontal)")
+    
+    # 立即验证设置是否生效
+    check_orientation = stack.orientation()
+    print(f"🔍 设置后立即检查orientation: {check_orientation} ({'成功' if check_orientation == 0 else '失败'})")
     
     # 按照技术文档: 禁用 Autoresizing Mask 转换
     stack.setTranslatesAutoresizingMaskIntoConstraints_(False)
@@ -441,10 +453,29 @@ def _create_constraints_hstack(spacing, padding, alignment, children, frame):
 
     # 设置间距
     stack.setSpacing_(spacing)
+    check_after_spacing = stack.orientation()
+    print(f"🔍 设置spacing后orientation: {check_after_spacing}")
 
-    # 设置对齐
-    alignment_constant = ALIGNMENT_MAP.get(alignment, NSLayoutAttributeCenterY)
+    # 设置对齐 - 为HStack使用正确的对齐常量
+    # HStack需要垂直方向的对齐常量
+    hstack_alignment_map = {
+        "top": NSLayoutAttributeTop,
+        "bottom": NSLayoutAttributeBottom,
+        "center": NSLayoutAttributeCenterY,  # 修复：水平布局用垂直居中
+        "centerY": NSLayoutAttributeCenterY,
+    }
+    alignment_constant = hstack_alignment_map.get(alignment, NSLayoutAttributeCenterY)
+    print(f"🔧 HStack使用对齐常量: {alignment} → {alignment_constant}")
+    
     stack.setAlignment_(alignment_constant)
+    check_after_alignment = stack.orientation()
+    print(f"🔍 设置alignment后orientation: {check_after_alignment} ({'期望保持0' if check_after_alignment == 0 else '⚠️被改变了!'})")
+    
+    # 设置分布方式 - 关键：让子视图根据内容大小自然分布
+    stack.setDistribution_(NSStackViewDistributionGravityAreas)
+    check_after_distribution = stack.orientation()
+    print(f"🔍 设置distribution后orientation: {check_after_distribution}")
+    print(f"📊 HStack distribution设置为: GravityAreas (根据内容大小自然分布)")
 
     # 设置内边距
     if isinstance(padding, (int, float)):
@@ -457,11 +488,50 @@ def _create_constraints_hstack(spacing, padding, alignment, children, frame):
     stack.setEdgeInsets_(insets)
 
     # 添加子视图
-    for child in children:
+    print(f"🚀 创建HStack (约束模式): 将添加 {len(children)} 个子视图")
+    for i, child in enumerate(children):
         child_view = child.get_view() if isinstance(child, Component) else child
         if child_view:
+            # 确保按钮有合适的尺寸
+            if hasattr(child_view, 'title') and child_view.title():
+                child_view.sizeToFit()  # 让按钮自动调整到合适尺寸
+                # 获取按钮调整后的尺寸
+                size = child_view.frame().size
+                print(f"   📏 按钮 '{child_view.title()}' sizeToFit后: {size.width:.1f} x {size.height:.1f}")
+                
             stack.addArrangedSubview_(child_view)
-
+            
+            # 调试信息：记录添加的子视图
+            title = ""
+            if hasattr(child_view, 'title') and child_view.title():
+                title = f" ('{child_view.title()}')"
+            elif hasattr(child_view, 'stringValue') and child_view.stringValue():
+                title = f" ('{child_view.stringValue()}')"
+                
+            print(f"🔧 HStack添加子视图 {i+1}: {child_view.__class__.__name__}{title}")
+    
+    # 调试信息：输出HStack配置
+    print(f"📐 HStack配置: spacing={spacing}, alignment={alignment}")
+    print(f"📦 HStack初始frame: {stack.frame()}")
+    actual_orientation = stack.orientation()
+    horizontal_constant = NSUserInterfaceLayoutOrientationHorizontal
+    vertical_constant = NSUserInterfaceLayoutOrientationVertical
+    print(f"🎯 HStack orientation: {actual_orientation} (Horizontal常量:{horizontal_constant}, Vertical常量:{vertical_constant})")
+    print(f"🎯 方向判断: {'Horizontal' if actual_orientation == horizontal_constant else 'Vertical'}")
+    
+    # 强制触发布局更新
+    stack.layoutSubtreeIfNeeded()
+    print(f"🔄 强制触发布局更新")
+    
+    # 检查布局后的子视图位置
+    if hasattr(stack, 'arrangedSubviews'):
+        arranged_views = stack.arrangedSubviews()
+        print(f"🔍 布局更新后立即检查子视图位置:")
+        for i, subview in enumerate(arranged_views):
+            frame = subview.frame()
+            title = subview.title() if hasattr(subview, 'title') else "Unknown"
+            print(f"   子视图 {i+1} '{title}': x={frame.origin.x:.1f}, w={frame.size.width:.1f}")
+    
     return stack
 
 def _create_frame_hstack(spacing, padding, alignment, children, frame):
@@ -497,7 +567,17 @@ def _create_frame_hstack(spacing, padding, alignment, children, frame):
         if child_view:
             # 如果子视图没有设置frame，为其计算默认frame
             if not hasattr(child_view, 'frame') or child_view.frame().size.width == 0:
-                child_width = 100  # 默认宽度
+                # 智能计算宽度
+                if hasattr(child_view, 'title') and child_view.title():
+                    # 对于按钮，根据标题长度计算宽度
+                    title_length = len(str(child_view.title()))
+                    child_width = max(80, min(150, title_length * 8 + 20))  # 动态宽度
+                elif hasattr(child_view, 'stringValue') and child_view.stringValue():
+                    # 对于标签，根据文本长度计算宽度
+                    text_length = len(str(child_view.stringValue()))
+                    child_width = max(60, min(200, text_length * 7 + 10))  # 动态宽度
+                else:
+                    child_width = 100  # 默认宽度
                 child_height = available_height
                 
                 # 根据对齐方式计算y位置

@@ -41,12 +41,25 @@ def Button(
 
     if frame:
         button.setFrame_(NSMakeRect(*frame))
+        print(f"🎯 按钮显式设置frame: {frame}")
+    else:
+        # 确保按钮有合理的默认尺寸
+        button.setFrame_(NSMakeRect(0, 0, 100, 32))  # 提供合理默认尺寸
+        print(f"🎯 按钮使用默认frame: (0, 0, 100, 32)")
 
     # 标题绑定
     if isinstance(title, (Signal, Computed)):
         ReactiveBinding.bind(button, "title", title)
+        print(f"🏷️ 按钮标题绑定到Signal/Computed")
     else:
         button.setTitle_(str(title))
+        print(f"🏷️ 按钮设置标题: '{str(title)}'")
+        
+        # 根据标题内容调整按钮大小
+        if not frame:  # 只有在没有显式frame时才自动调整
+            button.sizeToFit()
+            new_size = button.frame().size
+            print(f"📏 按钮sizeToFit后尺寸: {new_size.width:.1f} x {new_size.height:.1f}")
 
     # 启用状态绑定
     if enabled is not None:

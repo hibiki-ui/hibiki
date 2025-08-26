@@ -227,9 +227,9 @@ class MacUIDemo(NSObject):
                         HStack(
                             spacing=12,  
                             children=[
-                                Button("🎲 随机添加", on_click=self.add_random),
-                                Button("✏️ 编辑选中", on_click=self.edit_selected),
-                                Button("🗑️ 删除选中", on_click=self.delete_selected)
+                                Button("🎲 随机添加", on_click=self.add_random, frame=(0, 0, 100, 32)),
+                                Button("✏️ 编辑选中", on_click=self.edit_selected, frame=(0, 0, 100, 32)),
+                                Button("🗑️ 删除选中", on_click=self.delete_selected, frame=(0, 0, 100, 32))
                             ]
                         ),
                         
@@ -237,9 +237,9 @@ class MacUIDemo(NSObject):
                         HStack(
                             spacing=12,
                             children=[
-                                Button("📊 生成测试数据", on_click=self.generate_data),
-                                Button("🧹 清空所有", on_click=self.clear_all),
-                                Button("📈 统计信息", on_click=self.show_stats)
+                                Button("📊 生成测试数据", on_click=self.generate_data, frame=(0, 0, 120, 32)),
+                                Button("🧹 清空所有", on_click=self.clear_all, frame=(0, 0, 90, 32)),
+                                Button("📈 统计信息", on_click=self.show_stats, frame=(0, 0, 90, 32))
                             ]
                         )
                     ]
