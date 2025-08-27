@@ -6,7 +6,7 @@
 from typing import Optional, Dict, Any, List, Tuple
 from AppKit import NSView
 from Foundation import NSMakeRect
-from .node import LayoutNode, STRETCHABLE_AVAILABLE
+from .node import LayoutNode
 import time
 
 class LayoutDebugger:
@@ -30,7 +30,7 @@ class LayoutDebugger:
             'stage': stage,
             'node_key': node.key,
             'node_id': id(node),
-            'has_stretchable_node': STRETCHABLE_AVAILABLE and node._stretchable_node is not None,
+            'has_stretchable_node': node._stretchable_node is not None,
         }
         
         if before_compute:

@@ -8,14 +8,7 @@ LayoutNode - 布局节点抽象
 from typing import Optional, List, Any, Tuple
 from .styles import LayoutStyle
 
-# Try to import stretchable, fall back to None if not available
-try:
-    import stretchable as st
-    STRETCHABLE_AVAILABLE = True
-except ImportError:
-    st = None
-    STRETCHABLE_AVAILABLE = False
-    print("⚠️ Stretchable layout engine not available, falling back to frame-based layout")
+import stretchable as st
 
 
 class LayoutNode:
@@ -42,25 +35,13 @@ class LayoutNode:
         self._children: List['LayoutNode'] = []
         self._parent: Optional['LayoutNode'] = None
         
-        # 创建Stretchable节点 (如果可用)
-        if STRETCHABLE_AVAILABLE:
-            try:
-                stretchable_style = style.to_stretchable_style() if style else st.Style()
-                self._stretchable_node = st.Node(style=stretchable_style)
-            except Exception as e:
-                self._stretchable_node = None
-        else:
-            # Fallback: 使用简单的frame-based布局
-            self._stretchable_node = None
+        # 创建Stretchable节点
+        stretchable_style = style.to_stretchable_style() if style else st.Style()
+        self._stretchable_node = st.Node(style=stretchable_style)
         
         # 保存原始样式引用
         self._style = style
         
-        # Frame-based fallback properties
-        self._computed_x = 0.0
-        self._computed_y = 0.0 
-        self._computed_width = 100.0
-        self._computed_height = 100.0
     
     @property
     def style(self) -> Optional[LayoutStyle]:
@@ -72,8 +53,8 @@ class LayoutNode:
         """更新布局样式"""
         self._style = new_style
         
-        # 更新Stretchable节点样式 (如果可用)
-        if STRETCHABLE_AVAILABLE and self._stretchable_node:
+        # 更新Stretchable节点样式
+        if self._stretchable_node is not None:
             stretchable_style = new_style.to_stretchable_style() if new_style else st.Style()
             self._stretchable_node.style = stretchable_style
         
@@ -107,11 +88,11 @@ class LayoutNode:
         
         if index is None:
             self._children.append(child)
-            if STRETCHABLE_AVAILABLE and self._stretchable_node is not None and child._stretchable_node is not None:
+            if self._stretchable_node is not None and child._stretchable_node is not None:
                 self._stretchable_node.append(child._stretchable_node)
         else:
             self._children.insert(index, child)
-            if STRETCHABLE_AVAILABLE and self._stretchable_node is not None and child._stretchable_node is not None:
+            if self._stretchable_node is not None and child._stretchable_node is not None:
                 self._stretchable_node.insert(index, child._stretchable_node)
         
         self.mark_dirty()
@@ -128,7 +109,7 @@ class LayoutNode:
         """
         if child in self._children:
             self._children.remove(child)
-            if STRETCHABLE_AVAILABLE and self._stretchable_node is not None and child._stretchable_node is not None:
+            if self._stretchable_node is not None and child._stretchable_node is not None:
                 self._stretchable_node.remove(child._stretchable_node)
             child._parent = None
             self.mark_dirty()
@@ -177,7 +158,7 @@ class LayoutNode:
         Returns:
             self (支持链式调用)
         """
-        if not STRETCHABLE_AVAILABLE or self._stretchable_node is None:
+        if self._stretchable_node is None:
             return self
             
         try:
@@ -202,15 +183,11 @@ class LayoutNode:
         Returns:
             (x, y, width, height) - 相对于父节点的位置和尺寸
         """
-        # 修正：使用 is None 而不是 not，因为Stretchable Node的bool()返回False
-        if not STRETCHABLE_AVAILABLE or self._stretchable_node is None:
-            return (self._computed_x, self._computed_y, self._computed_width, self._computed_height)
+        if self._stretchable_node is None:
+            raise RuntimeError("布局节点未正确初始化")
         
-        try:
-            box = self._stretchable_node.get_box()
-            return (box.x, box.y, box.width, box.height)
-        except Exception as e:
-            return (self._computed_x, self._computed_y, self._computed_width, self._computed_height)
+        box = self._stretchable_node.get_box()
+        return (box.x, box.y, box.width, box.height)
     
     def get_content_size(self) -> Tuple[float, float]:
         """获取内容区域尺寸 (去除padding)
@@ -218,6 +195,9 @@ class LayoutNode:
         Returns:
             (content_width, content_height)
         """
+        if self._stretchable_node is None:
+            raise RuntimeError("布局节点未正确初始化")
+            
         # 获取边框盒子
         border_box = self._stretchable_node.border_box
         return (border_box.width, border_box.height)
@@ -228,18 +208,15 @@ class LayoutNode:
         Returns:
             self (支持链式调用)  
         """
-        if STRETCHABLE_AVAILABLE and self._stretchable_node is not None:
+        if self._stretchable_node is not None:
             self._stretchable_node.mark_dirty()
         return self
     
     def is_dirty(self) -> bool:
         """检查是否需要重新布局"""
-        if not STRETCHABLE_AVAILABLE or self._stretchable_node is None:
+        if self._stretchable_node is None:
             return False
-        try:
-            return self._stretchable_node.is_dirty
-        except:
-            return False
+        return self._stretchable_node.is_dirty
     
     def get_stretchable_node(self) -> st.Node:
         """获取底层Stretchable节点 (用于调试和高级操作)"""
