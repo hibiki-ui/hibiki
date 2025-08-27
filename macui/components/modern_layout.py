@@ -26,7 +26,7 @@ class ModernVStack(LayoutAwareComponent):
     
     def __init__(
         self,
-        children: Optional[List[Union[LayoutAwareComponent, Component, Any]]] = None,
+        children: Optional[List[LayoutAwareComponent]] = None,
         style: Optional[LayoutStyle] = None
     ):
         """初始化现代化垂直布局
@@ -62,48 +62,30 @@ class ModernVStack(LayoutAwareComponent):
         print("🔧 子组件处理完成")
     
     def _process_children(self):
-        """处理和包装子组件"""
+        """处理子组件 - 仅支持LayoutAwareComponent"""
         for child in self.children:
             if isinstance(child, LayoutAwareComponent):
-                # 已经是现代化组件
+                # 现代化组件，直接使用
                 self.child_components.append(child)
-            elif isinstance(child, Component):
-                # 传统Component，需要包装
-                wrapped = self._wrap_legacy_component(child)
-                self.child_components.append(wrapped)
             else:
-                # 直接的NSView或其他对象
-                wrapped = self._wrap_view_object(child)
-                self.child_components.append(wrapped)
+                # 不支持的组件类型
+                raise TypeError(f"不支持的子组件类型: {type(child).__name__}. 请使用macUI统一API组件 (Label, Button, VStack等)")
     
-    def _wrap_legacy_component(self, component: Component) -> LayoutAwareComponent:
-        """包装传统组件"""
-        from .core import LegacyComponentWrapper
-        return LegacyComponentWrapper(component)
     
-    def _wrap_view_object(self, view_obj) -> LayoutAwareComponent:
-        """包装视图对象"""
-        from .core import LegacyComponentWrapper
-        return LegacyComponentWrapper(view_obj)
-    
-    def add_child(self, child: Union[LayoutAwareComponent, Component, Any]) -> 'ModernVStack':
+    def add_child(self, child: LayoutAwareComponent) -> 'ModernVStack':
         """添加子组件 - 支持链式调用"""
         self.children.append(child)
         
         # 处理新增的子组件
         if isinstance(child, LayoutAwareComponent):
-            wrapped_child = child
-        elif isinstance(child, Component):
-            wrapped_child = self._wrap_legacy_component(child)
+            self.child_components.append(child)
+            
+            # 更新布局树
+            if self.layout_node:
+                child_node = child.create_layout_node()
+                self.layout_node.add_child(child_node)
         else:
-            wrapped_child = self._wrap_view_object(child)
-        
-        self.child_components.append(wrapped_child)
-        
-        # 更新布局树
-        if self.layout_node:
-            child_node = wrapped_child.create_layout_node()
-            self.layout_node.add_child(child_node)
+            raise TypeError(f"不支持的子组件类型: {type(child).__name__}. 请使用macUI统一API组件 (Label, Button, VStack等)")
         
         return self
     
@@ -214,7 +196,7 @@ class ModernHStack(LayoutAwareComponent):
     
     def __init__(
         self,
-        children: Optional[List[Union[LayoutAwareComponent, Component, Any]]] = None,
+        children: Optional[List[LayoutAwareComponent]] = None,
         style: Optional[LayoutStyle] = None
     ):
         """初始化现代化水平布局
@@ -247,44 +229,30 @@ class ModernHStack(LayoutAwareComponent):
         self._process_children()
     
     def _process_children(self):
-        """处理和包装子组件 - 与VStack相同的逻辑"""
+        """处理子组件 - 仅支持LayoutAwareComponent"""
         for child in self.children:
             if isinstance(child, LayoutAwareComponent):
+                # 现代化组件，直接使用
                 self.child_components.append(child)
-            elif isinstance(child, Component):
-                wrapped = self._wrap_legacy_component(child)
-                self.child_components.append(wrapped)
             else:
-                wrapped = self._wrap_view_object(child)
-                self.child_components.append(wrapped)
+                # 不支持的组件类型
+                raise TypeError(f"不支持的子组件类型: {type(child).__name__}. 请使用macUI统一API组件 (Label, Button, HStack等)")
     
-    def _wrap_legacy_component(self, component: Component) -> LayoutAwareComponent:
-        """包装传统组件"""
-        from .core import LegacyComponentWrapper
-        return LegacyComponentWrapper(component)
     
-    def _wrap_view_object(self, view_obj) -> LayoutAwareComponent:
-        """包装视图对象"""
-        from .core import LegacyComponentWrapper
-        return LegacyComponentWrapper(view_obj)
-    
-    def add_child(self, child: Union[LayoutAwareComponent, Component, Any]) -> 'ModernHStack':
+    def add_child(self, child: LayoutAwareComponent) -> 'ModernHStack':
         """添加子组件 - 支持链式调用"""
         self.children.append(child)
         
+        # 处理新增的子组件
         if isinstance(child, LayoutAwareComponent):
-            wrapped_child = child
-        elif isinstance(child, Component):
-            wrapped_child = self._wrap_legacy_component(child)
+            self.child_components.append(child)
+            
+            # 更新布局树
+            if self.layout_node:
+                child_node = child.create_layout_node()
+                self.layout_node.add_child(child_node)
         else:
-            wrapped_child = self._wrap_view_object(child)
-        
-        self.child_components.append(wrapped_child)
-        
-        # 更新布局树
-        if self.layout_node:
-            child_node = wrapped_child.create_layout_node()
-            self.layout_node.add_child(child_node)
+            raise TypeError(f"不支持的子组件类型: {type(child).__name__}. 请使用macUI统一API组件 (Label, Button, HStack等)")
         
         return self
     
