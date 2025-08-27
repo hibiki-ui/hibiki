@@ -5,7 +5,7 @@ macUI v4.0 组件核心架构
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, List, Union, Callable, Any, TypeVar
+from typing import Optional, List, Union, Callable, Any, TypeVar, Tuple
 from AppKit import NSView
 from Foundation import NSMakeRect
 
@@ -172,6 +172,14 @@ class Component(ABC):
             except Exception as e:
                 print(f"⚠️ 清理回调错误: {e}")
         self._cleanup_callbacks.clear()
+        
+        # 清理布局节点
+        try:
+            from .layout import get_layout_engine
+            engine = get_layout_engine()
+            engine.cleanup_component(self)
+        except Exception as e:
+            print(f"⚠️ 布局节点清理错误: {e}")
         
         # 清空状态
         self._signals.clear()
@@ -365,12 +373,56 @@ class UIComponent(Component):
             print(f"⚠️ 相对定位应用失败: {e}")
     
     def _apply_stretchable_layout(self):
-        """应用Stretchable布局"""
-        # TODO: 集成现有的Stretchable布局引擎
-        print(f"📐 使用Stretchable布局: {self.style.display.value}")
-        
-        # 暂时使用默认frame
-        self._apply_fallback_frame()
+        """应用v4 Stretchable布局"""
+        try:
+            # 使用v4独立布局引擎
+            from .layout import get_layout_engine
+            engine = get_layout_engine()
+            
+            # 为组件创建布局节点（如果还没有的话）
+            layout_node = engine.get_node_for_component(self)
+            if not layout_node:
+                layout_node = engine.create_node_for_component(self)
+            
+            # 计算可用空间 - 尝试从父容器获取
+            available_size = self._get_available_size_from_parent()
+            
+            # 计算布局
+            layout_result = engine.compute_layout_for_component(self, available_size)
+            
+            if layout_result:
+                # 应用计算得到的布局
+                from Foundation import NSMakeRect
+                frame = NSMakeRect(
+                    layout_result.x, 
+                    layout_result.y,
+                    layout_result.width, 
+                    layout_result.height
+                )
+                self._nsview.setFrame_(frame)
+                
+                # 根据布局类型决定是否使用Auto Layout
+                if self.style.position in [Position.ABSOLUTE, Position.FIXED]:
+                    # 绝对定位禁用Auto Layout
+                    self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(True)
+                else:
+                    # Flex布局可以与Auto Layout协同
+                    self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(False)
+                
+                print(f"📐 v4布局已应用: {self.__class__.__name__} -> ({layout_result.x:.1f}, {layout_result.y:.1f}, {layout_result.width:.1f}x{layout_result.height:.1f})")
+                return True
+            else:
+                print(f"⚠️ v4布局计算失败: {self.__class__.__name__}")
+                self._apply_fallback_frame()
+                return False
+                
+        except Exception as e:
+            print(f"⚠️ v4布局应用失败: {e}")
+            import traceback
+            traceback.print_exc()
+            # 回退到默认frame
+            self._apply_fallback_frame()
+            return False
     
     def _apply_fallback_frame(self):
         """应用回退frame"""
@@ -379,6 +431,22 @@ class UIComponent(Component):
         frame = NSMakeRect(0, 0, width, height)
         self._nsview.setFrame_(frame)
         print(f"🔧 回退frame已应用: (0, 0, {width}, {height})")
+    
+    def _get_available_size_from_parent(self) -> Optional[Tuple[float, float]]:
+        """从父容器获取可用尺寸"""
+        if self._parent_container and hasattr(self._parent_container, '_nsview'):
+            parent_view = self._parent_container._nsview
+            if parent_view:
+                frame = parent_view.frame()
+                return (frame.size.width, frame.size.height)
+        
+        # 回退到视口管理器的默认尺寸
+        try:
+            viewport_size = self.viewport_manager.get_viewport_size()
+            return viewport_size
+        except:
+            # 最后回退到默认值
+            return (800, 600)
     
     def _resolve_size_value(self, length_value, default: float) -> float:
         """解析尺寸值为像素"""
@@ -470,15 +538,49 @@ class Container(UIComponent):
         
         print(f"📦 Container创建，子组件数: {len(self.children)}")
         
-        # 挂载所有子组件
-        for i, child in enumerate(self.children):
-            try:
-                child_view = child.mount()
-                container.addSubview_(child_view)
-                print(f"  ├─ 子组件 {i+1}: {child.__class__.__name__} 已添加")
-            except Exception as e:
-                print(f"  ├─ ⚠️ 子组件 {i+1} 挂载失败: {e}")
-                
+        # 建立v4布局树关系
+        try:
+            from .layout import get_layout_engine
+            engine = get_layout_engine()
+            
+            # 为容器创建布局节点
+            engine.create_node_for_component(self)
+            
+            # 挂载所有子组件并建立布局关系
+            for i, child in enumerate(self.children):
+                try:
+                    # 设置父子关系
+                    if hasattr(child, '_parent_container'):
+                        child._parent_container = self
+                    
+                    # 挂载子组件
+                    child_view = child.mount()
+                    container.addSubview_(child_view)
+                    
+                    # 添加到v4布局树
+                    engine.add_child_relationship(self, child, i)
+                    
+                    print(f"  ├─ 子组件 {i+1}: {child.__class__.__name__} 已添加到容器和v4布局树")
+                except Exception as e:
+                    print(f"  ├─ ⚠️ 子组件 {i+1} 挂载失败: {e}")
+        except Exception as e:
+            print(f"⚠️ Container v4布局树构建失败: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # 回退到简单挂载
+            for i, child in enumerate(self.children):
+                try:
+                    # 设置父子关系
+                    if hasattr(child, '_parent_container'):
+                        child._parent_container = self
+                        
+                    child_view = child.mount()
+                    container.addSubview_(child_view)
+                    print(f"  ├─ 子组件 {i+1}: {child.__class__.__name__} 已添加（简单模式）")
+                except Exception as e:
+                    print(f"  ├─ ⚠️ 子组件 {i+1} 挂载失败: {e}")
+                    
         return container
     
     def add_child_component(self, child: UIComponent):
