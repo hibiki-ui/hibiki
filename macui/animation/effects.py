@@ -15,84 +15,100 @@ from .core import Animation, KeyframeAnimation, animate
 
 
 class ShinyText:
-    """闪亮文字效果 - 基于渐变遮罩的光泽动画"""
+    """闪亮文字效果 - 完全模拟CSS background-clip: text 的Core Animation实现"""
     
     def __init__(
         self,
-        duration: float = 2.0,
-        colors: List[str] = None,
-        direction: float = 45.0,  # 光泽方向角度
-        repeat: bool = True
+        speed: float = 5.0,  # 动画速度(秒)，匹配CSS版本默认参数
+        disabled: bool = False,  # 是否禁用动画
+        intensity: float = 0.8  # 光泽强度 (保留用于调节)
     ):
-        self.duration = duration
-        self.colors = colors or ["#ffffff", "#cccccc", "#ffffff"]
-        self.direction = direction
-        self.repeat = repeat
+        self.duration = speed  # 直接使用speed作为duration
+        self.disabled = disabled
+        self.intensity = intensity
         self._gradient_layer: Optional[CAGradientLayer] = None
+        self._original_color = None
+        self._animation_key = "shinyTextAnimation"
     
     def apply_to(self, text_view: NSTextField) -> Animation:
-        """将闪光效果应用到文本视图 - 纯Core Animation实现"""
-        print(f"✨ 应用ShinyText效果到: {text_view}")
+        """将闪光效果应用到文本视图 - 完全模拟CSS background-clip: text实现"""
+        print(f"✨ 应用ShinyText CSS风格效果到: {text_view}")
+        
+        # 如果禁用，直接返回
+        if self.disabled:
+            print("⏸️ ShinyText动画已禁用")
+            return Animation(duration=0)
         
         # 确保视图有layer
         text_view.setWantsLayer_(True)
         layer = text_view.layer()
+        bounds = layer.bounds()
         
-        # 创建闪光效果 - 使用阴影和缩放的组合动画
-        # 设置初始阴影状态
-        layer.setShadowColor_(NSColor.yellowColor().CGColor())
-        layer.setShadowOffset_(NSMakeSize(0, 0))
-        layer.setShadowRadius_(3.0)
-        layer.setShadowOpacity_(0.0)
+        # 保存原始文字颜色
+        self._original_color = text_view.textColor()
         
-        # 创建动画组
-        group = CAAnimationGroup.animation()
-        group.setDuration_(self.duration)
-        group.setRemovedOnCompletion_(False)  # 保持最终状态
-        group.setFillMode_("forwards")  # 填充模式
+        # 设置基础文字颜色 - 对应CSS的 color: #b5b5b5a4
+        base_gray = NSColor.colorWithRed_green_blue_alpha_(0.71, 0.71, 0.71, 0.64)  # #b5b5b5a4
+        text_view.setTextColor_(base_gray)
         
-        # 1. 阴影透明度动画 - 闪光效果
-        shadow_animation = CABasicAnimation.animationWithKeyPath_("shadowOpacity")
-        shadow_animation.setFromValue_(0.0)
-        shadow_animation.setToValue_(0.8)
-        shadow_animation.setAutoreverses_(True)
-        shadow_animation.setRepeatCount_(2.0)
+        # 创建背景渐变层 - 模拟CSS的linear-gradient
+        gradient_layer = CAGradientLayer.layer()
         
-        # 2. 阴影半径动画 - 光晕效果
-        radius_animation = CABasicAnimation.animationWithKeyPath_("shadowRadius")
-        radius_animation.setFromValue_(1.0)
-        radius_animation.setToValue_(8.0)
-        radius_animation.setAutoreverses_(True)
-        radius_animation.setRepeatCount_(2.0)
+        # 设置渐变层尺寸 - 对应CSS的 background-size: 200% 100%
+        gradient_width = bounds.size.width * 2.0  # 200%宽度
+        gradient_layer.setFrame_(NSMakeRect(0, 0, gradient_width, bounds.size.height))
         
-        # 3. 轻微缩放动画 - 增强视觉效果
-        scale_animation = CABasicAnimation.animationWithKeyPath_("transform.scale")
-        scale_animation.setFromValue_(1.0)
-        scale_animation.setToValue_(1.05)
-        scale_animation.setAutoreverses_(True)
-        scale_animation.setRepeatCount_(2.0)
+        # 创建渐变颜色 - 完全对应CSS渐变
+        # linear-gradient(120deg, rgba(255,255,255,0) 40%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0) 60%)
+        transparent = NSColor.colorWithRed_green_blue_alpha_(1.0, 1.0, 1.0, 0.0).CGColor()
+        bright_white = NSColor.colorWithRed_green_blue_alpha_(1.0, 1.0, 1.0, self.intensity).CGColor()
         
-        # 组合所有动画
-        group.setAnimations_([shadow_animation, radius_animation, scale_animation])
-        group.setTimingFunction_(
-            CAMediaTimingFunction.functionWithName_("easeInEaseOut")
+        gradient_layer.setColors_([transparent, transparent, bright_white, transparent, transparent])
+        gradient_layer.setLocations_([0.0, 0.4, 0.5, 0.6, 1.0])  # 对应40%, 50%, 60%
+        
+        # 设置渐变角度 - 对应CSS的120deg
+        angle_rad = math.radians(120.0)
+        start_point = (0.5 - 0.5 * math.cos(angle_rad), 0.5 - 0.5 * math.sin(angle_rad))
+        end_point = (0.5 + 0.5 * math.cos(angle_rad), 0.5 + 0.5 * math.sin(angle_rad))
+        gradient_layer.setStartPoint_(start_point)
+        gradient_layer.setEndPoint_(end_point)
+        
+        # 关键：使用渐变层作为文字的遮罩 - 模拟background-clip: text
+        layer.setMask_(gradient_layer)
+        self._gradient_layer = gradient_layer
+        
+        # 创建背景位置动画 - 对应CSS animation: background-position 100% → -100%
+        position_animation = CABasicAnimation.animationWithKeyPath_("position.x")
+        
+        # 计算动画轨迹 - 模拟background-position从100%到-100%
+        start_x = bounds.size.width  # 100% (右边)
+        end_x = -bounds.size.width   # -100% (左边)
+        
+        position_animation.setFromValue_(start_x)
+        position_animation.setToValue_(end_x)
+        position_animation.setDuration_(self.duration)
+        position_animation.setRepeatCount_(float('inf'))
+        position_animation.setTimingFunction_(
+            CAMediaTimingFunction.functionWithName_("linear")  # 对应CSS的linear
         )
         
-        # 动画完成后的回调 - 使用CATransaction
-        def completion_block():
-            # 重置阴影状态
-            layer.setShadowOpacity_(0.0)
-            layer.setShadowRadius_(0.0)
+        # 应用动画
+        gradient_layer.addAnimation_forKey_(position_animation, self._animation_key)
         
-        # 使用CATransaction设置完成块
-        from AppKit import CATransaction
-        CATransaction.begin()
-        CATransaction.setCompletionBlock_(completion_block)
-        layer.addAnimation_forKey_(group, "shinyEffect")
-        CATransaction.commit()
-        
-        print("✨ ShinyText动画已启动 - 纯Core Animation实现")
+        print(f"✨ ShinyText CSS风格动画已启动 - 速度: {self.duration}s")
+        print(f"   📋 模拟CSS: background-clip: text + background-position动画")
         return Animation(duration=self.duration)
+    
+    def stop_animation(self):
+        """停止动画并恢复原始状态"""
+        if self._gradient_layer:
+            # 停止动画
+            self._gradient_layer.removeAnimationForKey_(self._animation_key)
+            # 移除遮罩
+            if hasattr(self._gradient_layer, 'superlayer') and self._gradient_layer.superlayer():
+                self._gradient_layer.superlayer().setMask_(None)
+            self._gradient_layer = None
+            print("⏹️ ShinyText动画已停止，遮罩已移除")
 
 
 class TypeWriter:
