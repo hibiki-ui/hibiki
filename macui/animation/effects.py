@@ -5,16 +5,10 @@
 """
 
 from typing import Union, List, Tuple, Optional
-from AppKit import NSView, NSTextField, NSColor
+from AppKit import NSView, NSTextField, NSColor, CATextLayer, CAGradientLayer, CAShapeLayer
+from AppKit import CABasicAnimation, CAKeyframeAnimation, CAMediaTimingFunction
 from Foundation import NSMakeRect, NSValue, NSMakePoint
-try:
-    from CoreAnimation import *
-    from AppKit import CATextLayer, CAGradientLayer, CAShapeLayer, CABasicAnimation, CAKeyframeAnimation
-    from AppKit import CAMediaTimingFunction, kCAMediaTimingFunctionEaseInEaseOut, kCAMediaTimingFunctionEaseOut
-    from AppKit import CATransform3DMakeScale, NSValue
-except ImportError:
-    print("⚠️ CoreAnimation import failed, using AppKit alternatives")
-    from AppKit import *
+from Quartz import CATransform3DMakeScale
 import math
 
 from .core import Animation, KeyframeAnimation, animate

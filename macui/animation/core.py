@@ -5,17 +5,10 @@
 """
 
 from typing import Union, Optional, Dict, Any, List, Callable
-from AppKit import NSView
+from AppKit import NSView, CATransaction, CABasicAnimation, CAAnimationGroup, CAKeyframeAnimation, CASpringAnimation
+from AppKit import CAMediaTimingFunction
 from Foundation import NSValue, NSMakePoint
-try:
-    from CoreAnimation import *
-    from AppKit import CATransaction, CABasicAnimation, CAAnimationGroup, CAKeyframeAnimation, CASpringAnimation
-    from AppKit import CAMediaTimingFunction, kCAMediaTimingFunctionLinear, kCAMediaTimingFunctionEaseIn
-    from AppKit import kCAMediaTimingFunctionEaseOut, kCAMediaTimingFunctionEaseInEaseOut
-    from AppKit import CATransform3DMakeScale, NSValue
-except ImportError:
-    print("⚠️ CoreAnimation import failed, using AppKit alternatives")
-    from AppKit import *
+from Quartz import CATransform3DMakeScale
 import time
 
 from ..core.signal import Signal, Effect

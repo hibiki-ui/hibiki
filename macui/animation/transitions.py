@@ -4,15 +4,7 @@
 """
 
 from typing import Optional
-from AppKit import NSView
-try:
-    from CoreAnimation import *
-    from AppKit import CATransition, CAMediaTimingFunction, kCAMediaTimingFunctionEaseInEaseOut
-    from AppKit import kCATransitionFade, kCATransitionPush, kCATransitionReveal, kCATransitionMoveIn
-    from AppKit import kCATransitionFromLeft, kCATransitionFromRight, kCATransitionFromTop, kCATransitionFromBottom
-except ImportError:
-    print("⚠️ CoreAnimation import failed, using AppKit alternatives")
-    from AppKit import *
+from AppKit import NSView, CATransition, CAMediaTimingFunction
 
 
 class TransitionType:
