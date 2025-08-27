@@ -1,38 +1,38 @@
-"""macUI v2 - A reactive UI framework for native macOS apps using Python and PyObjC
+"""macUI v3.0 - A reactive UI framework for native macOS apps using Python and PyObjC
 
-macUI v2 is a modern, reactive UI framework that brings the power of signal-based 
-reactivity to native macOS application development. Inspired by SolidJS, it provides
-fine-grained reactivity without a virtual DOM, directly manipulating native Cocoa views.
+macUI v3.0 is a modern, reactive UI framework with unified component APIs and the 
+powerful Stretchable layout engine. It provides signal-based reactivity with 
+native macOS components, featuring a clean and consistent API design.
 
 Key Features:
-- Signal-based reactive state management
+- Unified component API (Label, Button, VStack, HStack)
+- Stretchable layout engine for professional layouts
+- Signal-based reactive state management  
 - Native macOS UI components via PyObjC
-- Component-based architecture
-- Automatic UI updates through Effects
+- Component-based architecture with LayoutAwareComponent
 - Type-safe APIs with full IDE support
-- Production-ready with proper lifecycle management
 
 Quick Start:
     from macui import Signal, Computed, Effect
-    from macui.components import Button, Label, VStack
-    from macui.app import MacUIApp
+    from macui.components import Button, Label, VStack, LayoutStyle
+    from macui.app import create_app
     
     # Create reactive state
     count = Signal(0)
-    count_text = Computed(lambda: f"Count: {count.value}")
     
-    # Create UI
-    button = Button("Click me", on_click=lambda: setattr(count, 'value', count.value + 1))
-    label = Label(count_text)
+    # Create UI with unified API
+    button = Button("Click me", 
+                   style=LayoutStyle(width=100, height=32),
+                   on_click=lambda: setattr(count, 'value', count.value + 1))
+    label = Label(f"Count: {count.value}", style=LayoutStyle(height=25))
     
-    # Create and run app
-    app = MacUIApp("My App")
-    window = app.create_window("Demo", content=VStack(children=[label, button]))
-    window.show()
-    app.run()
+    # Create app with modern layout
+    app = create_app("My App")
+    content = VStack(children=[label, button], 
+                    style=LayoutStyle(gap=10, padding=20))
 """
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 __author__ = "macUI Team"
 __license__ = "MIT"
 

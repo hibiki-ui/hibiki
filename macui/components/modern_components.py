@@ -4,11 +4,45 @@ macUI v3.0 现代化组件库
 """
 
 from typing import Optional, List, Union, Any, Callable
+from enum import Enum
 from .core import LayoutAwareComponent
 from ..layout.node import LayoutNode
 from ..layout.styles import LayoutStyle, FlexDirection, AlignItems, JustifyContent, Display
+from ..core.signal import Signal, Computed
+from ..core.binding import ReactiveBinding
 from AppKit import *
 from Foundation import *
+
+# 文本相关枚举（从basic_controls.py迁移）
+class LineBreakMode(Enum):
+    """文本换行模式枚举
+    
+    定义了NSTextField支持的各种文本换行和截断模式，
+    提供类型安全和易于理解的接口。
+    """
+    WORD_WRAPPING = NSLineBreakByWordWrapping      # 按单词换行（默认）
+    CHAR_WRAPPING = NSLineBreakByCharWrapping      # 按字符换行  
+    CLIPPING = NSLineBreakByClipping               # 超出部分裁剪
+    TRUNCATE_TAIL = NSLineBreakByTruncatingTail    # 尾部省略号...
+    TRUNCATE_HEAD = NSLineBreakByTruncatingHead    # 头部省略号...
+    TRUNCATE_MIDDLE = NSLineBreakByTruncatingMiddle # 中间省略号...
+
+class LabelStyle(Enum):
+    """Label预设样式枚举
+    
+    为常见使用场景提供预设配置，简化接口使用。
+    """
+    # 多行文本标签（默认）- 适用于描述、帮助文本等
+    MULTILINE = "multiline"
+    
+    # 单行标题标签 - 适用于标题、状态栏等  
+    TITLE = "title"
+    
+    # 单行截断标签 - 适用于列表项、表格单元格
+    TRUNCATED = "truncated"
+    
+    # 固定宽度标签 - 适用于表单字段、固定布局
+    FIXED_WIDTH = "fixed_width"
 
 class ModernComponent(LayoutAwareComponent):
     """现代化组件基类 - 统一style接口"""
@@ -25,14 +59,22 @@ class ModernComponent(LayoutAwareComponent):
 class ModernLabel(ModernComponent):
     """现代化Label组件"""
     
-    def __init__(self, text: str, style: Optional[LayoutStyle] = None):
+    def __init__(self, text: Union[str, Any], style: Optional[LayoutStyle] = None):
         super().__init__(style=style)
         self.text = text
         
     def mount(self):
         # 创建NSTextField作为Label
         label = NSTextField.alloc().init()
-        label.setStringValue_(self.text)
+        
+        # 设置文本内容 - 支持响应式绑定
+        if isinstance(self.text, (Signal, Computed)):
+            ReactiveBinding.bind(label, "stringValue", self.text)
+            print(f"🔗 Label响应式绑定: {self.text}")
+        else:
+            label.setStringValue_(str(self.text))
+            print(f"📝 Label静态文本: {str(self.text)}")
+        
         label.setEditable_(False)
         label.setSelectable_(False)
         label.setBezeled_(False)
@@ -97,7 +139,7 @@ class ModernButton(ModernComponent):
     
     def _bind_click_event(self, button):
         """绑定点击事件"""
-        from ..binding.event import EventBinding
+        from ..core.binding import EventBinding
         EventBinding.bind_click(button, self.on_click)
 
 class ModernVStack(ModernComponent):

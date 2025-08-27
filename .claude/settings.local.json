@@ -27,7 +27,8 @@
       "WebFetch(domain:stretchable.readthedocs.io)",
       "WebFetch(domain:github.com)",
       "Bash(uv list:*)",
-      "Bash(uv pip:*)"
+      "Bash(uv pip:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

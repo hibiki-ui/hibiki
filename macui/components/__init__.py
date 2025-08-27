@@ -1,95 +1,33 @@
-"""UI Components for macUI v3.0 - All Modern Components Based on Stretchable Layout Engine"""
+"""
+macUI v3.0 统一组件接口
+基于Stretchable布局引擎的现代化组件库，提供简洁统一的API
+"""
 
-# Export basic control components (Modern implementations)
-from .basic_controls import Button, Label, TextField, LineBreakMode, LabelStyle
+# 导入最佳的现代化实现 - 来自modern_components.py
+from .modern_components import ModernLabel as Label
+from .modern_components import ModernButton as Button
+from .modern_components import LineBreakMode, LabelStyle
 
-# Export input control components (Modern implementations)
-from .input_controls import Slider, Switch, Checkbox, RadioButton, SegmentedControl
+# 导入现代化布局组件  
+from .modern_layout import ModernVStack as VStack
+from .modern_layout import ModernHStack as HStack
 
-# Export selection control components (Modern implementations)
-from .selection_controls import PopUpButton, ComboBox, Menu, ContextMenu
-
-# Export display control components (Modern implementations with new TableView)
-from .display_controls import ImageView, ProgressBar, TextArea
-from .modern_display import ModernTableView, TableView  # Modern TableView
-
-# Export picker control components (Modern implementations)
-from .picker_controls import DatePicker, TimePicker
-
-# Export Modern layout components (all based on Stretchable engine)
-from .modern_layout import (
-    ModernVStack, ModernHStack,
-    CenteredVStack, CenteredHStack, FlexVStack, FlexHStack
-)
-
-# Export Modern control components (for explicit Modern usage)
-from .modern_controls import ModernButton, ModernLabel, ModernTextField
-from .modern_input import ModernSlider, ModernSwitch, ModernCheckbox, ModernSegmentedControl, ModernRadioButton
-from .modern_display import ModernImageView, ModernProgressBar, ModernTextArea
-from .modern_selection import ModernPopUpButton, ModernComboBox, ModernMenu
-from .modern_time import ModernDatePicker, CalendarDatePicker
-
-# Create compatibility aliases (VStack/HStack now point to Modern implementations)
-VStack = ModernVStack
-HStack = ModernHStack
+# 导入样式系统
+from ..layout.styles import LayoutStyle
 
 __all__ = [
-    # Basic control components
-    "Button",
-    "TextField", 
-    "TextArea",
-    "Label",
-    "LineBreakMode",
-    "LabelStyle",
+    # 基础组件（现代化实现）
+    "Label",          # -> ModernLabel (最佳实现)
+    "Button",         # -> ModernButton (最佳实现)
     
-    # Input control components
-    "Slider",
-    "Switch", 
-    "Checkbox",
-    "RadioButton",
-    "SegmentedControl",
+    # 布局组件（现代化实现）
+    "VStack",         # -> ModernVStack (支持Stretchable)
+    "HStack",         # -> ModernHStack (支持Stretchable) 
     
-    # Selection control components
-    "PopUpButton",
-    "ComboBox",
-    "Menu",
-    "ContextMenu",
+    # 样式系统
+    "LayoutStyle",
     
-    # Display control components
-    "ImageView",
-    "ProgressBar",
-    "TableView",  # Now points to ModernTableView
-    
-    # Time picker components
-    "DatePicker",
-    "TimePicker",
-    
-    # Layout components (all Modern/Stretchable-based)
-    "VStack",         # -> ModernVStack
-    "HStack",         # -> ModernHStack
-    "ModernVStack",
-    "ModernHStack", 
-    "CenteredVStack",
-    "CenteredHStack",
-    "FlexVStack",
-    "FlexHStack",
-    
-    # Explicit Modern components (for advanced usage)
-    "ModernButton",
-    "ModernLabel", 
-    "ModernTextField",
-    "ModernSlider",
-    "ModernSwitch",
-    "ModernCheckbox",
-    "ModernRadioButton",
-    "ModernSegmentedControl",
-    "ModernImageView",
-    "ModernProgressBar",
-    "ModernTextArea",
-    "ModernTableView",
-    "ModernPopUpButton",
-    "ModernComboBox",
-    "ModernMenu",
-    "ModernDatePicker",
-    "CalendarDatePicker",
+    # 文本相关枚举
+    "LineBreakMode",  # 文本换行模式
+    "LabelStyle",     # Label预设样式
 ]
