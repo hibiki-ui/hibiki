@@ -82,13 +82,17 @@ class ModernVStack(LayoutAwareComponent):
             **layout_kwargs
         )
         
+        print(f"🔧 ModernVStack.__init__ 开始，子组件数: {len(children or [])}")
         super().__init__(layout_style)
+        print("🔧 super().__init__ 完成")
         
         self.children = children or []
         self.child_components: List[LayoutAwareComponent] = []
         
         # 处理子组件
+        print("🔧 开始处理子组件")
         self._process_children()
+        print("🔧 子组件处理完成")
     
     def _process_children(self):
         """处理和包装子组件"""
@@ -152,20 +156,29 @@ class ModernVStack(LayoutAwareComponent):
     
     def _setup_nsview(self):
         """设置容器和子组件"""
+        print("🔧 ModernVStack._setup_nsview 开始")
         container = self._nsview
+        print(f"🔧 容器获取完成: {container}")
         
         # 挂载所有子组件
-        for child_component in self.child_components:
+        print(f"🔧 准备挂载 {len(self.child_components)} 个子组件")
+        for i, child_component in enumerate(self.child_components):
             try:
+                print(f"🔧 挂载子组件 {i}: {child_component}")
                 child_view = child_component.get_view()
+                print(f"🔧 子组件视图获取完成: {child_view}")
                 if child_view:
                     # 🔴 禁用子视图的AutoLayout
                     child_view.setTranslatesAutoresizingMaskIntoConstraints_(True)
                     container.addSubview_(child_view)
+                    print(f"✅ 子组件 {i} 挂载完成")
             except Exception as e:
                 print(f"⚠️ 子组件挂载失败: {e}")
+                import traceback
+                traceback.print_exc()
         
         # 创建布局树结构
+        print("🔧 开始创建布局树结构")
         self._setup_layout_tree()
         
         print(f"🔧 ModernVStack 创建完成，子组件数: {len(self.child_components)}")
@@ -186,22 +199,29 @@ class ModernVStack(LayoutAwareComponent):
     def _compute_and_apply_layout(self):
         """计算并应用布局"""
         if not self.layout_node:
+            print("⚠️ layout_node 不存在，跳过布局计算")
             return
             
         try:
+            print("🔄 开始计算布局...")
             # 计算布局
             result = self.compute_layout()
+            print(f"✅ 布局计算完成: {result}")
             
             # 首先应用自己容器的布局
+            print("📐 应用容器布局...")
             self.apply_layout_to_view()
             
             # 然后应用到所有子组件
+            print("📐 应用子组件布局...")
             self._apply_layout_recursive(self.layout_node)
             
             print(f"✅ ModernVStack 布局计算完成: {result.compute_time:.2f}ms")
             
         except Exception as e:
             print(f"⚠️ ModernVStack 布局计算失败: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _apply_layout_recursive(self, node):
         """递归应用布局到视图"""

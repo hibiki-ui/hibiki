@@ -131,8 +131,8 @@ def to_size(width: Optional[LengthValue] = None, height: Optional[LengthValue] =
     if width is None and height is None:
         return None
     
-    w = to_length(width) if width is not None else Length.from_any(0)  # Auto?
-    h = to_length(height) if height is not None else Length.from_any(0)  # Auto?
+    w = to_length(width) if width is not None else Length.auto()
+    h = to_length(height) if height is not None else Length.auto()
     return Size(width=w, height=h)
 
 
@@ -268,11 +268,14 @@ class LayoutStyle:
         if padding is not None:
             kwargs['padding'] = padding
             
-        # Gap
+        # Gap - 使用Length而不是Size
         if self.gap is not None:
-            kwargs['gap'] = to_size(self.gap, self.gap)
+            gap_length = to_length(self.gap)
+            kwargs['gap'] = Size(width=gap_length, height=gap_length)
         elif self.row_gap is not None or self.column_gap is not None:
-            kwargs['gap'] = to_size(self.column_gap, self.row_gap)
+            col_gap = to_length(self.column_gap or 0)
+            row_gap = to_length(self.row_gap or 0)
+            kwargs['gap'] = Size(width=col_gap, height=row_gap)
             
         # Inset (positioning)
         inset = to_rect(

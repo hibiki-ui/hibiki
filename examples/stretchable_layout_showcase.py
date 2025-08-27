@@ -30,15 +30,20 @@ class StretchableLayoutShowcase(Component):
     """Stretchable布局引擎功能展示 - 最小可用版本"""
     
     def __init__(self):
+        print("🏗️ StretchableLayoutShowcase.__init__ 开始")
         super().__init__()
+        print("🏗️ super().__init__ 完成")
         
         # 第一阶段：最简单的状态
         self.app_title = Signal("🚀 macUI v3.0 - 最小测试版本")
+        print("🏗️ Signal 创建完成")
     
     def mount(self):
         """最小可用界面 - 只有基础组件"""
         
         print("🔧 开始创建最小界面...")
+        print(f"🔧 ModernLabel: {ModernLabel}")
+        print(f"🔧 ModernVStack: {ModernVStack}")
         
         # 第一阶段：只有一个简单的Label
         simple_label = ModernLabel(
@@ -59,7 +64,11 @@ class StretchableLayoutShowcase(Component):
         
         print("📦 ModernVStack 创建完成")
         
-        return main_container.get_view()
+        # 获取视图
+        view = main_container.get_view()
+        print("🔍 VStack视图获取完成")
+        
+        return view
     
     # === 暂时注释掉复杂功能，逐步启用 ===
     
@@ -412,25 +421,21 @@ class StretchableLayoutShowcase(Component):
 
 def main():
     """主函数"""
-    print("🚀 启动macUI v3.0 Stretchable布局引擎展示Demo")
-    print("=" * 60)
-    print("特性展示:")
-    print("✨ CSS Flexbox风格布局属性")
-    print("✨ 27个现代化组件完整使用")  
-    print("✨ 响应式Signal绑定系统")
-    print("✨ 链式API和直观布局控制")
-    print("✨ 专业级UI组件集成")
-    print("=" * 60)
+    print("🚀 启动最小测试版本")
     
-    app = MacUIApp("macUI v3.0 Stretchable布局展示")
+    app = MacUIApp("最小测试版本")
+    print("✅ MacUIApp 创建完成")
     
     # 创建展示组件
+    print("📝 开始创建StretchableLayoutShowcase...")
     showcase = StretchableLayoutShowcase()
+    print("✅ StretchableLayoutShowcase 创建完成")
     
     # 创建窗口并运行
+    print("🪟 开始创建窗口...")
     app.create_window(
-        title="macUI v3.0 - Stretchable Layout Engine Showcase",
-        size=(940, 760),
+        title="最小测试版本",
+        size=(600, 400),
         content=showcase
     )
     

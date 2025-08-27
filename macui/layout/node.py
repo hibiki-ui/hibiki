@@ -174,11 +174,22 @@ class LayoutNode:
         Returns:
             self (支持链式调用)
         """
-        if available_size:
-            # TODO: 处理有限制的计算
-            self._stretchable_node.compute_layout()
-        else:
-            self._stretchable_node.compute_layout()
+        if not STRETCHABLE_AVAILABLE:
+            return self
+            
+        try:
+            if available_size:
+                from stretchable.style import Size, Length
+                size = Size(width=Length.from_any(available_size[0]), 
+                           height=Length.from_any(available_size[1]))
+                success = self._stretchable_node.compute_layout(size)
+            else:
+                success = self._stretchable_node.compute_layout()
+            
+            if not success:
+                print(f"⚠️ 布局计算失败: {self.key}")
+        except Exception as e:
+            print(f"⚠️ 布局计算异常: {e}")
         
         return self
     
@@ -188,8 +199,15 @@ class LayoutNode:
         Returns:
             (x, y, width, height) - 相对于父节点的位置和尺寸
         """
-        box = self._stretchable_node.get_box()
-        return (box.x, box.y, box.width, box.height)
+        if not STRETCHABLE_AVAILABLE or not self._stretchable_node:
+            return (self._computed_x, self._computed_y, self._computed_width, self._computed_height)
+        
+        try:
+            box = self._stretchable_node.get_box()
+            return (box.x, box.y, box.width, box.height)
+        except Exception as e:
+            print(f"⚠️ 获取布局失败 {self.key}: {e}, 使用fallback")
+            return (self._computed_x, self._computed_y, self._computed_width, self._computed_height)
     
     def get_content_size(self) -> Tuple[float, float]:
         """获取内容区域尺寸 (去除padding)
@@ -207,12 +225,18 @@ class LayoutNode:
         Returns:
             self (支持链式调用)  
         """
-        self._stretchable_node.mark_dirty()
+        if STRETCHABLE_AVAILABLE and self._stretchable_node:
+            self._stretchable_node.mark_dirty()
         return self
     
     def is_dirty(self) -> bool:
         """检查是否需要重新布局"""
-        return self._stretchable_node.is_dirty
+        if not STRETCHABLE_AVAILABLE or not self._stretchable_node:
+            return False
+        try:
+            return self._stretchable_node.is_dirty
+        except:
+            return False
     
     def get_stretchable_node(self) -> st.Node:
         """获取底层Stretchable节点 (用于调试和高级操作)"""

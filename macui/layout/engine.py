@@ -124,13 +124,21 @@ class LayoutEngine:
         
         # 执行布局计算
         if self.debug_mode:
-            print(f"⚡ 开始布局计算: root={root.key}")
+            print(f"⚡ 开始布局计算: root={root.key}, available_size={available_size}")
         
-        root.compute_layout(available_size)
+        # 只在根节点计算布局
+        success = root.compute_layout(available_size)
         
         # 生成结果
         x, y, width, height = root.get_layout()
-        content_width, content_height = root.get_content_size()
+        
+        # 获取内容尺寸 (处理可能的错误)
+        try:
+            content_width, content_height = root.get_content_size()
+        except Exception as e:
+            if self.debug_mode:
+                print(f"⚠️ 获取内容尺寸失败: {e}, 使用布局尺寸")
+            content_width, content_height = width, height
         
         compute_time = (time.perf_counter() - start_time) * 1000  # 转换为毫秒
         
@@ -282,7 +290,7 @@ def get_layout_engine() -> LayoutEngine:
     """获取全局布局引擎实例"""
     global _global_engine
     if _global_engine is None:
-        _global_engine = LayoutEngine(enable_cache=True, debug_mode=False)
+        _global_engine = LayoutEngine(enable_cache=True, debug_mode=False)  # 禁用调试减少噪音
     return _global_engine
 
 
