@@ -19,8 +19,16 @@ except ImportError:
     # 如果日志系统不可用，使用基本的打印
     import logging
     logger = logging.getLogger("macui.signal")
-    logger.addHandler(logging.StreamHandler())
-    logger.setLevel(logging.INFO)
+    
+    # 防止重复添加handlers
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.INFO)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        print(f"🔧 Logger初始化: 添加了StreamHandler, 总handlers数: {len(logger.handlers)}")
+    else:
+        print(f"⚠️  Logger已存在handlers: {len(logger.handlers)} 个")
 
 # 🆕 优化的批处理系统
 def _start_batch():
@@ -328,6 +336,12 @@ class Effect:
     """🚀 优化副作用 - 智能更新检查"""
 
     def __init__(self, fn: Callable[[], None]):
+        import traceback
+        print(f"📍 Effect.__init__ 被调用! Effect ID: {id(self)}")
+        stack_lines = traceback.format_stack()
+        for i, line in enumerate(stack_lines[-5:-1]):  # 显示最近4层调用栈
+            print(f"   调用栈[{i}]: {line.strip()}")
+        
         self._fn = fn
         self._cleanup_fn: Optional[Callable[[], None]] = None
         self._active = True
