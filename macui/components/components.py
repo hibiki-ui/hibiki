@@ -48,7 +48,8 @@ class Component(LayoutAwareComponent):
     """现代化组件基类 - 统一style接口"""
     
     def __init__(self, style: Optional[LayoutStyle] = None, **kwargs):
-        """
+        """🏗️ CORE METHOD: Modern component initialization
+        
         Args:
             style: 布局样式对象
             **kwargs: 其他组件特定参数
@@ -60,10 +61,12 @@ class Label(Component):
     """现代化Label组件"""
     
     def __init__(self, text: Union[str, Any], style: Optional[LayoutStyle] = None):
+        """🏗️ CORE METHOD: Label component initialization"""
         super().__init__(style=style)
         self.text = text
         
     def mount(self):
+        """🚀 CORE METHOD: Label component mounting"""
         # 创建NSTextField作为Label
         label = NSTextField.alloc().init()
         
@@ -112,11 +115,13 @@ class Button(Component):
     """现代化Button组件"""
     
     def __init__(self, title: str, style: Optional[LayoutStyle] = None, on_click: Optional[Callable] = None):
+        """🏗️ CORE METHOD: Button component initialization"""
         super().__init__(style=style)
         self.title = title
         self.on_click = on_click
         
     def mount(self):
+        """🚀 CORE METHOD: Button component mounting"""
         # 创建NSButton
         button = NSButton.alloc().init()
         button.setTitle_(self.title)

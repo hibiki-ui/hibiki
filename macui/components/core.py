@@ -26,11 +26,13 @@ class LayoutAwareComponent(Component):
         layout_key: Optional[str] = None,
         **layout_kwargs
     ):
-        """初始化布局感知组件
+        """🏗️ CORE METHOD: Layout-aware component initialization
+        
+        Extends base component initialization with professional layout capabilities.
         
         Args:
             layout_style: 完整的布局样式对象
-            layout_key: 布局节点标识符
+            layout_key: 布局节点标识符  
             **layout_kwargs: 布局样式快捷参数 (width, height, margin等)
         """
         super().__init__()
@@ -179,7 +181,10 @@ class LayoutAwareComponent(Component):
             log_layout_application(self.layout_node, self._nsview, success)
     
     def mount(self) -> NSView:
-        """挂载组件 - 子类必须实现"""
+        """🚀 CORE METHOD: Layout-aware component mounting
+        
+        Handles professional layout computation and NSView creation.
+        """
         if self._nsview is None:
             self._nsview = self._create_nsview()
             # 在子类设置完成后禁用AutoLayout

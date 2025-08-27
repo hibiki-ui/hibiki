@@ -29,7 +29,7 @@ class VStackLayout(LayoutAwareComponent):
         children: Optional[List[LayoutAwareComponent]] = None,
         style: Optional[LayoutStyle] = None
     ):
-        """初始化现代化垂直布局
+        """🏗️ CORE METHOD: VStack layout component initialization
         
         Args:
             children: 子组件列表

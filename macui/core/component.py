@@ -1,4 +1,5 @@
 from typing import Any, Callable, List, Optional, TypeVar
+from abc import ABC, abstractmethod
 
 from AppKit import NSView
 
@@ -8,10 +9,32 @@ from .signal import Computed, Effect, Signal
 T = TypeVar("T")
 
 
-class Component:
-    """组件基类 - 提供响应式状态管理和生命周期"""
+class Component(ABC):
+    """macUI组件基类 - 提供响应式状态管理和生命周期
+    
+    核心架构：
+        1. __init__() 🏗️ - 组件初始化阶段
+        2. mount() 🚀 - 组件挂载阶段
+    
+    类似于PyTorch的nn.Module，所有macUI组件都必须实现这两个核心方法。
+    """
+    
+    # 类似PyTorch的 forward: Callable[..., Any] 模式
+    mount: Callable[[], NSView]
 
     def __init__(self):
+        """🏗️ CORE METHOD: Component initialization phase
+        
+        This is one of the two fundamental methods in macUI component architecture.
+        Handles:
+        - Reactive state and signal creation
+        - Component configuration and styling  
+        - Event handler setup
+        - Child component relationships
+        
+        Note:
+            Always call super().__init__() when overriding in subclasses
+        """
         self._view: Optional[NSView] = None
         self._bindings: List[Callable[[], None]] = []
         self._effects: List[Effect] = []
@@ -96,13 +119,34 @@ class Component:
         """添加清理回调"""
         self._cleanup_callbacks.append(callback)
 
+    @abstractmethod
     def mount(self) -> NSView:
-        """挂载组件 - 子类需要重写
+        """🚀 CORE METHOD: Component mounting phase
+        
+        This is one of the two fundamental methods in macUI component architecture.
+        Creates and returns the root NSView for this component.
+        
+        Handles:
+        - NSView creation and configuration
+        - Layout computation and application
+        - Reactive binding establishment
+        - Mount lifecycle event triggers
         
         Returns:
-            组件的根视图
+            NSView: The fully configured root view of this component
+            
+        Note:
+            Similar to PyTorch's forward() method - must be implemented by all subclasses.
+            Called after __init__() during component lifecycle.
+            
+        Raises:
+            NotImplementedError: If not implemented by subclass
         """
-        raise NotImplementedError("Component subclasses must implement mount()")
+        raise NotImplementedError(
+            f"{self.__class__.__module__}.{self.__class__.__qualname__} is "
+            "missing the required \"mount\" function. "
+            "All macUI components must implement this core method."
+        )
 
     def get_view(self) -> Optional[NSView]:
         """获取组件的根视图"""
