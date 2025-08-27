@@ -17,6 +17,18 @@ from AppKit import *
 from Foundation import *
 from PyObjCTools import AppHelper
 
+# 导入主题系统
+try:
+    from macui.theme import (
+        ThemeManager, PresetThemes, get_theme_manager,
+        get_color, ColorRole, AppearanceMode
+    )
+    print("✅ 主题系统导入成功")
+    THEME_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ 主题系统导入失败: {e}")
+    THEME_AVAILABLE = False
+
 class MacUIv3Demo(Component):
     """macUI v3.0 演示应用"""
     
@@ -26,9 +38,21 @@ class MacUIv3Demo(Component):
         self.counter = Signal(0)
         self.status = Signal("准备就绪")
         
+        # 主题系统状态
+        if THEME_AVAILABLE:
+            self.theme_manager = get_theme_manager()
+            self.current_theme_name = Signal("系统默认")
+            print("🎨 主题管理器初始化成功")
+        
         # 计算属性
         self.counter_text = Computed(lambda: f"计数: {self.counter.value}")
         self.is_even = Computed(lambda: self.counter.value % 2 == 0)
+        
+        # 主题状态计算属性
+        if THEME_AVAILABLE:
+            self.theme_display = Computed(lambda: f"当前主题: {self.current_theme_name.value}")
+        else:
+            self.theme_display = Computed(lambda: "主题: 不可用")
         
     def mount(self):
         """创建macUI v3.0演示界面"""
@@ -61,6 +85,18 @@ class MacUIv3Demo(Component):
             f"当前数字是{'偶数' if self.counter.value % 2 == 0 else '奇数'}",
             style=LayoutStyle(height=25)
         )
+        
+        # 主题状态显示
+        if THEME_AVAILABLE:
+            theme_display = Label(
+                f"当前主题: {self.current_theme_name.value}",
+                style=LayoutStyle(height=25)
+            )
+        else:
+            theme_display = Label(
+                "主题系统: 不可用",
+                style=LayoutStyle(height=25)
+            )
         
         # 🔘 控制按钮区域
         increment_btn = Button(
@@ -100,14 +136,34 @@ class MacUIv3Demo(Component):
             style=LayoutStyle(gap=8, justify_content=JustifyContent.SPACE_AROUND)
         )
         
+        # 🎨 主题控制按钮
+        if THEME_AVAILABLE:
+            theme_controls = HStack(
+                children=[
+                    Button("🌍 系统", style=LayoutStyle(width=80, height=30),
+                          on_click=self._set_system_theme),
+                    Button("🌙 深色", style=LayoutStyle(width=80, height=30),
+                          on_click=self._set_developer_theme),
+                    Button("🔆 高对比", style=LayoutStyle(width=80, height=30),
+                          on_click=self._set_high_contrast_theme)
+                ],
+                style=LayoutStyle(gap=8, justify_content=JustifyContent.CENTER)
+            )
+        else:
+            theme_controls = Label(
+                "❌ 主题系统不可用",
+                style=LayoutStyle(height=30)
+            )
+        
         # 📋 信息面板
         info_panel = VStack(
             children=[
-                Label("✨ API特性:", style=LayoutStyle(height=20)),
+                Label("✨ macUI v3.0 特性:", style=LayoutStyle(height=20)),
                 Label("• 统一的组件命名 (Label, Button)", style=LayoutStyle(height=18)),
                 Label("• Stretchable布局引擎", style=LayoutStyle(height=18)),  
                 Label("• 响应式状态管理", style=LayoutStyle(height=18)),
-                Label("• 现代化样式系统", style=LayoutStyle(height=18))
+                Label("• 现代化样式系统", style=LayoutStyle(height=18)),
+                Label("• 完整的主题系统", style=LayoutStyle(height=18))
             ],
             style=LayoutStyle(gap=2, padding=10)
         )
@@ -120,8 +176,10 @@ class MacUIv3Demo(Component):
                 counter_display,
                 status_display, 
                 parity_display,
+                theme_display,
                 button_group,
                 demo_actions,
+                theme_controls,
                 info_panel
             ],
             style=LayoutStyle(
@@ -154,6 +212,45 @@ class MacUIv3Demo(Component):
     def _set_status(self, status: str):
         """设置状态"""
         self.status.value = status
+    
+    def _set_system_theme(self):
+        """设置系统主题"""
+        if THEME_AVAILABLE:
+            try:
+                system_theme = PresetThemes.system()
+                self.theme_manager.set_theme(system_theme)
+                self.current_theme_name.value = "系统主题"
+                self.status.value = "已切换到系统主题"
+                print("🎨 已切换到系统主题")
+            except Exception as e:
+                print(f"❌ 系统主题切换失败: {e}")
+                self.status.value = f"主题切换失败: {e}"
+    
+    def _set_developer_theme(self):
+        """设置开发者深色主题"""
+        if THEME_AVAILABLE:
+            try:
+                dark_theme = PresetThemes.developer_dark()
+                self.theme_manager.set_theme(dark_theme)
+                self.current_theme_name.value = "开发者深色"
+                self.status.value = "已切换到开发者深色主题"
+                print("🎨 已切换到开发者深色主题")
+            except Exception as e:
+                print(f"❌ 开发者主题切换失败: {e}")
+                self.status.value = f"主题切换失败: {e}"
+    
+    def _set_high_contrast_theme(self):
+        """设置高对比度主题"""
+        if THEME_AVAILABLE:
+            try:
+                contrast_theme = PresetThemes.high_contrast()
+                self.theme_manager.set_theme(contrast_theme)
+                self.current_theme_name.value = "高对比度"
+                self.status.value = "已切换到高对比度主题"
+                print("🎨 已切换到高对比度主题")
+            except Exception as e:
+                print(f"❌ 高对比度主题切换失败: {e}")
+                self.status.value = f"主题切换失败: {e}"
 
 def main():
     """主函数"""
@@ -197,9 +294,13 @@ def main():
         print("   ✅ 枚举完整迁移: LineBreakMode, LabelStyle")
         print("   ✅ 向后兼容: 旧代码可继续使用Modern*别名")
         print("   ✅ 用户体验优化: 简洁、直观、功能完整")
+        if THEME_AVAILABLE:
+            print("   ✅ 主题系统完全集成: 支持动态主题切换")
         print()
         print("🔥 现在用户只需要记住:")
         print("   from macui.components import Label, Button, VStack, HStack")
+        if THEME_AVAILABLE:
+            print("   from macui.theme import ThemeManager, PresetThemes")
         print("   无需纠结选择哪个版本 - 自动使用最佳实现!")
         
         # 启动事件循环
