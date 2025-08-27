@@ -68,7 +68,9 @@ class Label(UIComponent):
         """
         super().__init__(style, **style_kwargs)
         self.text = text
-        self._is_reactive_text = hasattr(text, 'value')  # 检查是否为Signal
+        # 导入响应式类型检查
+        from ..core.reactive import Signal, Computed
+        self._is_reactive_text = isinstance(text, (Signal, Computed))
         
         print(f"🏷️ Label创建: text='{text}', reactive={self._is_reactive_text}")
     
@@ -82,15 +84,20 @@ class Label(UIComponent):
         label.setEditable_(False)        # 不可编辑
         label.setSelectable_(False)      # 不可选择
         
-        # 设置文本内容
-        if self._is_reactive_text:
-            # TODO: 集成响应式绑定系统
-            # ReactiveBinding.bind(label, "stringValue", self.text)
-            label.setStringValue_(str(getattr(self.text, 'value', self.text)))
-            print(f"🔗 Label响应式绑定: {self.text}")
+        # 设置文本内容 - 使用响应式绑定系统
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+        from core.binding import bind_text
+        
+        # 绑定文本，自动处理响应式和静态文本
+        binding_cleanup = bind_text(label, self.text)
+        if binding_cleanup:
+            # 如果有响应式绑定，记录清理函数以便后续清理
+            self._bindings.append(binding_cleanup)
+            print(f"🔗 Label响应式绑定已创建: {self.text}")
         else:
-            label.setStringValue_(str(self.text))
-            print(f"📝 Label静态文本: {str(self.text)}")
+            print(f"📝 Label静态文本已设置: {str(self.text)}")
         
         # 多行文本支持配置
         label.setUsesSingleLineMode_(False)
@@ -121,7 +128,8 @@ class Label(UIComponent):
             text: 新的文本内容
         """
         self.text = text
-        self._is_reactive_text = hasattr(text, 'value')
+        from ..core.reactive import Signal, Computed
+        self._is_reactive_text = isinstance(text, (Signal, Computed))
         
         if self._nsview:
             if self._is_reactive_text:
@@ -278,7 +286,9 @@ class TextField(UIComponent):
         self.value = value
         self.placeholder = placeholder
         self.on_change = on_change
-        self._is_reactive_value = hasattr(value, 'value')  # 检查是否为Signal
+        # 导入响应式类型检查
+        from ..core.reactive import Signal, Computed
+        self._is_reactive_value = isinstance(value, (Signal, Computed))
         self._delegate = None
         
         print(f"📝 TextField创建: value='{value}', placeholder='{placeholder}', reactive={self._is_reactive_value}")
@@ -295,15 +305,20 @@ class TextField(UIComponent):
         textfield.setEditable_(True)        # 可编辑
         textfield.setSelectable_(True)      # 可选择
         
-        # 设置初始值
-        if self._is_reactive_value:
-            # TODO: 集成响应式绑定系统
-            initial_value = str(getattr(self.value, 'value', self.value))
-            textfield.setStringValue_(initial_value)
-            print(f"🔗 TextField响应式绑定: {self.value}")
+        # 设置初始值 - 使用响应式绑定系统
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+        from core.binding import bind_text
+        
+        # 绑定文本值，自动处理响应式和静态值
+        binding_cleanup = bind_text(textfield, self.value)
+        if binding_cleanup:
+            # 如果有响应式绑定，记录清理函数以便后续清理
+            self._bindings.append(binding_cleanup)
+            print(f"🔗 TextField响应式绑定已创建: {self.value}")
         else:
-            textfield.setStringValue_(str(self.value))
-            print(f"📝 TextField静态文本: {str(self.value)}")
+            print(f"📝 TextField静态值已设置: {str(self.value)}")
         
         # 设置占位符
         if self.placeholder:
@@ -348,7 +363,8 @@ class TextField(UIComponent):
             text: 新的文本内容
         """
         self.value = text
-        self._is_reactive_value = hasattr(text, 'value')
+        from ..core.reactive import Signal, Computed
+        self._is_reactive_value = isinstance(text, (Signal, Computed))
         
         if self._nsview:
             if self._is_reactive_value:

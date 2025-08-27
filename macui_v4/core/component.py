@@ -18,6 +18,7 @@ from managers import (
     ManagerFactory, ViewportManager, LayerManager, PositioningManager,
     TransformManager, ScrollManager, MaskManager, Position, OverflowBehavior
 )
+from reactive import Signal, Computed, Effect, create_signal, create_computed, create_effect
 
 T = TypeVar("T")
 
@@ -80,32 +81,34 @@ class Component(ABC):
     # 响应式状态管理方法
     # ================================
     
-    def create_signal(self, initial_value: T):
+    def create_signal(self, initial_value: T) -> Signal[T]:
         """创建组件作用域的Signal
         
-        TODO: 集成现有的macUI响应式系统
+        集成完整的macUI响应式系统
         """
-        # 暂时返回简单值，后续集成现有Signal系统
-        signal = {'value': initial_value}
+        signal = create_signal(initial_value)
         self._signals.append(signal)
+        print(f"🔧 Component({self.__class__.__name__}): 创建Signal[{id(signal)}] = {initial_value}")
         return signal
         
-    def create_computed(self, fn: Callable[[], T]):
+    def create_computed(self, fn: Callable[[], T]) -> Computed[T]:
         """创建计算属性
         
-        TODO: 集成现有的Computed系统
+        集成完整的Computed系统
         """
-        computed = {'fn': fn}
+        computed = create_computed(fn)
         self._computed.append(computed)
+        print(f"🔧 Component({self.__class__.__name__}): 创建Computed[{id(computed)}]")
         return computed
         
-    def create_effect(self, fn: Callable[[], Optional[Callable[[], None]]]):
+    def create_effect(self, fn: Callable[[], Optional[Callable[[], None]]]) -> Effect:
         """创建副作用
         
-        TODO: 集成现有的Effect系统
+        集成完整的Effect系统
         """
-        effect = {'fn': fn}
+        effect = create_effect(fn)
         self._effects.append(effect)
+        print(f"🔧 Component({self.__class__.__name__}): 创建Effect[{id(effect)}]")
         return effect
     
     # ================================
@@ -146,7 +149,12 @@ class Component(ABC):
         self._bindings.clear()
         
         # 清理所有副作用
-        # TODO: 集成现有Effect清理逻辑
+        for effect in self._effects:
+            try:
+                if hasattr(effect, 'cleanup'):
+                    effect.cleanup()
+            except Exception as e:
+                print(f"⚠️ Effect清理错误: {e}")
         self._effects.clear()
         
         # 清理子组件
