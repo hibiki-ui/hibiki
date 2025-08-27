@@ -308,9 +308,14 @@ class LayoutNode:
         """计算布局"""
         try:
             # Stretchable可以直接接受tuple作为available_space参数
-            return self._stretchable_node.compute_layout(available_size)
+            result = self._stretchable_node.compute_layout(available_size)
+            if not result:
+                logger.warning(f"⚠️ Stretchable布局计算返回False: {self.key}")
+            return result
         except Exception as e:
-            logger.error(f"❌ 布局计算失败: {e}")
+            logger.error(f"❌ 布局计算异常: {self.key} - {e}")
+            import traceback
+            logger.error(f"❌ 详细错误: {traceback.format_exc()}")
             return False
     
     def get_layout(self) -> Tuple[float, float, float, float]:
@@ -352,7 +357,9 @@ class V4LayoutEngine:
     def create_node_for_component(self, component) -> LayoutNode:
         """为组件创建布局节点"""
         if component in self._component_nodes:
-            return self._component_nodes[component]
+            existing_node = self._component_nodes[component]
+            logger.info(f"📐 使用已存在的布局节点: {component.__class__.__name__}")
+            return existing_node
         
         style = getattr(component, 'style', None)
         node = LayoutNode(component, style)

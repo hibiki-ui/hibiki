@@ -384,37 +384,45 @@ class UIComponent(Component):
             if not layout_node:
                 layout_node = engine.create_node_for_component(self)
             
-            # 计算可用空间 - 尝试从父容器获取
-            available_size = self._get_available_size_from_parent()
+            # 检查是否是容器根节点
+            is_root_container = (hasattr(self, 'children') and 
+                               len(getattr(self, 'children', [])) > 0 and
+                               getattr(self, '_parent_container', None) is None)
             
-            # 计算布局
-            layout_result = engine.compute_layout_for_component(self, available_size)
+            # 检查是否是子组件
+            is_child_component = getattr(self, '_parent_container', None) is not None
             
-            if layout_result:
-                # 应用计算得到的布局
-                from Foundation import NSMakeRect
-                frame = NSMakeRect(
-                    layout_result.x, 
-                    layout_result.y,
-                    layout_result.width, 
-                    layout_result.height
-                )
-                self._nsview.setFrame_(frame)
+            # 只有根容器才计算布局，子组件完全跳过布局处理
+            if is_root_container:
+                # 计算可用空间
+                available_size = self._get_available_size_from_parent()
                 
-                # 根据布局类型决定是否使用Auto Layout
-                if self.style.position in [Position.ABSOLUTE, Position.FIXED]:
-                    # 绝对定位禁用Auto Layout
-                    self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(True)
+                # 计算整个布局树
+                layout_result = engine.compute_layout_for_component(self, available_size)
+                
+                if layout_result:
+                    # 应用根容器布局
+                    self._apply_layout_result(layout_result)
+                    
+                    # 递归应用所有子组件的布局
+                    self._apply_children_layout(engine)
+                    
+                    print(f"📐 v4根容器布局已应用: {self.__class__.__name__} -> ({layout_result.x:.1f}, {layout_result.y:.1f}, {layout_result.width:.1f}x{layout_result.height:.1f})")
+                    return True
                 else:
-                    # Flex布局可以与Auto Layout协同
-                    self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(False)
-                
-                print(f"📐 v4布局已应用: {self.__class__.__name__} -> ({layout_result.x:.1f}, {layout_result.y:.1f}, {layout_result.width:.1f}x{layout_result.height:.1f})")
+                    print(f"⚠️ v4根容器布局计算失败: {self.__class__.__name__}")
+                    self._apply_fallback_frame()
+                    return False
+            elif is_child_component:
+                # 子组件：完全跳过布局处理，等父容器处理
+                self._apply_fallback_frame()
+                print(f"📐 v4子组件跳过独立布局: {self.__class__.__name__}")
                 return True
             else:
-                print(f"⚠️ v4布局计算失败: {self.__class__.__name__}")
+                # 独立组件（非容器子组件）：使用简单布局
                 self._apply_fallback_frame()
-                return False
+                print(f"📐 v4独立组件使用简单布局: {self.__class__.__name__}")
+                return True
                 
         except Exception as e:
             print(f"⚠️ v4布局应用失败: {e}")
@@ -447,6 +455,54 @@ class UIComponent(Component):
         except:
             # 最后回退到默认值
             return (800, 600)
+    
+    def _apply_layout_result(self, layout_result):
+        """应用布局结果到NSView"""
+        from Foundation import NSMakeRect
+        frame = NSMakeRect(
+            layout_result.x, 
+            layout_result.y,
+            layout_result.width, 
+            layout_result.height
+        )
+        self._nsview.setFrame_(frame)
+        
+        # 根据布局类型决定是否使用Auto Layout
+        if self.style.position in [Position.ABSOLUTE, Position.FIXED]:
+            # 绝对定位禁用Auto Layout
+            self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(True)
+        else:
+            # Flex布局可以与Auto Layout协同
+            self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(False)
+    
+    def _apply_children_layout(self, engine):
+        """递归应用子组件的布局"""
+        if not hasattr(self, 'children'):
+            return
+        
+        for child in self.children:
+            if hasattr(child, '_nsview') and child._nsview:
+                # 获取子组件的布局节点
+                child_node = engine.get_node_for_component(child)
+                if child_node:
+                    try:
+                        # 获取子组件的布局结果
+                        x, y, width, height = child_node.get_layout()
+                        
+                        # 应用到子组件的NSView
+                        child._apply_layout_result(type('LayoutResult', (), {
+                            'x': x, 'y': y, 'width': width, 'height': height
+                        })())
+                        
+                        print(f"📐 v4子组件布局已应用: {child.__class__.__name__} -> ({x:.1f}, {y:.1f}, {width:.1f}x{height:.1f})")
+                        
+                        # 递归处理子组件的子组件
+                        if hasattr(child, '_apply_children_layout'):
+                            child._apply_children_layout(engine)
+                            
+                    except Exception as e:
+                        print(f"⚠️ 子组件布局应用失败: {child.__class__.__name__} - {e}")
+                        child._apply_fallback_frame()
     
     def _resolve_size_value(self, length_value, default: float) -> float:
         """解析尺寸值为像素"""
@@ -553,12 +609,12 @@ class Container(UIComponent):
                     if hasattr(child, '_parent_container'):
                         child._parent_container = self
                     
+                    # 添加到v4布局树（在挂载前建立关系）
+                    engine.add_child_relationship(self, child, i)
+                    
                     # 挂载子组件
                     child_view = child.mount()
                     container.addSubview_(child_view)
-                    
-                    # 添加到v4布局树
-                    engine.add_child_relationship(self, child, i)
                     
                     print(f"  ├─ 子组件 {i+1}: {child.__class__.__name__} 已添加到容器和v4布局树")
                 except Exception as e:
