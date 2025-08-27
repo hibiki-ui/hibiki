@@ -130,8 +130,8 @@ def to_size(width: Optional[LengthValue] = None, height: Optional[LengthValue] =
     if width is None and height is None:
         return None
     
-    w = to_length(width) if width is not None else Length.auto()
-    h = to_length(height) if height is not None else Length.auto()
+    w = to_length(width) if width is not None else Length.default()
+    h = to_length(height) if height is not None else Length.default()
     return Size(width=w, height=h)
 
 

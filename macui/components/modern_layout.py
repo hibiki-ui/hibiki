@@ -27,60 +27,27 @@ class ModernVStack(LayoutAwareComponent):
     def __init__(
         self,
         children: Optional[List[Union[LayoutAwareComponent, Component, Any]]] = None,
-        spacing: Union[int, float] = 0,
-        alignment: Union[AlignItems, str] = AlignItems.STRETCH,
-        justify_content: Union[JustifyContent, str] = JustifyContent.FLEX_START,
-        padding: Union[int, float] = 0,
-        # 布局样式支持
-        width: Optional[Union[int, float]] = None,
-        height: Optional[Union[int, float]] = None,
-        **layout_kwargs
+        style: Optional[LayoutStyle] = None
     ):
         """初始化现代化垂直布局
         
         Args:
             children: 子组件列表
-            spacing: 子组件间距
-            alignment: 水平对齐方式 (AlignItems枚举或字符串)
-            justify_content: 垂直分布方式 (JustifyContent枚举或字符串)  
-            padding: 内边距
-            width: 容器宽度
-            height: 容器高度
-            **layout_kwargs: 其他布局样式参数
+            style: 布局样式 (LayoutStyle对象)
         """
-        # 字符串到枚举的转换
-        if isinstance(alignment, str):
-            align_map = {
-                "start": AlignItems.FLEX_START,
-                "center": AlignItems.CENTER,
-                "end": AlignItems.FLEX_END,
-                "stretch": AlignItems.STRETCH
-            }
-            alignment = align_map.get(alignment, AlignItems.STRETCH)
-        
-        if isinstance(justify_content, str):
-            justify_map = {
-                "start": JustifyContent.FLEX_START,
-                "center": JustifyContent.CENTER,
-                "end": JustifyContent.FLEX_END,
-                "space-between": JustifyContent.SPACE_BETWEEN,
-                "space-around": JustifyContent.SPACE_AROUND,
-                "space-evenly": JustifyContent.SPACE_EVENLY
-            }
-            justify_content = justify_map.get(justify_content, JustifyContent.FLEX_START)
-        
-        # 创建VStack样式
-        layout_style = LayoutStyle(
-            display=Display.FLEX,
-            flex_direction=FlexDirection.COLUMN,
-            align_items=alignment,
-            justify_content=justify_content,
-            gap=spacing,
-            padding=padding,
-            width=width,
-            height=height,
-            **layout_kwargs
-        )
+        # 创建默认VStack样式或使用提供的样式
+        if style is None:
+            layout_style = LayoutStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.STRETCH,
+                justify_content=JustifyContent.FLEX_START
+            )
+        else:
+            layout_style = style
+            # 确保是垂直布局
+            layout_style.display = Display.FLEX
+            layout_style.flex_direction = FlexDirection.COLUMN
         
         print(f"🔧 ModernVStack.__init__ 开始，子组件数: {len(children or [])}")
         super().__init__(layout_style)
@@ -248,50 +215,28 @@ class ModernHStack(LayoutAwareComponent):
     def __init__(
         self,
         children: Optional[List[Union[LayoutAwareComponent, Component, Any]]] = None,
-        spacing: Union[int, float] = 0,
-        alignment: Union[AlignItems, str] = AlignItems.STRETCH,
-        justify_content: Union[JustifyContent, str] = JustifyContent.FLEX_START,
-        padding: Union[int, float] = 0,
-        # 布局样式支持  
-        width: Optional[Union[int, float]] = None,
-        height: Optional[Union[int, float]] = None,
-        **layout_kwargs
+        style: Optional[LayoutStyle] = None
     ):
-        """初始化现代化水平布局 - 参数与ModernVStack类似，但使用ROW方向"""
+        """初始化现代化水平布局
         
-        # 字符串到枚举的转换
-        if isinstance(alignment, str):
-            align_map = {
-                "start": AlignItems.FLEX_START,
-                "center": AlignItems.CENTER, 
-                "end": AlignItems.FLEX_END,
-                "stretch": AlignItems.STRETCH
-            }
-            alignment = align_map.get(alignment, AlignItems.STRETCH)
+        Args:
+            children: 子组件列表
+            style: 布局样式 (LayoutStyle对象)
+        """
         
-        if isinstance(justify_content, str):
-            justify_map = {
-                "start": JustifyContent.FLEX_START,
-                "center": JustifyContent.CENTER,
-                "end": JustifyContent.FLEX_END,
-                "space-between": JustifyContent.SPACE_BETWEEN,
-                "space-around": JustifyContent.SPACE_AROUND,
-                "space-evenly": JustifyContent.SPACE_EVENLY
-            }
-            justify_content = justify_map.get(justify_content, JustifyContent.FLEX_START)
-        
-        # 创建HStack样式
-        layout_style = LayoutStyle(
-            display=Display.FLEX,
-            flex_direction=FlexDirection.ROW,  # 水平方向
-            align_items=alignment,
-            justify_content=justify_content,
-            gap=spacing,
-            padding=padding,
-            width=width,
-            height=height,
-            **layout_kwargs
-        )
+        # 创建默认HStack样式或使用提供的样式
+        if style is None:
+            layout_style = LayoutStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.ROW,
+                align_items=AlignItems.STRETCH,
+                justify_content=JustifyContent.FLEX_START
+            )
+        else:
+            layout_style = style
+            # 确保是水平布局
+            layout_style.display = Display.FLEX
+            layout_style.flex_direction = FlexDirection.ROW
         
         super().__init__(layout_style)
         
@@ -423,55 +368,61 @@ class ModernHStack(LayoutAwareComponent):
 # 向后兼容的函数式接口
 def VStack(
     children: Optional[List[Union[LayoutAwareComponent, Component, Any]]] = None,
-    spacing: Union[int, float] = 0,
-    alignment: str = "stretch",
-    justify_content: str = "start",
-    **kwargs
+    style: Optional[LayoutStyle] = None
 ) -> ModernVStack:
-    """创建现代化垂直布局 - 向后兼容接口
+    """创建现代化垂直布局 - 统一style接口
+    
+    Args:
+        children: 子组件列表
+        style: 布局样式对象
     
     Examples:
-        # 基本用法（兼容旧API）
-        vstack = VStack(children=[button, label], spacing=16)
+        # 基本用法
+        vstack = VStack(children=[button, label])
         
-        # 新功能 - 布局属性
+        # 使用style控制布局
         vstack = VStack(
             children=[button, label],
-            spacing=16,
-            alignment="center",
-            width=400,
-            padding=20
+            style=LayoutStyle(
+                gap=16,
+                align_items=AlignItems.CENTER,
+                padding=20
+            )
         )
-        
-        # 链式调用
-        vstack = VStack(children=[button, label]) \
-            .width(400) \
-            .padding(20) \
-            .margin(16)
     """
     return ModernVStack(
         children=children,
-        spacing=spacing,
-        alignment=alignment,
-        justify_content=justify_content,
-        **kwargs
+        style=style
     )
 
 
 def HStack(
     children: Optional[List[Union[LayoutAwareComponent, Component, Any]]] = None,
-    spacing: Union[int, float] = 0,
-    alignment: str = "stretch", 
-    justify_content: str = "start",
-    **kwargs
+    style: Optional[LayoutStyle] = None
 ) -> ModernHStack:
-    """创建现代化水平布局 - 向后兼容接口"""
+    """创建现代化水平布局 - 统一style接口
+    
+    Args:
+        children: 子组件列表
+        style: 布局样式对象
+    
+    Examples:
+        # 基本用法
+        hstack = HStack(children=[button1, button2])
+        
+        # 使用style控制布局
+        hstack = HStack(
+            children=[button1, button2],
+            style=LayoutStyle(
+                gap=10,
+                justify_content=JustifyContent.SPACE_BETWEEN,
+                padding=15
+            )
+        )
+    """
     return ModernHStack(
         children=children,
-        spacing=spacing,
-        alignment=alignment,
-        justify_content=justify_content,
-        **kwargs
+        style=style
     )
 
 
