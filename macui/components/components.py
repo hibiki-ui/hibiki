@@ -44,7 +44,7 @@ class LabelStyle(Enum):
     # 固定宽度标签 - 适用于表单字段、固定布局
     FIXED_WIDTH = "fixed_width"
 
-class ModernComponent(LayoutAwareComponent):
+class Component(LayoutAwareComponent):
     """现代化组件基类 - 统一style接口"""
     
     def __init__(self, style: Optional[LayoutStyle] = None, **kwargs):
@@ -56,7 +56,7 @@ class ModernComponent(LayoutAwareComponent):
         super().__init__(layout_style=style)
         self._nsview = None
 
-class ModernLabel(ModernComponent):
+class Label(Component):
     """现代化Label组件"""
     
     def __init__(self, text: Union[str, Any], style: Optional[LayoutStyle] = None):
@@ -108,7 +108,7 @@ class ModernLabel(ModernComponent):
         cell.setWraps_(True)
         cell.setScrollable_(False)
 
-class ModernButton(ModernComponent):
+class Button(Component):
     """现代化Button组件"""
     
     def __init__(self, title: str, style: Optional[LayoutStyle] = None, on_click: Optional[Callable] = None):
@@ -142,11 +142,11 @@ class ModernButton(ModernComponent):
         from ..core.binding import EventBinding
         EventBinding.bind_click(button, self.on_click)
 
-class ModernVStack(ModernComponent):
+class VStack(Component):
     """现代化垂直布局组件"""
     
     def __init__(self, 
-                 children: Optional[List[ModernComponent]] = None,
+                 children: Optional[List[Component]] = None,
                  style: Optional[LayoutStyle] = None,
                  spacing: Union[int, float] = 0,
                  alignment: Union[AlignItems, str] = AlignItems.STRETCH,
@@ -208,11 +208,11 @@ class ModernVStack(ModernComponent):
         
         return container
 
-class ModernHStack(ModernComponent):
+class HStack(Component):
     """现代化水平布局组件"""
     
     def __init__(self, 
-                 children: Optional[List[ModernComponent]] = None,
+                 children: Optional[List[Component]] = None,
                  style: Optional[LayoutStyle] = None,
                  spacing: Union[int, float] = 0,
                  alignment: Union[AlignItems, str] = AlignItems.STRETCH,
@@ -287,7 +287,7 @@ class ModernHStack(ModernComponent):
         
         return container
 
-class ModernSpacer(ModernComponent):
+class Spacer(Component):
     """弹性空间组件"""
     
     def __init__(self, style: Optional[LayoutStyle] = None):
@@ -306,9 +306,3 @@ class ModernSpacer(ModernComponent):
         
         return spacer
 
-# 便捷别名，保持API兼容性
-Label = ModernLabel
-Button = ModernButton
-VStack = ModernVStack
-HStack = ModernHStack
-Spacer = ModernSpacer

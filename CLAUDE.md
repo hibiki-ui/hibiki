@@ -58,7 +58,11 @@ AppKit/PyObjC (NSView, NSButton, etc.)
 
 ### Key Directories
 - `macui/core/` - Reactive system core (Signal, Effect, Component)
-- `macui/components/` - UI components (controls, layout)
+- `macui/components/` - UI components with unified API
+  - `components.py` - Core components (Label, Button, VStack, HStack)
+  - `layout.py` - Advanced layout components (VStackLayout, HStackLayout)
+  - `core.py` - Base component classes (LayoutAwareComponent)
+- `macui/layout/` - Stretchable layout engine integration
 - `macui/app.py` - Application and window management
 - `examples/` - Usage examples and reference implementations
 
@@ -138,10 +142,15 @@ class WindowController(NSObject):
 - Event handling system (EventBinding)
 - Layout components (VStack, HStack) with Stretchable engine
 
-### 🔧 Recent Fixes (2025-08-27)
+### 🔧 Recent Fixes & Architecture Cleanup (2025-08-27)
 - ReactiveBinding now supports `stringValue` property
 - EventBinding import path corrected (`..core.binding`)
 - Unified API components fully functional
+- **Architecture Simplification**: Removed all "Modern" prefixes from classes and files
+  - `ModernLabel` → `Label`, `ModernButton` → `Button`, etc.
+  - `modern_components.py` → `components.py`, `modern_layout.py` → `layout.py`
+  - Eliminated LegacyComponentWrapper complexity
+  - Direct imports with clean, simple class names
 
 ### Working Components
 - ✅ All basic controls (Button, Label, TextField)

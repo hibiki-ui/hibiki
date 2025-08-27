@@ -17,7 +17,7 @@ from ..layout.styles import (
 from .core import LayoutAwareComponent
 
 
-class ModernVStack(LayoutAwareComponent):
+class VStackLayout(LayoutAwareComponent):
     """现代化垂直布局组件 - 基于Stretchable布局引擎
     
     完全替代旧的VStack NSStackView实现
@@ -49,7 +49,7 @@ class ModernVStack(LayoutAwareComponent):
             layout_style.display = Display.FLEX
             layout_style.flex_direction = FlexDirection.COLUMN
         
-        print(f"🔧 ModernVStack.__init__ 开始，子组件数: {len(children or [])}")
+        print(f"🔧 VStackLayout.__init__ 开始，子组件数: {len(children or [])}")
         super().__init__(layout_style)
         print("🔧 super().__init__ 完成")
         
@@ -72,7 +72,7 @@ class ModernVStack(LayoutAwareComponent):
                 raise TypeError(f"不支持的子组件类型: {type(child).__name__}. 请使用macUI统一API组件 (Label, Button, VStack等)")
     
     
-    def add_child(self, child: LayoutAwareComponent) -> 'ModernVStack':
+    def add_child(self, child: LayoutAwareComponent) -> 'VStackLayout':
         """添加子组件 - 支持链式调用"""
         self.children.append(child)
         
@@ -105,7 +105,7 @@ class ModernVStack(LayoutAwareComponent):
     
     def _setup_nsview(self):
         """设置容器和子组件"""
-        print("🔧 ModernVStack._setup_nsview 开始")
+        print("🔧 VStackLayout._setup_nsview 开始")
         container = self._nsview
         print(f"🔧 容器获取完成: {container}")
         
@@ -130,7 +130,7 @@ class ModernVStack(LayoutAwareComponent):
         print("🔧 开始创建布局树结构")
         self._setup_layout_tree()
         
-        print(f"🔧 ModernVStack 创建完成，子组件数: {len(self.child_components)}")
+        print(f"🔧 VStackLayout 创建完成，子组件数: {len(self.child_components)}")
     
     def _setup_layout_tree(self):
         """设置布局树结构"""
@@ -165,10 +165,10 @@ class ModernVStack(LayoutAwareComponent):
             print("📐 应用子组件布局...")
             self._apply_layout_recursive(self.layout_node)
             
-            print(f"✅ ModernVStack 布局计算完成: {result.compute_time:.2f}ms")
+            print(f"✅ VStackLayout 布局计算完成: {result.compute_time:.2f}ms")
             
         except Exception as e:
-            print(f"⚠️ ModernVStack 布局计算失败: {e}")
+            print(f"⚠️ VStackLayout 布局计算失败: {e}")
             import traceback
             traceback.print_exc()
     
@@ -191,7 +191,7 @@ class ModernVStack(LayoutAwareComponent):
             self._apply_layout_recursive(child_node)
 
 
-class ModernHStack(LayoutAwareComponent):
+class HStackLayout(LayoutAwareComponent):
     """现代化水平布局组件 - 基于Stretchable布局引擎"""
     
     def __init__(
@@ -239,7 +239,7 @@ class ModernHStack(LayoutAwareComponent):
                 raise TypeError(f"不支持的子组件类型: {type(child).__name__}. 请使用macUI统一API组件 (Label, Button, HStack等)")
     
     
-    def add_child(self, child: LayoutAwareComponent) -> 'ModernHStack':
+    def add_child(self, child: LayoutAwareComponent) -> 'HStackLayout':
         """添加子组件 - 支持链式调用"""
         self.children.append(child)
         
@@ -286,7 +286,7 @@ class ModernHStack(LayoutAwareComponent):
         # 创建布局树结构
         self._setup_layout_tree()
         
-        print(f"🔧 ModernHStack 创建完成，子组件数: {len(self.child_components)}")
+        print(f"🔧 HStackLayout 创建完成，子组件数: {len(self.child_components)}")
     
     def _setup_layout_tree(self):
         """设置布局树结构 - 与VStack相同的逻辑"""
@@ -312,9 +312,9 @@ class ModernHStack(LayoutAwareComponent):
             # 然后应用到所有子组件
             self._apply_layout_recursive(self.layout_node)
             
-            print(f"✅ ModernHStack 布局计算完成: {result.compute_time:.2f}ms")
+            print(f"✅ HStackLayout 布局计算完成: {result.compute_time:.2f}ms")
         except Exception as e:
-            print(f"⚠️ ModernHStack 布局计算失败: {e}")
+            print(f"⚠️ HStackLayout 布局计算失败: {e}")
     
     def _apply_layout_recursive(self, node):
         """递归应用布局到视图 - 与VStack相同的逻辑"""
@@ -337,7 +337,7 @@ class ModernHStack(LayoutAwareComponent):
 def VStack(
     children: Optional[List[Union[LayoutAwareComponent, Component, Any]]] = None,
     style: Optional[LayoutStyle] = None
-) -> ModernVStack:
+) -> VStackLayout:
     """创建现代化垂直布局 - 统一style接口
     
     Args:
@@ -358,7 +358,7 @@ def VStack(
             )
         )
     """
-    return ModernVStack(
+    return VStackLayout(
         children=children,
         style=style
     )
@@ -367,7 +367,7 @@ def VStack(
 def HStack(
     children: Optional[List[Union[LayoutAwareComponent, Component, Any]]] = None,
     style: Optional[LayoutStyle] = None
-) -> ModernHStack:
+) -> HStackLayout:
     """创建现代化水平布局 - 统一style接口
     
     Args:
@@ -388,7 +388,7 @@ def HStack(
             )
         )
     """
-    return ModernHStack(
+    return HStackLayout(
         children=children,
         style=style
     )
@@ -399,9 +399,9 @@ def CenteredVStack(
     children: Optional[List] = None,
     spacing: Union[int, float] = 16,
     **kwargs
-) -> ModernVStack:
+) -> VStackLayout:
     """居中的垂直布局"""
-    return ModernVStack(
+    return VStackLayout(
         children=children,
         spacing=spacing,
         alignment=AlignItems.CENTER,
@@ -414,9 +414,9 @@ def CenteredHStack(
     children: Optional[List] = None,
     spacing: Union[int, float] = 16,
     **kwargs
-) -> ModernHStack:
+) -> HStackLayout:
     """居中的水平布局"""
-    return ModernHStack(
+    return HStackLayout(
         children=children,
         spacing=spacing,
         alignment=AlignItems.CENTER,
@@ -428,9 +428,9 @@ def CenteredHStack(
 def FlexVStack(
     children: Optional[List] = None,
     **kwargs
-) -> ModernVStack:
+) -> VStackLayout:
     """弹性垂直布局 - 平均分布空间"""
-    return ModernVStack(
+    return VStackLayout(
         children=children,
         justify_content=JustifyContent.SPACE_BETWEEN,
         **kwargs
@@ -440,9 +440,9 @@ def FlexVStack(
 def FlexHStack(
     children: Optional[List] = None,
     **kwargs
-) -> ModernHStack:
+) -> HStackLayout:
     """弹性水平布局 - 平均分布空间"""
-    return ModernHStack(
+    return HStackLayout(
         children=children,
         justify_content=JustifyContent.SPACE_BETWEEN,
         **kwargs
