@@ -4,13 +4,13 @@ macUI v3.0 现代化组件库
 """
 
 from typing import Optional, List, Union, Any, Callable
-from ..core.component import Component
+from .core import LayoutAwareComponent
 from ..layout.node import LayoutNode
 from ..layout.styles import LayoutStyle, FlexDirection, AlignItems, JustifyContent, Display
 from AppKit import *
 from Foundation import *
 
-class ModernComponent(Component):
+class ModernComponent(LayoutAwareComponent):
     """现代化组件基类 - 统一style接口"""
     
     def __init__(self, style: Optional[LayoutStyle] = None, **kwargs):
@@ -19,35 +19,8 @@ class ModernComponent(Component):
             style: 布局样式对象
             **kwargs: 其他组件特定参数
         """
-        super().__init__()
-        self.style = style or LayoutStyle()
-        self._layout_node = None
+        super().__init__(layout_style=style)
         self._nsview = None
-        
-    def create_layout_node(self, key: Optional[str] = None) -> LayoutNode:
-        """创建布局节点"""
-        if not self._layout_node:
-            self._layout_node = LayoutNode(
-                style=self.style,
-                key=key or f"{self.__class__.__name__}_{id(self)}",
-                user_data=self
-            )
-        return self._layout_node
-    
-    def get_layout_result(self):
-        """获取布局结果"""
-        if self._layout_node:
-            return self._layout_node.get_layout()
-        return (0, 0, 100, 50)  # 默认尺寸
-    
-    def apply_layout_to_nsview(self, nsview: NSView):
-        """将布局应用到NSView"""
-        if not self._layout_node:
-            return
-            
-        x, y, width, height = self._layout_node.get_layout()
-        frame = NSMakeRect(x, y, width, height)
-        nsview.setFrame_(frame)
 
 class ModernLabel(ModernComponent):
     """现代化Label组件"""
@@ -83,8 +56,8 @@ class ModernLabel(ModernComponent):
         label.setLineBreakMode_(NSLineBreakByWordWrapping)
         
         # 设置合适的宽度
-        if self.style and self.style.width:
-            label.setPreferredMaxLayoutWidth_(float(self.style.width))
+        if self.layout_style and self.layout_style.width:
+            label.setPreferredMaxLayoutWidth_(float(self.layout_style.width))
         else:
             label.setPreferredMaxLayoutWidth_(400.0)
         
