@@ -122,12 +122,19 @@ class LayoutEngine:
                 if self.debug_mode:
                     print(f"⚠️ 布局前回调错误: {e}")
         
-        # 执行布局计算
+        # 执行布局前调试
+        from .debug import log_layout_computation, log_hierarchy_structure
+        log_layout_computation(root, before_compute=True)
+        
         if self.debug_mode:
             print(f"⚡ 开始布局计算: root={root.key}, available_size={available_size}")
+            log_hierarchy_structure(root)
         
         # 只在根节点计算布局
         success = root.compute_layout(available_size)
+        
+        # 执行布局后调试
+        log_layout_computation(root, before_compute=False)
         
         # 生成结果
         x, y, width, height = root.get_layout()
@@ -290,7 +297,7 @@ def get_layout_engine() -> LayoutEngine:
     """获取全局布局引擎实例"""
     global _global_engine
     if _global_engine is None:
-        _global_engine = LayoutEngine(enable_cache=True, debug_mode=False)  # 禁用调试减少噪音
+        _global_engine = LayoutEngine(enable_cache=True, debug_mode=True)  # 启用调试模式定位布局问题
     return _global_engine
 
 

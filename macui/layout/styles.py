@@ -117,9 +117,8 @@ def to_length(value: LengthValue) -> Length:
         return Length.from_any(value)
     elif isinstance(value, str):
         if value.endswith('%'):
-            # 处理百分比 - 例如 "50%"
-            percent_val = float(value[:-1]) / 100.0
-            return Length.from_any(f"{percent_val*100}%") 
+            # 处理百分比 - 直接传递原始百分比字符串
+            return Length.from_any(value)
         else:
             return Length.from_any(float(value))
     else:
@@ -268,13 +267,14 @@ class LayoutStyle:
         if padding is not None:
             kwargs['padding'] = padding
             
-        # Gap - 使用Length而不是Size
+        # Gap - 修正：gap应该是Size对象
         if self.gap is not None:
             gap_length = to_length(self.gap)
             kwargs['gap'] = Size(width=gap_length, height=gap_length)
         elif self.row_gap is not None or self.column_gap is not None:
-            col_gap = to_length(self.column_gap or 0)
+            col_gap = to_length(self.column_gap or 0) 
             row_gap = to_length(self.row_gap or 0)
+            # 注意：column_gap是width方向，row_gap是height方向
             kwargs['gap'] = Size(width=col_gap, height=row_gap)
             
         # Inset (positioning)

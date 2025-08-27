@@ -154,11 +154,15 @@ class LayoutAwareComponent(Component):
     def apply_layout_to_view(self):
         """将计算的布局应用到NSView"""
         if self.layout_node and self._nsview:
+            from ..layout.debug import log_layout_application
+            success = False
+            
             try:
                 from Foundation import NSMakeRect
                 x, y, w, h = self.layout_node.get_layout()
                 frame = NSMakeRect(x, y, w, h)
                 self._nsview.setFrame_(frame)
+                success = True
                 print(f"📐 布局应用成功: ({x:.1f}, {y:.1f}, {w:.1f}, {h:.1f})")
             except Exception as e:
                 print(f"⚠️ 布局应用失败: {e}")
@@ -168,7 +172,11 @@ class LayoutAwareComponent(Component):
                     height = self.layout_style.height or 30
                     frame = NSMakeRect(0, 0, width, height)
                     self._nsview.setFrame_(frame)
+                    success = True
                     print(f"📐 使用默认布局: ({0}, {0}, {width}, {height})")
+            
+            # 记录布局应用调试信息
+            log_layout_application(self.layout_node, self._nsview, success)
     
     def mount(self) -> NSView:
         """挂载组件 - 子类必须实现"""
