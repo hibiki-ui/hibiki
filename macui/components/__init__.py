@@ -11,6 +11,9 @@ from .components import LineBreakMode, LabelStyle
 from .layout import VStackLayout as VStack
 from .layout import HStackLayout as HStack
 
+# 导入自定义视图组件
+from .custom_view import CustomView, DrawingUtils
+
 # 导入样式系统
 from ..layout.styles import LayoutStyle
 
@@ -18,6 +21,10 @@ __all__ = [
     # 基础组件
     "Label",          # 文本标签组件
     "Button",         # 按钮组件
+    
+    # 自定义视图组件
+    "CustomView",     # 自定义视图组件
+    "DrawingUtils",   # 绘制工具类
     
     # 布局组件
     "VStack",         # 垂直布局（支持Stretchable引擎）
