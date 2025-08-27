@@ -6,8 +6,16 @@ LayoutNode - 布局节点抽象
 """
 
 from typing import Optional, List, Any, Tuple
-import stretchable as st
 from .styles import LayoutStyle
+
+# Try to import stretchable, fall back to None if not available
+try:
+    import stretchable as st
+    STRETCHABLE_AVAILABLE = True
+except ImportError:
+    st = None
+    STRETCHABLE_AVAILABLE = False
+    print("⚠️ Stretchable layout engine not available, falling back to frame-based layout")
 
 
 class LayoutNode:
@@ -34,12 +42,22 @@ class LayoutNode:
         self._children: List['LayoutNode'] = []
         self._parent: Optional['LayoutNode'] = None
         
-        # 创建Stretchable节点
-        stretchable_style = style.to_stretchable_style() if style else st.Style()
-        self._stretchable_node = st.Node(style=stretchable_style)
+        # 创建Stretchable节点 (如果可用)
+        if STRETCHABLE_AVAILABLE:
+            stretchable_style = style.to_stretchable_style() if style else st.Style()
+            self._stretchable_node = st.Node(style=stretchable_style)
+        else:
+            # Fallback: 使用简单的frame-based布局
+            self._stretchable_node = None
         
         # 保存原始样式引用
         self._style = style
+        
+        # Frame-based fallback properties
+        self._computed_x = 0.0
+        self._computed_y = 0.0 
+        self._computed_width = 100.0
+        self._computed_height = 100.0
     
     @property
     def style(self) -> Optional[LayoutStyle]:
@@ -50,9 +68,12 @@ class LayoutNode:
     def style(self, new_style: Optional[LayoutStyle]):
         """更新布局样式"""
         self._style = new_style
-        stretchable_style = new_style.to_stretchable_style() if new_style else st.Style()
-        # 更新Stretchable节点样式
-        self._stretchable_node.style = stretchable_style
+        
+        # 更新Stretchable节点样式 (如果可用)
+        if STRETCHABLE_AVAILABLE and self._stretchable_node:
+            stretchable_style = new_style.to_stretchable_style() if new_style else st.Style()
+            self._stretchable_node.style = stretchable_style
+        
         self.mark_dirty()
     
     @property
@@ -83,10 +104,12 @@ class LayoutNode:
         
         if index is None:
             self._children.append(child)
-            self._stretchable_node.append(child._stretchable_node)
+            if STRETCHABLE_AVAILABLE and self._stretchable_node and child._stretchable_node:
+                self._stretchable_node.append(child._stretchable_node)
         else:
             self._children.insert(index, child)
-            self._stretchable_node.insert(index, child._stretchable_node)
+            if STRETCHABLE_AVAILABLE and self._stretchable_node and child._stretchable_node:
+                self._stretchable_node.insert(index, child._stretchable_node)
         
         self.mark_dirty()
         return self
@@ -102,7 +125,8 @@ class LayoutNode:
         """
         if child in self._children:
             self._children.remove(child)
-            self._stretchable_node.remove(child._stretchable_node)
+            if STRETCHABLE_AVAILABLE and self._stretchable_node and child._stretchable_node:
+                self._stretchable_node.remove(child._stretchable_node)
             child._parent = None
             self.mark_dirty()
         

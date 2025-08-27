@@ -76,6 +76,9 @@ class ModernButton(LayoutAwareComponent):
         button = NSButton.alloc().init()
         button.setButtonType_(NSButtonTypeMomentaryPushIn)
         
+        # 🔴 关键修复：禁用AutoLayout，完全使用手动布局
+        button.setTranslatesAutoresizingMaskIntoConstraints_(True)
+        
         # 设置默认frame（后续会被布局系统覆盖）
         if self.layout_style and (self.layout_style.width or self.layout_style.height):
             width = self.layout_style.width or 100

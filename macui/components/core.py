@@ -163,7 +163,10 @@ class LayoutAwareComponent(Component):
         """挂载组件 - 子类必须实现"""
         if self._nsview is None:
             self._nsview = self._create_nsview()
+            # 在子类设置完成后禁用AutoLayout
             self._setup_nsview()
+            # 🔴 最后统一禁用AutoLayout
+            self._disable_autolayout_recursively(self._nsview)
         
         # 创建布局节点
         self.create_layout_node()
@@ -176,7 +179,27 @@ class LayoutAwareComponent(Component):
     
     def _setup_nsview(self):
         """设置NSView属性 - 子类可选实现"""
-        pass
+        # 🔴 自动禁用AutoLayout - 适用于所有子类
+        self._disable_autolayout_recursively(self._nsview)
+    
+    def _disable_autolayout_recursively(self, view):
+        """递归禁用视图及其所有子视图的AutoLayout"""
+        if view is None:
+            return
+            
+        # 禁用当前视图的AutoLayout
+        if hasattr(view, 'setTranslatesAutoresizingMaskIntoConstraints_'):
+            view.setTranslatesAutoresizingMaskIntoConstraints_(True)
+            
+        # 递归处理子视图
+        if hasattr(view, 'subviews'):
+            try:
+                subviews = view.subviews()
+                if subviews:
+                    for subview in subviews:
+                        self._disable_autolayout_recursively(subview)
+            except Exception:
+                pass  # 忽略可能的错误
     
     def _layout_style_to_dict(self, style: LayoutStyle) -> Dict[str, Any]:
         """将LayoutStyle转换为字典 - 用于样式合并"""

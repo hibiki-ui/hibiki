@@ -140,6 +140,9 @@ class ModernVStack(LayoutAwareComponent):
         """创建容器NSView"""
         container = NSView.alloc().init()
         
+        # 🔴 关键修复：禁用AutoLayout，完全使用手动布局
+        container.setTranslatesAutoresizingMaskIntoConstraints_(True)
+        
         # 设置默认大小
         default_width = self.layout_style.width or 400
         default_height = self.layout_style.height or 300
@@ -156,6 +159,8 @@ class ModernVStack(LayoutAwareComponent):
             try:
                 child_view = child_component.get_view()
                 if child_view:
+                    # 🔴 禁用子视图的AutoLayout
+                    child_view.setTranslatesAutoresizingMaskIntoConstraints_(True)
                     container.addSubview_(child_view)
             except Exception as e:
                 print(f"⚠️ 子组件挂载失败: {e}")
@@ -321,6 +326,9 @@ class ModernHStack(LayoutAwareComponent):
     def _create_nsview(self) -> NSView:
         """创建容器NSView"""
         container = NSView.alloc().init()
+        
+        # 🔴 关键修复：禁用AutoLayout，完全使用手动布局
+        container.setTranslatesAutoresizingMaskIntoConstraints_(True)
         
         # 设置默认大小
         default_width = self.layout_style.width or 600

@@ -458,3 +458,177 @@ def RichTextArea(
         height=height,
         **kwargs
     )
+
+
+class ModernTableView(LayoutAwareComponent):
+    """现代化表格视图组件 - 基于新布局引擎v3.0 (Stretchable)
+    
+    完全基于Stretchable布局引擎，不使用AutoLayout
+    """
+    
+    def __init__(
+        self,
+        columns: list,
+        data: Optional[Signal[list]] = None,
+        selected_row: Optional[Signal[int]] = None,
+        on_selection_change: Optional[Callable[[int], None]] = None,
+        on_double_click: Optional[Callable[[int], None]] = None,
+        enabled: Optional[Union[bool, Signal[bool], Computed[bool]]] = None,
+        # 布局样式支持
+        width: Optional[Union[int, float]] = None,
+        height: Optional[Union[int, float]] = None,
+        **layout_kwargs
+    ):
+        """初始化现代化表格视图
+        
+        Args:
+            columns: 列定义列表，格式：[{"title": "列名", "key": "键名", "width": 宽度}, ...]
+            data: 数据信号 (双向绑定)
+            selected_row: 选中行信号 (双向绑定)
+            on_selection_change: 选择改变回调
+            on_double_click: 双击回调
+            enabled: 启用状态 (响应式)
+            width, height: 尺寸
+            **layout_kwargs: 其他布局样式
+        """
+        layout_style = LayoutStyle(
+            width=width or 400,
+            height=height or 300,
+            **layout_kwargs
+        )
+        
+        super().__init__(layout_style)
+        
+        self.columns = columns
+        self.data = data or Signal([])
+        self.selected_row = selected_row or Signal(-1)
+        self.on_selection_change = on_selection_change
+        self.on_double_click = on_double_click
+        self.enabled = enabled
+    
+    def _create_nsview(self):
+        """创建NSScrollView包装的NSTableView"""
+        from AppKit import NSTableView, NSScrollView, NSTableColumn
+        
+        # 创建表格视图
+        table_view = NSTableView.alloc().init()
+        
+        # 🔴 关键修复：禁用TableView的所有自动调整行为
+        table_view.setColumnAutoresizingStyle_(0)  # NSTableViewNoColumnAutoresizing
+        table_view.setUsesAlternatingRowBackgroundColors_(False)
+        
+        # 创建滚动容器
+        scroll_view = NSScrollView.alloc().init()
+        scroll_view.setDocumentView_(table_view)
+        scroll_view.setHasVerticalScroller_(True)
+        scroll_view.setHasHorizontalScroller_(True)
+        scroll_view.setAutohidesScrollers_(True)
+        
+        # 🔴 关键修复：禁用AutoLayout，完全使用手动布局
+        scroll_view.setTranslatesAutoresizingMaskIntoConstraints_(True)
+        table_view.setTranslatesAutoresizingMaskIntoConstraints_(True)
+        
+        # 设置frame - 基于布局样式
+        width = self.layout_style.width or 400
+        height = self.layout_style.height or 300
+        scroll_view.setFrame_(NSMakeRect(0, 0, width, height))
+        
+        # 添加列
+        for column_def in self.columns:
+            column = NSTableColumn.alloc().initWithIdentifier_(column_def["key"])
+            column.headerCell().setStringValue_(column_def["title"])
+            
+            if "width" in column_def:
+                column.setWidth_(column_def["width"])
+                column.setMinWidth_(column_def["width"] * 0.5)
+                column.setMaxWidth_(column_def["width"] * 2.0)
+            else:
+                # 设置默认宽度，避免AutoLayout计算
+                column.setWidth_(100.0)
+                column.setMinWidth_(50.0)
+                column.setMaxWidth_(200.0)
+            
+            table_view.addTableColumn_(column)
+        
+        # 将 table_view 引用存储到 scroll_view 中
+        import objc
+        objc.setAssociatedObject(scroll_view, b"table_view", table_view, objc.OBJC_ASSOCIATION_RETAIN)
+        
+        return scroll_view
+    
+    def _setup_nsview(self):
+        """设置NSTableView属性和绑定"""
+        from ..core.binding import EnhancedTableViewDataSource, EnhancedTableViewDelegate
+        scroll_view = self._nsview
+        
+        # 获取存储的table_view
+        import objc
+        table_view = objc.getAssociatedObject(scroll_view, b"table_view")
+        
+        # 创建并设置数据源
+        data_source = EnhancedTableViewDataSource.alloc().init()
+        data_source.data = self.data.value
+        data_source.columns = self.columns
+        table_view.setDataSource_(data_source)
+        
+        # 创建并设置委托
+        delegate = EnhancedTableViewDelegate.alloc().init()
+        delegate.on_selection_change = self.on_selection_change
+        delegate.on_double_click = self.on_double_click
+        delegate.selected_signal = self.selected_row
+        table_view.setDelegate_(delegate)
+        
+        # 数据绑定 - 响应式更新
+        def update_table_data():
+            data_source.data = self.data.value
+            table_view.reloadData()
+        
+        # 创建Effect来监听数据变化
+        from ..core.signal import Effect
+        data_effect = Effect(update_table_data)
+        
+        # 启用状态绑定
+        if self.enabled is not None:
+            if isinstance(self.enabled, (Signal, Computed)):
+                ReactiveBinding.bind(table_view, "enabled", self.enabled)
+            else:
+                table_view.setEnabled_(bool(self.enabled))
+        
+        # 保持引用防止垃圾回收
+        objc.setAssociatedObject(scroll_view, b"data_source", data_source, objc.OBJC_ASSOCIATION_RETAIN)
+        objc.setAssociatedObject(scroll_view, b"delegate", delegate, objc.OBJC_ASSOCIATION_RETAIN)
+        objc.setAssociatedObject(scroll_view, b"data_effect", data_effect, objc.OBJC_ASSOCIATION_RETAIN)
+        
+        print(f"📊 ModernTableView 创建完成 - {len(self.columns)}列, {len(self.data.value)}行")
+
+
+# 向后兼容的函数式接口
+def TableView(
+    columns: list,
+    data: Optional[Union[list, Signal[list]]] = None,
+    frame: Optional[tuple] = None,
+    **kwargs
+) -> ModernTableView:
+    """创建现代化表格视图 - 向后兼容接口
+    
+    Examples:
+        # 基本用法 (兼容旧API)
+        table = TableView(columns=my_columns, data=my_data)
+        
+        # 新功能 - 布局属性
+        table = TableView(columns=my_columns, data=my_data, width=500, height=400)
+        
+        # 响应式数据
+        data_signal = Signal([...])
+        table = TableView(columns=my_columns, data=data_signal)
+    """
+    # 处理旧的frame参数
+    if frame:
+        kwargs.setdefault('width', frame[2])
+        kwargs.setdefault('height', frame[3])
+    
+    # 处理非Signal数据
+    if data is not None and not isinstance(data, Signal):
+        data = Signal(list(data))
+    
+    return ModernTableView(columns, data, **kwargs)

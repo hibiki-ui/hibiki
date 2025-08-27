@@ -25,7 +25,9 @@
       "Bash(timeout 3 uv run:*)",
       "Bash(timeout 20 uv run:*)",
       "WebFetch(domain:stretchable.readthedocs.io)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(uv list:*)",
+      "Bash(uv pip:*)"
     ],
     "deny": [],
     "ask": []
