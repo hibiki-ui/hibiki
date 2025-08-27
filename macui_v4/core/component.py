@@ -379,11 +379,6 @@ class UIComponent(Component):
             from .layout import get_layout_engine
             engine = get_layout_engine()
             
-            # 为组件创建布局节点（如果还没有的话）
-            layout_node = engine.get_node_for_component(self)
-            if not layout_node:
-                layout_node = engine.create_node_for_component(self)
-            
             # 检查是否是容器根节点
             is_root_container = (hasattr(self, 'children') and 
                                len(getattr(self, 'children', [])) > 0 and
@@ -392,8 +387,12 @@ class UIComponent(Component):
             # 检查是否是子组件
             is_child_component = getattr(self, '_parent_container', None) is not None
             
-            # 只有根容器才计算布局，子组件完全跳过布局处理
+            # 只有根容器和独立组件才创建布局节点，子组件完全跳过
             if is_root_container:
+                # 为根容器创建布局节点
+                layout_node = engine.get_node_for_component(self)
+                if not layout_node:
+                    layout_node = engine.create_node_for_component(self)
                 # 计算可用空间
                 available_size = self._get_available_size_from_parent()
                 
@@ -419,10 +418,23 @@ class UIComponent(Component):
                 print(f"📐 v4子组件跳过独立布局: {self.__class__.__name__}")
                 return True
             else:
-                # 独立组件（非容器子组件）：使用简单布局
-                self._apply_fallback_frame()
-                print(f"📐 v4独立组件使用简单布局: {self.__class__.__name__}")
-                return True
+                # 独立组件（非容器子组件）：创建独立布局节点
+                layout_node = engine.get_node_for_component(self)
+                if not layout_node:
+                    layout_node = engine.create_node_for_component(self)
+                
+                # 计算独立布局
+                available_size = self._get_available_size_from_parent()
+                layout_result = engine.compute_layout_for_component(self, available_size)
+                
+                if layout_result:
+                    self._apply_layout_result(layout_result)
+                    print(f"📐 v4独立组件布局已应用: {self.__class__.__name__}")
+                    return True
+                else:
+                    self._apply_fallback_frame()
+                    print(f"📐 v4独立组件使用简单布局: {self.__class__.__name__}")
+                    return True
                 
         except Exception as e:
             print(f"⚠️ v4布局应用失败: {e}")
@@ -605,14 +617,13 @@ class Container(UIComponent):
             # 挂载所有子组件并建立布局关系
             for i, child in enumerate(self.children):
                 try:
-                    # 设置父子关系
-                    if hasattr(child, '_parent_container'):
-                        child._parent_container = self
+                    # 先设置父子关系，防止子组件创建独立布局节点
+                    child._parent_container = self
                     
-                    # 添加到v4布局树（在挂载前建立关系）
+                    # 为子组件创建并添加到v4布局树
                     engine.add_child_relationship(self, child, i)
                     
-                    # 挂载子组件
+                    # 挂载子组件（此时子组件知道自己是容器的子组件）
                     child_view = child.mount()
                     container.addSubview_(child_view)
                     
@@ -628,8 +639,7 @@ class Container(UIComponent):
             for i, child in enumerate(self.children):
                 try:
                     # 设置父子关系
-                    if hasattr(child, '_parent_container'):
-                        child._parent_container = self
+                    child._parent_container = self
                         
                     child_view = child.mount()
                     container.addSubview_(child_view)
