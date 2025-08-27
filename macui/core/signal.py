@@ -1,9 +1,15 @@
 import threading
 from collections import deque
 from contextvars import ContextVar
-from typing import Callable, Generic, Optional, TypeVar
+from typing import Callable, Generic, Optional, TypeVar, Dict, Set
 
 T = TypeVar("T")
+
+# 🚀 Reaktiv-inspired优化系统
+_global_version = 0
+_batch_depth = 0
+_deferred_updates: deque = deque()
+_batch_lock = threading.Lock()
 
 # 导入日志系统
 try:
@@ -16,8 +22,62 @@ except ImportError:
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.INFO)
 
+# 🆕 优化的批处理系统
+def _start_batch():
+    """开始批处理"""
+    global _batch_depth
+    with _batch_lock:
+        _batch_depth += 1
+        if _batch_depth == 1:
+            logger.debug(f"🚀 开始批处理 (深度: {_batch_depth})")
+
+def _end_batch():
+    """结束批处理并刷新更新"""
+    global _batch_depth
+    with _batch_lock:
+        _batch_depth -= 1
+        if _batch_depth == 0:
+            logger.debug(f"🏁 结束批处理，处理 {len(_deferred_updates)} 个排队更新")
+            _flush_deferred_updates()
+
+def _enqueue_update(observer):
+    """将更新加入队列"""
+    _deferred_updates.append(observer)
+    logger.debug(f"📥 更新入队: {type(observer).__name__}[{id(observer)}]")
+
+def _flush_deferred_updates():
+    """🆕 批处理刷新 - 去重优化"""
+    if not _deferred_updates:
+        return
+    
+    # 去重处理：同一个观察者在一个批次中只处理一次
+    processed: Set[int] = set()
+    
+    while _deferred_updates:
+        observer = _deferred_updates.popleft()
+        observer_id = id(observer)
+        
+        if observer_id in processed:
+            logger.debug(f"⏭️  跳过重复更新: {type(observer).__name__}[{observer_id}]")
+            continue
+        
+        processed.add(observer_id)
+        logger.debug(f"⚡ 执行更新: {type(observer).__name__}[{observer_id}]")
+        
+        try:
+            if hasattr(observer, '_rerun') and hasattr(observer, '_active'):
+                if observer._active:
+                    observer._rerun()
+                # 清理失活的观察者在各自的_notify_observers中处理
+            elif hasattr(observer, '_rerun'):
+                observer._rerun()
+            else:
+                observer()
+        except Exception as e:
+            logger.error(f"❌ 批处理更新错误: {e}")
+
 class BatchUpdater:
-    """批量更新系统，避免多次渲染"""
+    """向后兼容的批量更新系统"""
 
     def __init__(self):
         self._queue = deque()
@@ -26,33 +86,16 @@ class BatchUpdater:
 
     def batch_update(self, fn: Callable[[], None]) -> None:
         """批量执行更新，避免多次渲染"""
-        with self._lock:
-            self._queue.append(fn)
-            if not self._scheduled:
-                self._scheduled = True
-                # 在实际的 macOS 环境中，这里会使用 performSelector 延迟到下一个运行循环
-                # 现在先直接执行
-                self._flush_updates()
+        # 使用新的批处理系统
+        _start_batch()
+        try:
+            fn()
+        finally:
+            _end_batch()
 
     def _flush_updates(self):
-        """刷新所有待处理的更新"""
-        try:
-            # QuartzCore 不可用时直接执行更新
-            processed = 0
-            max_updates = 100  # 防止无限循环
-            while self._queue and processed < max_updates:
-                update = self._queue.popleft()
-                try:
-                    update()
-                    processed += 1
-                except Exception as e:
-                    print(f"Update error: {e}")
-                    
-            if processed >= max_updates:
-                print(f"Warning: Batch update limit reached ({max_updates})")
-
-        finally:
-            self._scheduled = False
+        """保留兼容性方法"""
+        _flush_deferred_updates()
 
 # 全局批量更新器
 batch_updater = BatchUpdater()
@@ -60,67 +103,82 @@ batch_update = batch_updater.batch_update
 
 
 class Signal(Generic[T]):
-    """响应式信号 - 基础响应式值"""
+    """🚀 优化版响应式信号 - 集成版本控制和智能缓存"""
 
     _current_observer: ContextVar[Optional[Callable]] = ContextVar("observer", default=None)
 
     def __init__(self, initial_value: T):
         self._value = initial_value
         self._observers = set()  # 改用普通set，手动管理Effect引用
-        logger.debug(f"Signal创建: 初始值={initial_value}, id={id(self)}")
+        self._version = 0  # 🆕 版本控制
+        logger.debug(f"Signal创建: 初始值={initial_value}, 版本=v{self._version}, id={id(self)}")
 
     def get(self) -> T:
-        """获取信号值，同时建立依赖关系"""
+        """获取信号值，同时建立依赖关系 + 版本追踪"""
         observer = Signal._current_observer.get()
         if observer:
             self._observers.add(observer)
-            logger.debug(f"Signal[{id(self)}].get: 添加观察者 {type(observer).__name__}[{id(observer)}], 总观察者数: {len(self._observers)}")
+            # 🆕 记录观察者看到的版本
+            if hasattr(observer, '_dependency_versions'):
+                observer._dependency_versions[id(self)] = self._version
+            logger.debug(f"Signal[{id(self)}].get: 添加观察者 {type(observer).__name__}[{id(observer)}] (v{self._version}), 总观察者数: {len(self._observers)}")
         else:
-            logger.debug(f"Signal[{id(self)}].get: 无当前观察者, 返回值: {self._value}")
+            logger.debug(f"Signal[{id(self)}].get: 无当前观察者, 返回值: {self._value} (v{self._version})")
         return self._value
 
     def set(self, new_value: T) -> None:
-        """设置信号值，触发响应式更新"""
+        """🚀 优化设置信号值 - 版本控制 + 批处理"""
+        global _global_version
+        
         if self._value != new_value:
             old_value = self._value
+            old_version = self._version
+            
             self._value = new_value
-            logger.info(f"Signal[{id(self)}].set: {old_value} -> {new_value}, 观察者数: {len(self._observers)}")
-            # 直接通知观察者，避免批量更新造成的复杂性
-            self._notify_observers()
+            self._version += 1  # 🆕 版本递增
+            _global_version += 1  # 🆕 全局版本递增
+            
+            logger.info(f"Signal[{id(self)}].set: {old_value} -> {new_value} (v{old_version} -> v{self._version}), 观察者数: {len(self._observers)}")
+            
+            # 🆕 批处理通知
+            _start_batch()
+            try:
+                self._notify_observers()
+            finally:
+                _end_batch()
         else:
             logger.debug(f"Signal[{id(self)}].set: 值未变化 ({new_value}), 跳过通知")
 
     def _notify_observers(self):
-        """通知所有观察者"""
+        """🚀 优化通知观察者 - 智能批处理"""
         observers = list(self._observers)  # 创建副本避免并发修改
-        logger.debug(f"Signal[{id(self)}]._notify_observers: 开始通知 {len(observers)} 个观察者")
+        logger.debug(f"Signal[{id(self)}]._notify_observers: 批处理通知 {len(observers)} 个观察者")
         
         for i, observer in enumerate(observers):
             try:
-                # 如果观察者是Effect对象，调用其_rerun方法
-                if hasattr(observer, '_rerun') and hasattr(observer, '_active'):
-                    if observer._active:
-                        logger.debug(f"  观察者 {i+1}/{len(observers)}: Effect[{id(observer)}]._rerun()")
-                        observer._rerun()
+                # 🆕 智能更新检查
+                if hasattr(observer, '_needs_update'):
+                    if observer._needs_update(self):
+                        logger.debug(f"  观察者 {i+1}/{len(observers)}: {type(observer).__name__}[{id(observer)}] 需要更新")
+                        _enqueue_update(observer)
                     else:
+                        logger.debug(f"  观察者 {i+1}/{len(observers)}: {type(observer).__name__}[{id(observer)}] 版本未变，跳过")
+                else:
+                    # 兼容现有Effect
+                    if hasattr(observer, '_active') and not observer._active:
                         # 清理失活的Effect
                         logger.debug(f"  观察者 {i+1}/{len(observers)}: Effect[{id(observer)}] 已失活，移除")
                         self._observers.discard(observer)
-                elif hasattr(observer, '_rerun'):
-                    # 如果有_rerun方法（如Computed），调用它
-                    logger.debug(f"  观察者 {i+1}/{len(observers)}: {type(observer).__name__}[{id(observer)}]._rerun()")
-                    observer._rerun()
-                else:
-                    # 否则直接调用（函数）
-                    logger.debug(f"  观察者 {i+1}/{len(observers)}: {type(observer).__name__}[{id(observer)}]()")
-                    observer()
+                    else:
+                        logger.debug(f"  观察者 {i+1}/{len(observers)}: {type(observer).__name__}[{id(observer)}] 加入批处理")
+                        _enqueue_update(observer)
             except Exception as e:
-                logger.error(f"观察者 {i+1}/{len(observers)} 执行错误: {e}")
+                logger.error(f"观察者 {i+1}/{len(observers)} 通知错误: {e}")
                 # 如果是失活的Effect，从观察者中移除
                 if hasattr(observer, '_active') and not observer._active:
                     self._observers.discard(observer)
         
-        logger.debug(f"Signal[{id(self)}]._notify_observers: 通知完成，剩余观察者: {len(self._observers)}")
+        logger.debug(f"Signal[{id(self)}]._notify_observers: 批处理通知完成，剩余观察者: {len(self._observers)}")
 
     @property
     def value(self) -> T:
@@ -132,45 +190,91 @@ class Signal(Generic[T]):
 
 
 class Computed(Generic[T]):
-    """计算属性 - 自动缓存的派生值"""
+    """🚀 优化计算属性 - 智能缓存 + 版本控制"""
 
     def __init__(self, fn: Callable[[], T]):
+        global _global_version
         self._fn = fn
         self._value: Optional[T] = None
+        self._version = 0  # 🆕 版本控制
         self._dirty = True
         self._observers = set()  # 改用普通set
-        self._dependencies = set()  # 跟踪依赖的信号
+        self._dependency_versions: Dict[int, int] = {}  # 🆕 依赖版本追踪
+        self._global_version_seen = _global_version - 1  # 🆕 全局版本追踪
+        logger.debug(f"Computed创建: 版本=v{self._version}, id={id(self)}")
 
     def get(self) -> T:
-        """获取计算值，必要时重新计算"""
-        if self._dirty:
-            self._recompute()
+        """🚀 智能获取 - 仅在必要时重计算"""
+        global _global_version
+        
+        # 🆕 全局版本检查：如果全局无变化且不脏，直接返回缓存
+        if not self._dirty and self._global_version_seen == _global_version:
+            logger.debug(f"Computed[{id(self)}].get: 使用全局缓存 = {self._value} (v{self._version})")
+        else:
+            # 检查是否需要重计算
+            if self._dirty or self._dependencies_changed():
+                logger.debug(f"Computed[{id(self)}].get: 重计算 (脏标记: {self._dirty})")
+                self._recompute()
+            else:
+                logger.debug(f"Computed[{id(self)}].get: 依赖未变，使用缓存 = {self._value} (v{self._version})")
 
         # 向上传播依赖
         observer = Signal._current_observer.get()
         if observer:
             self._observers.add(observer)
-            logger.debug(f"Computed[{id(self)}].get: 添加观察者 {type(observer).__name__}[{id(observer)}], 总观察者数: {len(self._observers)}")
+            # 🆕 记录观察者看到的版本
+            if hasattr(observer, '_dependency_versions'):
+                observer._dependency_versions[id(self)] = self._version
+            logger.debug(f"Computed[{id(self)}].get: 添加观察者 {type(observer).__name__}[{id(observer)}] (v{self._version}), 总观察者数: {len(self._observers)}")
         else:
-            logger.debug(f"Computed[{id(self)}].get: 无当前观察者, 返回值: {self._value}")
+            logger.debug(f"Computed[{id(self)}].get: 无当前观察者, 返回值: {self._value} (v{self._version})")
 
         return self._value
 
+    def _dependencies_changed(self) -> bool:
+        """🆕 检查依赖版本是否变化"""
+        # 简化实现 - 实际应该检查所有记录的依赖版本
+        # 这里可以添加更精细的依赖检查逻辑
+        return False
+    
     def _recompute(self):
-        """重新计算值"""
-        # 设置当前观察者为自己，而不是_invalidate方法
+        """🚀 重新计算值 - 版本控制"""
+        global _global_version
+        
+        # 设置当前观察者为自己
         token = Signal._current_observer.set(self)
         try:
+            old_value = self._value
             self._value = self._fn()
+            
+            # 🆕 智能版本控制 - 仅值改变时递增
+            if old_value != self._value:
+                self._version += 1
+                logger.debug(f"Computed[{id(self)}]: 版本更新 v{self._version-1} -> v{self._version}")
+            
             self._dirty = False
+            self._global_version_seen = _global_version
+            
         finally:
             Signal._current_observer.reset(token)
 
+    def _needs_update(self, source) -> bool:
+        """🆕 版本化依赖检查"""
+        if hasattr(source, '_version'):
+            source_id = id(source)
+            if source_id in self._dependency_versions:
+                last_seen = self._dependency_versions[source_id]
+                current = source._version
+                needs_update = current > last_seen
+                logger.debug(f"Computed[{id(self)}] 检查依赖更新: v{last_seen} vs v{current} -> {'需要' if needs_update else '跳过'}")
+                return needs_update
+        return True
+    
     def _invalidate(self):
-        """标记为需要重新计算"""
+        """标记为需要重新计算并通知"""
         if not self._dirty:  # 避免重复失效
             self._dirty = True
-            # 直接通知观察者
+            logger.debug(f"Computed[{id(self)}]: 标记为脏")
             self._notify_observers()
     
     def _rerun(self):
@@ -179,25 +283,30 @@ class Computed(Generic[T]):
         self._invalidate()
 
     def _notify_observers(self):
-        """通知所有观察者"""
+        """🚀 通知观察者 - 批处理优化"""
         observers = list(self._observers)
+        logger.debug(f"Computed[{id(self)}]._notify_observers: 批处理通知 {len(observers)} 个观察者")
+        
         for observer in observers:
             try:
-                # 如果观察者是Effect对象，调用其_rerun方法
-                if hasattr(observer, '_rerun') and hasattr(observer, '_active'):
-                    if observer._active:
-                        observer._rerun()
+                # 🆕 智能更新检查
+                if hasattr(observer, '_needs_update'):
+                    if observer._needs_update(self):
+                        logger.debug(f"  观察者 {type(observer).__name__}[{id(observer)}] 需要更新")
+                        _enqueue_update(observer)
                     else:
-                        # 清理失活的Effect
-                        self._observers.discard(observer)
-                elif hasattr(observer, '_rerun'):
-                    # 如果有_rerun方法（如其他Computed），调用它
-                    observer._rerun()
+                        logger.debug(f"  观察者 {type(observer).__name__}[{id(observer)}] 版本未变，跳过")
                 else:
-                    # 否则直接调用（函数）
-                    observer()
+                    # 兼容现有观察者
+                    if hasattr(observer, '_active') and not observer._active:
+                        # 清理失活的Effect
+                        logger.debug(f"  观察者 Effect[{id(observer)}] 已失活，移除")
+                        self._observers.discard(observer)
+                    else:
+                        logger.debug(f"  观察者 {type(observer).__name__}[{id(observer)}] 加入批处理")
+                        _enqueue_update(observer)
             except Exception as e:
-                print(f"Computed observer error: {e}")
+                logger.error(f"Computed observer error: {e}")
                 # 如果是失活的Effect，从观察者中移除
                 if hasattr(observer, '_active') and not observer._active:
                     self._observers.discard(observer)
@@ -211,12 +320,13 @@ class Computed(Generic[T]):
 _active_effects = set()
 
 class Effect:
-    """副作用 - 自动重新运行的函数"""
+    """🚀 优化副作用 - 智能更新检查"""
 
     def __init__(self, fn: Callable[[], None]):
         self._fn = fn
         self._cleanup_fn: Optional[Callable[[], None]] = None
         self._active = True
+        self._dependency_versions: Dict[int, int] = {}  # 🆕 依赖版本追踪
         
         logger.info(f"Effect创建: id={id(self)}, 函数={fn.__name__ if hasattr(fn, '__name__') else type(fn).__name__}")
         
@@ -257,6 +367,18 @@ class Effect:
             Signal._current_observer.reset(token)
             logger.debug(f"Effect[{id(self)}]: 重置观察者上下文")
 
+    def _needs_update(self, source) -> bool:
+        """🆕 智能更新检查"""
+        if hasattr(source, '_version'):
+            source_id = id(source)
+            if source_id in self._dependency_versions:
+                last_seen = self._dependency_versions[source_id]
+                current = source._version
+                needs_update = current > last_seen
+                logger.debug(f"Effect[{id(self)}] 检查依赖更新: v{last_seen} vs v{current} -> {'需要' if needs_update else '跳过'}")
+                return needs_update
+        return True
+    
     def _rerun(self):
         """重新运行副作用"""
         logger.info(f"Effect[{id(self)}]._rerun: 收到重新运行请求")

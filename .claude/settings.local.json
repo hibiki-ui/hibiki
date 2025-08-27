@@ -29,9 +29,13 @@
       "Bash(uv list:*)",
       "Bash(uv pip:*)",
       "Bash(pkill:*)",
-      "WebFetch(domain:reactbits.dev)"
+      "WebFetch(domain:reactbits.dev)",
+      "WebFetch(domain:reaktiv.readthedocs.io)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "/private/tmp"
+    ]
   }
 }
