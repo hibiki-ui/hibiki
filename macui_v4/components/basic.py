@@ -69,7 +69,11 @@ class Label(UIComponent):
         super().__init__(style, **style_kwargs)
         self.text = text
         # 导入响应式类型检查
-        from ..core.reactive import Signal, Computed
+        try:
+            from ..core.reactive import Signal, Computed
+        except ImportError:
+            # 兜底导入
+            from core.reactive import Signal, Computed
         self._is_reactive_text = isinstance(text, (Signal, Computed))
         
         print(f"🏷️ Label创建: text='{text}', reactive={self._is_reactive_text}")
