@@ -38,12 +38,77 @@ class HighLevelLayoutAPI:
             component: 关联的UIComponent实例
         """
         self.component = component
+    
+    def done(self) -> 'UIComponent':
+        """完成链式调用，返回组件本身
         
+        用于在链式API调用结束后获取组件实例。
+        
+        Returns:
+            UIComponent: 组件实例
+        """
+        return self.component
+        
+    # ================================
+    # 基础定位方法
+    # ================================
+    
+    def static(self) -> 'HighLevelLayoutAPI':
+        """静态定位（默认文档流）"""
+        self.component.style.position = Position.STATIC
+        print("📍 设置静态定位")
+        return self
+        
+    def relative(self, left: Optional[int] = None, top: Optional[int] = None, 
+                right: Optional[int] = None, bottom: Optional[int] = None) -> 'HighLevelLayoutAPI':
+        """相对定位 - 相对于原始位置偏移"""
+        self.component.style.position = Position.RELATIVE
+        if left is not None:
+            self.component.style.left = left
+        if top is not None:
+            self.component.style.top = top
+        if right is not None:
+            self.component.style.right = right
+        if bottom is not None:
+            self.component.style.bottom = bottom
+        print(f"📍 设置相对定位: left={left}, top={top}")
+        return self
+        
+    def absolute(self, left: Optional[int] = None, top: Optional[int] = None,
+                right: Optional[int] = None, bottom: Optional[int] = None) -> 'HighLevelLayoutAPI':
+        """绝对定位 - 相对于最近的定位父元素"""
+        self.component.style.position = Position.ABSOLUTE
+        if left is not None:
+            self.component.style.left = left
+        if top is not None:
+            self.component.style.top = top
+        if right is not None:
+            self.component.style.right = right
+        if bottom is not None:
+            self.component.style.bottom = bottom
+        print(f"📍 设置绝对定位: left={left}, top={top}")
+        return self
+        
+    def fixed(self, left: Optional[int] = None, top: Optional[int] = None,
+             right: Optional[int] = None, bottom: Optional[int] = None) -> 'HighLevelLayoutAPI':
+        """固定定位 - 相对于视口固定"""
+        self.component.style.position = Position.FIXED
+        if left is not None:
+            self.component.style.left = left
+        if top is not None:
+            self.component.style.top = top
+        if right is not None:
+            self.component.style.right = right
+        if bottom is not None:
+            self.component.style.bottom = bottom
+        print(f"📍 设置固定定位: left={left}, top={top}")
+        return self
+    
     # ================================
     # 常见定位场景
     # ================================
     
-    def center(self, z_index: Optional[Union[int, ZLayer]] = None) -> 'UIComponent':
+    def center(self, z_index: Optional[Union[int, ZLayer]] = None) -> 'HighLevelLayoutAPI':
         """居中定位
         
         将组件定位在其父容器的中心。
@@ -64,9 +129,9 @@ class HighLevelLayoutAPI:
             self.component.style.z_index = z_index
             
         print(f"📍 设置居中定位: z_index={z_index}")
-        return self.component
+        return self
         
-    def top_left(self, margin: int = 0, z_index: Optional[Union[int, ZLayer]] = None) -> 'UIComponent':
+    def top_left(self, margin: int = 0, z_index: Optional[Union[int, ZLayer]] = None) -> 'HighLevelLayoutAPI':
         """左上角定位
         
         Args:
@@ -81,9 +146,9 @@ class HighLevelLayoutAPI:
             self.component.style.z_index = z_index
             
         print(f"📍 设置左上角定位: margin={margin}, z_index={z_index}")
-        return self.component
+        return self
         
-    def top_right(self, margin: int = 0, z_index: Optional[Union[int, ZLayer]] = None) -> 'UIComponent':
+    def top_right(self, margin: int = 0, z_index: Optional[Union[int, ZLayer]] = None) -> 'HighLevelLayoutAPI':
         """右上角定位"""
         self.component.style.position = Position.ABSOLUTE
         self.component.style.right = px(margin)
@@ -93,9 +158,9 @@ class HighLevelLayoutAPI:
             self.component.style.z_index = z_index
             
         print(f"📍 设置右上角定位: margin={margin}, z_index={z_index}")
-        return self.component
+        return self
         
-    def bottom_left(self, margin: int = 0, z_index: Optional[Union[int, ZLayer]] = None) -> 'UIComponent':
+    def bottom_left(self, margin: int = 0, z_index: Optional[Union[int, ZLayer]] = None) -> 'HighLevelLayoutAPI':
         """左下角定位"""
         self.component.style.position = Position.ABSOLUTE
         self.component.style.left = px(margin)
@@ -105,9 +170,9 @@ class HighLevelLayoutAPI:
             self.component.style.z_index = z_index
             
         print(f"📍 设置左下角定位: margin={margin}, z_index={z_index}")
-        return self.component
+        return self
         
-    def bottom_right(self, margin: int = 0, z_index: Optional[Union[int, ZLayer]] = None) -> 'UIComponent':
+    def bottom_right(self, margin: int = 0, z_index: Optional[Union[int, ZLayer]] = None) -> 'HighLevelLayoutAPI':
         """右下角定位"""
         self.component.style.position = Position.ABSOLUTE
         self.component.style.right = px(margin)
@@ -117,9 +182,9 @@ class HighLevelLayoutAPI:
             self.component.style.z_index = z_index
             
         print(f"📍 设置右下角定位: margin={margin}, z_index={z_index}")
-        return self.component
+        return self
         
-    def fullscreen(self, z_index: Union[int, ZLayer] = ZLayer.OVERLAY) -> 'UIComponent':
+    def fullscreen(self, z_index: Union[int, ZLayer] = ZLayer.OVERLAY) -> 'HighLevelLayoutAPI':
         """全屏覆盖
         
         将组件设置为全屏覆盖，通常用于遮罩层。
@@ -135,13 +200,13 @@ class HighLevelLayoutAPI:
         self.component.style.z_index = z_index
         
         print(f"📍 设置全屏覆盖: z_index={z_index}")
-        return self.component
+        return self
     
     # ================================
     # 预设场景方法
     # ================================
     
-    def modal(self, width: int = 400, height: int = 300) -> 'UIComponent':
+    def modal(self, width: int = 400, height: int = 300) -> 'HighLevelLayoutAPI':
         """模态对话框预设
         
         创建居中的模态对话框样式。
@@ -154,9 +219,9 @@ class HighLevelLayoutAPI:
         self.component.size(width, height)
         
         print(f"🎭 设置模态对话框: {width}x{height}")
-        return self.component
+        return self
         
-    def tooltip(self, offset_x: int = 0, offset_y: int = -30) -> 'UIComponent':
+    def tooltip(self, offset_x: int = 0, offset_y: int = -30) -> 'HighLevelLayoutAPI':
         """工具提示预设
         
         创建相对定位的工具提示样式。
@@ -171,9 +236,9 @@ class HighLevelLayoutAPI:
         self.component.style.z_index = ZLayer.FLOATING
         
         print(f"💬 设置工具提示: offset=({offset_x}, {offset_y})")
-        return self.component
+        return self
         
-    def dropdown(self, offset_y: int = 5) -> 'UIComponent':
+    def dropdown(self, offset_y: int = 5) -> 'HighLevelLayoutAPI':
         """下拉菜单预设
         
         创建相对触发元素的下拉菜单样式。
@@ -186,9 +251,9 @@ class HighLevelLayoutAPI:
         self.component.style.z_index = ZLayer.FLOATING
         
         print(f"📋 设置下拉菜单: offset_y={offset_y}")
-        return self.component
+        return self
         
-    def floating_button(self, corner: str = "bottom-right", margin: int = 20) -> 'UIComponent':
+    def floating_button(self, corner: str = "bottom-right", margin: int = 20) -> 'HighLevelLayoutAPI':
         """悬浮按钮预设
         
         创建固定在视口角落的悬浮按钮。
@@ -218,13 +283,13 @@ class HighLevelLayoutAPI:
             self.component.style.right = px(margin)
             
         print(f"🔴 设置悬浮按钮: {corner}, margin={margin}")
-        return self.component
+        return self
     
     # ================================
     # 便捷样式方法
     # ================================
     
-    def size(self, width: Optional[int] = None, height: Optional[int] = None) -> 'UIComponent':
+    def size(self, width: Optional[int] = None, height: Optional[int] = None) -> 'HighLevelLayoutAPI':
         """设置尺寸
         
         Args:
@@ -237,9 +302,9 @@ class HighLevelLayoutAPI:
             self.component.style.height = px(height)
             
         print(f"📏 设置尺寸: {width}x{height}")
-        return self.component
+        return self
         
-    def fade(self, opacity: float) -> 'UIComponent':
+    def fade(self, opacity: float) -> 'HighLevelLayoutAPI':
         """设置透明度
         
         Args:
@@ -248,27 +313,27 @@ class HighLevelLayoutAPI:
         self.component.style.opacity = max(0.0, min(1.0, opacity))
         
         print(f"🌫️ 设置透明度: {opacity}")
-        return self.component
+        return self
     
-    def hide(self) -> 'UIComponent':
+    def hide(self) -> 'HighLevelLayoutAPI':
         """隐藏组件"""
         self.component.style.visible = False
         
         print("👻 隐藏组件")
-        return self.component
+        return self
     
-    def show(self) -> 'UIComponent':
+    def show(self) -> 'HighLevelLayoutAPI':
         """显示组件"""
         self.component.style.visible = True
         
         print("👁️ 显示组件")
-        return self.component
+        return self
     
     # ================================
     # 变换效果
     # ================================
     
-    def scale(self, x: float = 1.0, y: Optional[float] = None) -> 'UIComponent':
+    def scale(self, x: float = 1.0, y: Optional[float] = None) -> 'HighLevelLayoutAPI':
         """设置缩放
         
         Args:
@@ -280,9 +345,9 @@ class HighLevelLayoutAPI:
         self.component.style.scale = (x, y)
         
         print(f"🔍 设置缩放: ({x}, {y})")
-        return self.component
+        return self
     
-    def rotate(self, degrees: float) -> 'UIComponent':
+    def rotate(self, degrees: float) -> 'HighLevelLayoutAPI':
         """设置旋转
         
         Args:
@@ -291,7 +356,7 @@ class HighLevelLayoutAPI:
         self.component.style.rotation = degrees
         
         print(f"🔄 设置旋转: {degrees}°")
-        return self.component
+        return self
 
 # ================================
 # 2. LowLevelLayoutAPI - 低层API
@@ -319,7 +384,7 @@ class LowLevelLayoutAPI:
     # 直接样式控制
     # ================================
     
-    def set_position(self, position: Position, **coords) -> 'UIComponent':
+    def set_position(self, position: Position, **coords) -> 'HighLevelLayoutAPI':
         """直接设置定位类型和坐标
         
         Args:
@@ -334,7 +399,7 @@ class LowLevelLayoutAPI:
                 setattr(self.component.style, key, parsed_value)
                 
         print(f"🔧 直接设置定位: {position}, coords={coords}")
-        return self.component
+        return self
     
     def set_flex_properties(self, 
                            direction: str = None, 
@@ -342,7 +407,7 @@ class LowLevelLayoutAPI:
                            align: str = None, 
                            grow: float = None, 
                            shrink: float = None,
-                           basis: Union[int, str] = None) -> 'UIComponent':
+                           basis: Union[int, str] = None) -> 'HighLevelLayoutAPI':
         """直接设置Flexbox属性
         
         Args:
@@ -397,13 +462,13 @@ class LowLevelLayoutAPI:
             self.component.style.flex_basis = self._parse_length_value(basis)
             
         print(f"🔧 直接设置Flexbox: direction={direction}, justify={justify}, align={align}")
-        return self.component
+        return self
     
     def set_transform(self, 
                      scale: Tuple[float, float] = None,
                      rotation: float = None,
                      translation: Tuple[float, float] = None,
-                     origin: Tuple[float, float] = None) -> 'UIComponent':
+                     origin: Tuple[float, float] = None) -> 'HighLevelLayoutAPI':
         """直接设置变换属性
         
         Args:
@@ -422,9 +487,9 @@ class LowLevelLayoutAPI:
             self.component.style.transform_origin = origin
             
         print(f"🔧 直接设置变换: scale={scale}, rotation={rotation}°")
-        return self.component
+        return self
     
-    def set_z_index(self, z_index: Union[int, ZLayer]) -> 'UIComponent':
+    def set_z_index(self, z_index: Union[int, ZLayer]) -> 'HighLevelLayoutAPI':
         """直接设置z-index
         
         Args:
@@ -433,9 +498,9 @@ class LowLevelLayoutAPI:
         self.component.style.z_index = z_index
         
         print(f"🔧 直接设置Z-Index: {z_index}")
-        return self.component
+        return self
     
-    def set_overflow(self, behavior: OverflowBehavior) -> 'UIComponent':
+    def set_overflow(self, behavior: OverflowBehavior) -> 'HighLevelLayoutAPI':
         """直接设置溢出行为
         
         Args:
@@ -444,13 +509,13 @@ class LowLevelLayoutAPI:
         self.component.style.overflow = behavior
         
         print(f"🔧 直接设置溢出: {behavior}")
-        return self.component
+        return self
     
     # ================================
     # 底层系统集成
     # ================================
     
-    def apply_stretchable_layout(self, **stretchable_props) -> 'UIComponent':
+    def apply_stretchable_layout(self, **stretchable_props) -> 'HighLevelLayoutAPI':
         """直接使用Stretchable布局引擎
         
         Args:
@@ -458,9 +523,9 @@ class LowLevelLayoutAPI:
         """
         # TODO: 集成现有的Stretchable布局引擎
         print(f"🔧 直接使用Stretchable: {stretchable_props}")
-        return self.component
+        return self
     
-    def apply_raw_appkit(self, configurator: Callable[[NSView], None]) -> 'UIComponent':
+    def apply_raw_appkit(self, configurator: Callable[[NSView], None]) -> 'HighLevelLayoutAPI':
         """直接访问AppKit NSView
         
         允许高级用户直接操作底层NSView，获得完全的控制权。
@@ -480,9 +545,9 @@ class LowLevelLayoutAPI:
             self.component._raw_configurators.append(configurator)
             print("🔧 直接AppKit配置已延迟")
             
-        return self.component
+        return self
     
-    def set_clip_mask(self, x: float, y: float, width: float, height: float) -> 'UIComponent':
+    def set_clip_mask(self, x: float, y: float, width: float, height: float) -> 'HighLevelLayoutAPI':
         """设置裁剪遮罩
         
         Args:
@@ -494,7 +559,7 @@ class LowLevelLayoutAPI:
         self.component.style.clip_rect = (x, y, width, height)
         
         print(f"🔧 设置裁剪遮罩: ({x}, {y}, {width}, {height})")
-        return self.component
+        return self
     
     # ================================
     # 工具方法
@@ -511,9 +576,9 @@ class LowLevelLayoutAPI:
     
     def get_computed_style(self) -> ComponentStyle:
         """获取计算后的样式（只读）"""
-        return self.component.style.copy()
+        return self.style.copy()
     
-    def merge_style(self, style: ComponentStyle) -> 'UIComponent':
+    def merge_style(self, style: ComponentStyle) -> 'HighLevelLayoutAPI':
         """合并外部样式
         
         Args:
@@ -522,7 +587,7 @@ class LowLevelLayoutAPI:
         self.component.style = self.component.style.merge(style)
         
         print("🔧 样式已合并")
-        return self.component
+        return self
 
 # ================================
 # 3. 扩展UIComponent类
