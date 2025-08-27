@@ -81,9 +81,9 @@ def main():
     # 创建应用
     app = create_app("macUI动画演示")
     
-    # 创建窗口
+    # 创建窗口 - 增加高度以容纳所有按钮
     window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
-        NSMakeRect(100, 100, 400, 300),
+        NSMakeRect(100, 100, 400, 400),
         NSWindowStyleMaskTitled | NSWindowStyleMaskClosable,
         NSBackingStoreBuffered,
         False

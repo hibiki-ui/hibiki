@@ -6,8 +6,8 @@
 
 from typing import Union, List, Tuple, Optional
 from AppKit import NSView, NSTextField, NSColor, CATextLayer, CAGradientLayer, CAShapeLayer
-from AppKit import CABasicAnimation, CAKeyframeAnimation, CAMediaTimingFunction
-from Foundation import NSMakeRect, NSValue, NSMakePoint
+from AppKit import CABasicAnimation, CAKeyframeAnimation, CAMediaTimingFunction, CAAnimationGroup
+from Foundation import NSMakeRect, NSValue, NSMakePoint, NSMakeSize
 from Quartz import CATransform3DMakeScale
 import math
 
@@ -31,61 +31,67 @@ class ShinyText:
         self._gradient_layer: Optional[CAGradientLayer] = None
     
     def apply_to(self, text_view: NSTextField) -> Animation:
-        """将闪光效果应用到文本视图"""
+        """将闪光效果应用到文本视图 - 纯Core Animation实现"""
         print(f"✨ 应用ShinyText效果到: {text_view}")
         
         # 确保视图有layer
         text_view.setWantsLayer_(True)
         layer = text_view.layer()
         
-        # 创建渐变layer
-        gradient = CAGradientLayer.layer()
-        gradient.setFrame_(layer.bounds())
+        # 创建闪光效果 - 使用阴影和缩放的组合动画
+        # 设置初始阴影状态
+        layer.setShadowColor_(NSColor.yellowColor().CGColor())
+        layer.setShadowOffset_(NSMakeSize(0, 0))
+        layer.setShadowRadius_(3.0)
+        layer.setShadowOpacity_(0.0)
         
-        # 设置渐变颜色
-        cgcolors = []
-        for color_str in self.colors:
-            if color_str.startswith("#"):
-                # 解析十六进制颜色
-                r = int(color_str[1:3], 16) / 255.0
-                g = int(color_str[3:5], 16) / 255.0
-                b = int(color_str[5:7], 16) / 255.0
-                cgcolor = NSColor.colorWithRed_green_blue_alpha_(r, g, b, 1.0).CGColor()
-                cgcolors.append(cgcolor)
+        # 创建动画组
+        group = CAAnimationGroup.animation()
+        group.setDuration_(self.duration)
+        group.setRemovedOnCompletion_(False)  # 保持最终状态
+        group.setFillMode_("forwards")  # 填充模式
         
-        gradient.setColors_(cgcolors)
+        # 1. 阴影透明度动画 - 闪光效果
+        shadow_animation = CABasicAnimation.animationWithKeyPath_("shadowOpacity")
+        shadow_animation.setFromValue_(0.0)
+        shadow_animation.setToValue_(0.8)
+        shadow_animation.setAutoreverses_(True)
+        shadow_animation.setRepeatCount_(2.0)
         
-        # 设置渐变方向 - 根据角度计算起点和终点
-        angle_rad = math.radians(self.direction)
-        start_point = (0.5 - 0.5 * math.cos(angle_rad), 0.5 - 0.5 * math.sin(angle_rad))
-        end_point = (0.5 + 0.5 * math.cos(angle_rad), 0.5 + 0.5 * math.sin(angle_rad))
+        # 2. 阴影半径动画 - 光晕效果
+        radius_animation = CABasicAnimation.animationWithKeyPath_("shadowRadius")
+        radius_animation.setFromValue_(1.0)
+        radius_animation.setToValue_(8.0)
+        radius_animation.setAutoreverses_(True)
+        radius_animation.setRepeatCount_(2.0)
         
-        gradient.setStartPoint_(start_point)
-        gradient.setEndPoint_(end_point)
+        # 3. 轻微缩放动画 - 增强视觉效果
+        scale_animation = CABasicAnimation.animationWithKeyPath_("transform.scale")
+        scale_animation.setFromValue_(1.0)
+        scale_animation.setToValue_(1.05)
+        scale_animation.setAutoreverses_(True)
+        scale_animation.setRepeatCount_(2.0)
         
-        # 设置渐变位置 - 创建闪光效果
-        gradient.setLocations_([0.0, 0.4, 0.6, 1.0])
-        
-        # 将渐变layer设置为mask
-        layer.setMask_(gradient)
-        self._gradient_layer = gradient
-        
-        # 创建位置动画
-        animation = CABasicAnimation.animationWithKeyPath_("locations")
-        animation.setDuration_(self.duration)
-        animation.setFromValue_([-0.3, -0.1, 0.1, 0.3])
-        animation.setToValue_([0.7, 0.9, 1.1, 1.3])
-        
-        if self.repeat:
-            animation.setRepeatCount_(float('inf'))
-        
-        animation.setTimingFunction_(
+        # 组合所有动画
+        group.setAnimations_([shadow_animation, radius_animation, scale_animation])
+        group.setTimingFunction_(
             CAMediaTimingFunction.functionWithName_("easeInEaseOut")
         )
         
-        gradient.addAnimation_forKey_(animation, "shinyAnimation")
+        # 动画完成后的回调 - 使用CATransaction
+        def completion_block():
+            # 重置阴影状态
+            layer.setShadowOpacity_(0.0)
+            layer.setShadowRadius_(0.0)
         
-        print("✨ ShinyText动画已启动")
+        # 使用CATransaction设置完成块
+        from AppKit import CATransaction
+        CATransaction.begin()
+        CATransaction.setCompletionBlock_(completion_block)
+        layer.addAnimation_forKey_(group, "shinyEffect")
+        CATransaction.commit()
+        
+        print("✨ ShinyText动画已启动 - 纯Core Animation实现")
         return Animation(duration=self.duration)
 
 

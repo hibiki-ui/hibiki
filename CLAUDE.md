@@ -225,11 +225,48 @@ Complete project documentation for design decisions, investigations, and archite
 - **Layout Engine v3.0 Implementation**: `docs/LAYOUT_ENGINE_V3_IMPLEMENTATION.md` - Complete implementation report for the professional Stretchable-based layout system (方案B), including architecture, performance metrics, and technical achievements
 - **Component Refactoring Plan**: `docs/COMPONENT_REFACTORING_PLAN.md` - Comprehensive plan for refactoring existing components to work with the new layout system, including prioritization, migration strategies, and implementation roadmap
 - **Component Refactoring Progress**: `docs/COMPONENT_REFACTORING_PROGRESS.md` - First phase completion report for LayoutAwareComponent base class and modern component implementation, including technical details, test results, and next phase planning
+- **Animation Design Principles**: `docs/ANIMATION_DESIGN_PRINCIPLES.md` - Core design principles for macUI animation system, including Pure Core Animation requirements, GPU optimization strategies, and performance best practices
+
+## Animation System Development Principles
+
+### Core Architecture Rules
+1. **Pure Core Animation**: NEVER use threading, time.sleep, or custom timers. All animations must use Core Animation APIs.
+2. **Hardware Acceleration First**: Leverage GPU acceleration through CALayer properties (shadowOpacity, transform.scale, position, etc.)
+3. **Declarative API**: Provide simple, chainable interfaces that hide Core Animation complexity
+4. **Signal Integration**: All animations should work seamlessly with macUI's reactive Signal system
+
+### Implementation Standards
+```python
+# ✅ CORRECT: Pure Core Animation
+group = CAAnimationGroup.animation()
+shadow_animation = CABasicAnimation.animationWithKeyPath_("shadowOpacity")
+CATransaction.setCompletionBlock_(completion_callback)
+
+# ❌ WRONG: Custom threading/timing
+threading.Thread(target=lambda: time.sleep(duration)).start()
+```
+
+### Performance Requirements
+- All animations run on GPU via CALayer
+- Use CATransaction for completion handling
+- Minimize Python-ObjC bridge calls during animation
+- Prefer CAAnimationGroup for complex effects
+
+### API Design Patterns
+```python
+# Simple declarative interface
+animate(view, duration=0.5, opacity=0.8, scale=1.2)
+
+# Preset effects with clear naming
+ShinyText(duration=2.0).apply_to(text_view)
+FadeIn(duration=1.0).apply_to(view)
+```
 
 ## Current Development Focus
 
 1. **✅ Layout System Architecture Upgrade**: Successfully implemented professional Stretchable-based layout engine (方案B) - See implementation report for details
-2. **Component Library**: Expand available UI components
-3. **Documentation**: Complete API documentation 
-4. **Performance**: Optimize batch updates and memory usage
-5. **Advanced Features**: Enhanced responsive layout capabilities
+2. **✅ Animation System**: Pure Core Animation implementation with declarative API and Signal integration
+3. **Component Library**: Expand available UI components
+4. **Documentation**: Complete API documentation 
+5. **Performance**: Optimize batch updates and memory usage
+6. **Advanced Features**: Enhanced responsive layout capabilities
