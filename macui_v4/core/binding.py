@@ -92,10 +92,69 @@ class ReactiveBinding:
             try:
                 logger.info(f"🔄 ReactiveBinding.update[{prop}]: 开始更新 {type(view).__name__}[{id(view)}]")
                 
+                # 立即检查观察者上下文（在函数开始时）
+                import macui_v4.core.reactive as reactive_mod
+                immediate_observer = reactive_mod.Signal._current_observer.get()
+                import threading
+                logger.info(f"🚨 Binding.update[{prop}]: IMMEDIATE CHECK - 线程ID={threading.get_ident()}, 观察者 = {type(immediate_observer).__name__ if immediate_observer else 'None'}[{id(immediate_observer) if immediate_observer else 'N/A'}]")
+                
+                # 同时检查全局变量
+                import contextvars
+                logger.info(f"🔬 当前所有ContextVar内容: {[str(var) for var in contextvars.copy_context()]}")
+                
+                # 使用函数globals中的Signal类，而不是重新导入
+                import inspect
+                current_frame = inspect.currentframe()
+                globals_signal = current_frame.f_globals.get('Signal') if current_frame else None
+                
+                if globals_signal and hasattr(globals_signal, '_current_observer'):
+                    # 使用函数定义时的Signal类
+                    Signal = globals_signal
+                    current_observer = Signal._current_observer.get()
+                    logger.info(f"✅ Binding.update: 使用函数globals中的Signal类，观察者 = {type(current_observer).__name__ if current_observer else 'None'}[{id(current_observer) if current_observer else 'N/A'}]")
+                else:
+                    # 回退到导入的Signal类
+                    from macui_v4.core.reactive import Signal
+                    current_observer = Signal._current_observer.get()
+                    logger.info(f"⚠️ Binding.update: 使用导入的Signal类，观察者 = {type(current_observer).__name__ if current_observer else 'None'}[{id(current_observer) if current_observer else 'N/A'}]")
+                
+                import threading
+                thread_id = threading.get_ident()
+                logger.info(f"🔍 Binding.update: 线程ID={thread_id}, 最终观察者 = {type(current_observer).__name__ if current_observer else 'None'}[{id(current_observer) if current_observer else 'N/A'}]")
+                
                 # 获取值
-                if hasattr(signal_or_value, "value"):
+                # 使用isinstance而不是hasattr来避免意外的属性访问
+                # 使用绝对路径导入来进行类型检查，确保类型匹配
+                from macui_v4.core.reactive import Signal as AbsSignal, Computed as AbsComputed
+                
+                logger.info(f"🔍 Binding: 检查类型 - signal_or_value类型: {type(signal_or_value)}, AbsSignal类型: {AbsSignal}, AbsComputed类型: {AbsComputed}")
+                logger.info(f"🔍 Binding: isinstance(signal_or_value, (AbsSignal, AbsComputed)) = {isinstance(signal_or_value, (AbsSignal, AbsComputed))}")
+                
+                if isinstance(signal_or_value, (AbsSignal, AbsComputed)):
                     # Signal 或 Computed
-                    value = signal_or_value.value
+                    # 在访问value之前，确认当前观察者上下文
+                    logger.info(f"🎯 Binding: 准备访问 {type(signal_or_value).__name__}.value，当前观察者: {Signal._current_observer.get()}")
+                    
+                    # 检查signal_or_value对象的类的ContextVar
+                    signal_obj_class = type(signal_or_value)
+                    if hasattr(signal_obj_class, '_current_observer'):
+                        logger.info(f"🔬 signal_or_value的类 {signal_obj_class} 的观察者: {signal_obj_class._current_observer.get()}")
+                        
+                        # 如果signal对象的ContextVar没有观察者，但是binding的Signal类有，那么同步设置
+                        if signal_obj_class._current_observer.get() is None and Signal._current_observer.get() is not None:
+                            binding_observer = Signal._current_observer.get()
+                            logger.info(f"🔧 同步设置观察者到signal对象的ContextVar: {binding_observer}")
+                            token = signal_obj_class._current_observer.set(binding_observer)
+                            
+                            try:
+                                value = signal_or_value.value
+                            finally:
+                                signal_obj_class._current_observer.reset(token)
+                        else:
+                            value = signal_or_value.value
+                    else:
+                        value = signal_or_value.value
+                    
                     logger.info(f"🔄 Binding update[{prop}]: 从 {type(signal_or_value).__name__}[{id(signal_or_value)}] 获取值: {repr(value)}")
                 elif callable(signal_or_value):
                     # 函数

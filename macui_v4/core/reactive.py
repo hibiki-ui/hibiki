@@ -134,7 +134,7 @@ class Signal(Generic[T]):
             # 🆕 记录观察者看到的版本
             if hasattr(observer, '_dependency_versions'):
                 observer._dependency_versions[id(self)] = self._version
-            logger.debug(f"Signal[{id(self)}].get: 添加观察者 {type(observer).__name__}[{id(observer)}] (v{self._version}), 总观察者数: {len(self._observers)}")
+            logger.debug(f"🔗 Signal[{id(self)}].get: 添加观察者 {type(observer).__name__}[{id(observer)}] (v{self._version}), 总观察者数: {len(self._observers)}")
         else:
             logger.debug(f"Signal[{id(self)}].get: 无当前观察者, 返回值: {self._value} (v{self._version})")
         return self._value
@@ -371,9 +371,44 @@ class Effect:
 
         # 设置当前观察者为自己（而不是方法）
         token = Signal._current_observer.set(self)
-        logger.debug(f"Effect[{id(self)}]: 设置为当前观察者，开始执行函数")
+        import threading
+        thread_id = threading.get_ident()
+        logger.info(f"🎯 Effect[{id(self)}]: 线程ID={thread_id}, 设置为当前观察者，开始执行函数")
         
         try:
+            # 在调用函数之前再次确认观察者上下文
+            current_observer = Signal._current_observer.get()
+            logger.info(f"🎯 Effect[{id(self)}]: 准备调用函数 - 观察者上下文 = {type(current_observer).__name__ if current_observer else 'None'}[{id(current_observer) if current_observer else 'N/A'}]")
+            
+            # 测试函数：直接检查上下文传递
+            def test_context():
+                test_observer = Signal._current_observer.get()
+                logger.info(f"🧪 Effect[{id(self)}]: 内联测试函数 - 观察者上下文 = {type(test_observer).__name__ if test_observer else 'None'}[{id(test_observer) if test_observer else 'N/A'}]")
+                return test_observer
+            
+            test_result = test_context()
+            logger.info(f"🧪 Effect[{id(self)}]: 测试结果: 上下文传递{'成功' if test_result else '失败'}")
+            
+            # 调试self._fn的类型和属性
+            logger.info(f"🔬 Effect[{id(self)}]: self._fn 类型: {type(self._fn)}")
+            logger.info(f"🔬 Effect[{id(self)}]: self._fn 属性: {dir(self._fn) if hasattr(self._fn, '__dir__') else 'N/A'}")
+            if hasattr(self._fn, '__name__'):
+                logger.info(f"🔬 Effect[{id(self)}]: self._fn.__name__: {self._fn.__name__}")
+            if hasattr(self._fn, '__module__'):
+                logger.info(f"🔬 Effect[{id(self)}]: self._fn.__module__: {self._fn.__module__}")
+            
+            # 检查函数的globals中是否有不同的Signal类
+            if hasattr(self._fn, '__globals__'):
+                fn_globals = self._fn.__globals__
+                # 查找Signal相关的导入
+                signal_in_globals = [k for k in fn_globals.keys() if 'signal' in k.lower() or 'Signal' in k]
+                logger.info(f"🔬 Effect[{id(self)}]: 函数globals中的Signal相关: {signal_in_globals}")
+                for key in signal_in_globals:
+                    value = fn_globals.get(key)
+                    if hasattr(value, '_current_observer'):
+                        logger.info(f"🔬 Effect[{id(self)}]: {key}._current_observer = {value._current_observer}")
+                        logger.info(f"🔬 Effect[{id(self)}]: {key}._current_observer.get() = {value._current_observer.get()}")
+            
             result = self._fn()
             # 如果函数返回清理函数，保存它
             if callable(result):
