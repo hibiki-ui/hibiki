@@ -28,7 +28,8 @@
       "WebFetch(domain:github.com)",
       "Bash(uv list:*)",
       "Bash(uv pip:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "WebFetch(domain:reactbits.dev)"
     ],
     "deny": [],
     "ask": []
