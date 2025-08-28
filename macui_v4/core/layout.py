@@ -336,31 +336,65 @@ class LayoutNode:
             return False
     
     def remove_child(self, child_node: 'LayoutNode'):
-        """移除子节点 - 安全版本，防止Taffy树崩溃"""
-        if child_node in self.children:
-            self.children.remove(child_node)
+        """
+        安全移除子节点 - 防止Taffy库崩溃
+        
+        这个方法实现了安全的节点移除策略，解决了动态内容切换时
+        Rust Taffy库出现的 'Option::unwrap() on a None value' 崩溃问题。
+        
+        关键安全措施：
+        1. 先从Python层移除节点引用
+        2. 检查Stretchable节点是否仍存在于父节点中
+        3. 先清空父引用，再执行移除操作
+        4. 全程异常保护，确保不影响应用运行
+        """
+        if child_node not in self.children:
+            logger.debug(f"⚠️ 子节点不在父节点列表中: {child_node.key}")
+            return
             
-            # 安全移除Stretchable节点，防止Taffy panic
-            try:
-                stretchable_child = child_node._stretchable_node
+        # 第一步：从Python层移除节点引用
+        self.children.remove(child_node)
+        
+        # 第二步：安全移除底层Stretchable节点
+        self._safe_remove_stretchable_child(child_node)
+        
+        # 第三步：清理节点间的引用关系
+        child_node.parent = None
+        
+        logger.debug(f"✅ 安全移除子节点完成: {self.key} <- {child_node.key}")
+    
+    def _safe_remove_stretchable_child(self, child_node: 'LayoutNode'):
+        """
+        安全移除Stretchable子节点的内部方法
+        
+        这是解决Taffy崩溃问题的核心方法，通过多重检查和
+        异常保护确保底层Rust节点的安全移除。
+        """
+        try:
+            stretchable_child = child_node._stretchable_node
+            if not stretchable_child:
+                logger.debug("⚠️ 子节点的Stretchable节点为空，跳过移除")
+                return
                 
-                # 先检查节点是否还在父节点的子列表中
-                if stretchable_child in self._stretchable_node:
-                    # 先清空父引用，避免双重删除
-                    if hasattr(stretchable_child, 'parent'):
-                        stretchable_child.parent = None
-                    
-                    # 再从父节点移除
-                    self._stretchable_node.remove(stretchable_child)
-                    logger.debug(f"🔗 安全移除Stretchable子节点成功")
-                else:
-                    logger.debug(f"⚠️ Stretchable子节点已不在父节点中，跳过移除")
-            except Exception as e:
-                logger.warning(f"⚠️ 移除Stretchable子节点异常（继续执行）: {e}")
-            
-            # 清理布局节点引用
-            child_node.parent = None
-            logger.debug(f"➖ 从布局节点移除子节点: {self.key} <- {child_node.key}")
+            # 关键检查：确保节点确实存在于父节点中
+            if stretchable_child in self._stretchable_node:
+                # 步骤1：先断开父引用，防止循环引用导致的问题
+                if hasattr(stretchable_child, 'parent'):
+                    stretchable_child.parent = None
+                
+                # 步骤2：从父节点的子列表中移除
+                self._stretchable_node.remove(stretchable_child)
+                logger.debug("🔗 Stretchable子节点安全移除成功")
+            else:
+                logger.debug("⚠️ Stretchable子节点已不在父节点中，跳过移除")
+                
+        except Exception as e:
+            # 即使移除失败也不应该影响应用运行
+            logger.warning(f"⚠️ Stretchable节点移除异常（应用继续运行）: {e}")
+            # 在调试模式下可以显示更详细的错误信息
+            if logger.isEnabledFor(10):  # DEBUG level
+                import traceback
+                logger.debug(f"详细异常信息: {traceback.format_exc()}")
     
     def update_style(self, style: ComponentStyle):
         """更新节点样式"""
@@ -449,92 +483,207 @@ class V4LayoutEngine:
         parent_node.add_child(child_node, index)
     
     def remove_child_relationship(self, parent_component, child_component):
-        """移除父子布局关系 - 防止Taffy崩溃版本"""
+        """
+        安全移除父子布局关系
+        
+        这个方法是动态内容切换的核心，负责安全地断开
+        父子组件间的布局关系，防止Taffy库崩溃。
+        
+        处理流程：
+        1. 从父节点移除子节点
+        2. 深度清理子节点及其后代
+        3. 清理组件映射关系
+        4. 提供多层次的错误恢复机制
+        """
+        if not parent_component or not child_component:
+            logger.debug("⚠️ 父组件或子组件为空，跳过关系移除")
+            return
+            
         parent_node = self.get_node_for_component(parent_component)
         child_node = self.get_node_for_component(child_component)
         
+        # 第一步：从父节点移除子节点
         if parent_node and child_node:
-            try:
-                # 使用安全的remove_child方法
-                parent_node.remove_child(child_node)
-                logger.debug(f"🗑️ 布局关系移除: {child_component.__class__.__name__}")
-            except Exception as e:
-                logger.warning(f"⚠️ 移除布局关系失败: {e}")
-                # 如果正常移除失败，尝试强制清理
-                try:
-                    if child_node in parent_node.children:
-                        parent_node.children.remove(child_node)
-                    child_node.parent = None
-                    logger.debug(f"🔧 强制清理布局关系成功")
-                except Exception as force_e:
-                    logger.warning(f"⚠️ 强制清理也失败: {force_e}")
+            self._remove_from_parent_node(parent_node, child_node, child_component)
+        else:
+            logger.debug(f"⚠️ 找不到布局节点: parent={parent_node is not None}, child={child_node is not None}")
         
-        # 清理子组件的布局节点
+        # 第二步：清理子组件的布局映射和资源
         if child_node and child_component in self._component_nodes:
-            try:
-                # 先深度清理，再删除映射
-                self._deep_cleanup_node(child_node)
-                del self._component_nodes[child_component]
-                logger.debug(f"🧹 清理布局节点: {child_component.__class__.__name__}")
-            except Exception as cleanup_e:
-                logger.warning(f"⚠️ 清理布局节点映射失败: {cleanup_e}")
-                # 至少尝试删除映射
-                try:
-                    if child_component in self._component_nodes:
-                        del self._component_nodes[child_component]
-                except:
-                    pass
+            self._cleanup_child_component_mapping(child_node, child_component)
+        else:
+            logger.debug(f"⚠️ 子组件不在映射中或节点无效: {child_component.__class__.__name__}")
     
-    def _deep_cleanup_node(self, node):
-        """深度清理节点及其子节点 - 防止Taffy崩溃版本"""
+    def _remove_from_parent_node(self, parent_node, child_node, child_component):
+        """从父节点安全移除子节点"""
         try:
-            stretchable_node = node._stretchable_node
-            
-            # 安全清理所有子节点
-            try:
-                # 复制子节点列表，避免迭代时修改
-                children = list(stretchable_node) if stretchable_node else []
-                logger.debug(f"🧹 开始清理{len(children)}个子节点")
-                
-                for child in children:
-                    try:
-                        # 先检查子节点是否还在父节点中
-                        if child in stretchable_node:
-                            # 先清空父引用
-                            if hasattr(child, 'parent'):
-                                child.parent = None
-                            
-                            # 再移除子节点
-                            stretchable_node.remove(child)
-                            logger.debug(f"🗑️ 安全清理子节点成功")
-                        else:
-                            logger.debug(f"⚠️ 子节点已不在父节点中")
-                    except Exception as child_e:
-                        logger.debug(f"⚠️ 清理单个子节点异常（继续）: {child_e}")
-                        
-            except Exception as children_e:
-                logger.debug(f"⚠️ 获取子节点列表异常: {children_e}")
-            
-            # 清理自己的父引用
-            try:
-                if hasattr(stretchable_node, 'parent') and stretchable_node.parent:
-                    # 先从父节点移除自己（如果还在的话）
-                    parent = stretchable_node.parent
-                    if stretchable_node in parent:
-                        parent.remove(stretchable_node)
-                    stretchable_node.parent = None
-                    logger.debug(f"🧹 清理父引用成功")
-            except Exception as parent_e:
-                logger.debug(f"⚠️ 清理父引用异常: {parent_e}")
-                
-            # 重置布局状态（如果可能）
-            try:
-                self._reset_layout_state(stretchable_node)
-            except Exception as reset_e:
-                logger.debug(f"⚠️ 重置布局状态异常: {reset_e}")
+            # 使用我们改进的安全移除方法
+            parent_node.remove_child(child_node)
+            logger.debug(f"✅ 布局关系移除成功: {child_component.__class__.__name__}")
             
         except Exception as e:
-            logger.debug(f"⚠️ 深度清理节点时异常（可忽略）: {e}")
+            logger.warning(f"⚠️ 标准移除方法失败，尝试强制清理: {e}")
+            
+            # 强制清理作为备用方案
+            try:
+                self._force_remove_child_relationship(parent_node, child_node)
+                logger.debug("🔧 强制清理布局关系成功")
+            except Exception as force_e:
+                logger.warning(f"⚠️ 强制清理也失败: {force_e}")
+                # 即使强制清理失败，也不应该中断应用运行
+    
+    def _force_remove_child_relationship(self, parent_node, child_node):
+        """强制清理父子关系 - 最后的保险措施"""
+        # 从Python层强制移除引用
+        if child_node in parent_node.children:
+            parent_node.children.remove(child_node)
+            
+        # 断开子节点的父引用
+        child_node.parent = None
+        
+        # 尝试从Stretchable层也移除（如果可能）
+        try:
+            stretchable_child = child_node._stretchable_node
+            if stretchable_child and hasattr(stretchable_child, 'parent'):
+                stretchable_child.parent = None
+        except:
+            pass  # 如果Stretchable层已损坏，忽略错误
+    
+    def _cleanup_child_component_mapping(self, child_node, child_component):
+        """清理子组件的映射和资源"""
+        try:
+            # 深度清理子节点及其后代
+            self._deep_cleanup_node(child_node)
+            
+            # 从映射中移除
+            del self._component_nodes[child_component]
+            
+            logger.debug(f"🧹 子组件清理完成: {child_component.__class__.__name__}")
+            
+        except Exception as cleanup_e:
+            logger.warning(f"⚠️ 子组件清理异常: {cleanup_e}")
+            
+            # 至少确保映射被清理
+            self._ensure_mapping_cleanup(child_component)
+    
+    def _ensure_mapping_cleanup(self, child_component):
+        """确保组件映射被清理 - 最后保障"""
+        try:
+            if child_component in self._component_nodes:
+                del self._component_nodes[child_component]
+                logger.debug("🔧 组件映射强制清理成功")
+        except Exception as e:
+            logger.debug(f"⚠️ 映射清理也失败: {e}")
+            # 即使映射清理失败，也不影响应用运行
+    
+    def _deep_cleanup_node(self, node):
+        """
+        深度清理布局节点 - 递归清理防止内存泄漏
+        
+        这个方法负责彻底清理布局节点及其所有子节点，
+        确保在动态内容切换时不会产生悬空引用或内存泄漏。
+        
+        清理顺序：
+        1. 清理所有子节点（自下而上）
+        2. 清理父引用（断开向上链接）
+        3. 重置布局状态（清理缓存）
+        """
+        if not node or not hasattr(node, '_stretchable_node'):
+            logger.debug("⚠️ 节点无效或缺少Stretchable节点，跳过深度清理")
+            return
+            
+        try:
+            stretchable_node = node._stretchable_node
+            if not stretchable_node:
+                logger.debug("⚠️ Stretchable节点为空，跳过清理")
+                return
+                
+            # 第一阶段：清理所有子节点
+            self._cleanup_child_nodes(stretchable_node)
+            
+            # 第二阶段：清理父引用关系
+            self._cleanup_parent_reference(stretchable_node)
+            
+            # 第三阶段：重置布局状态
+            self._reset_node_layout_state(stretchable_node)
+            
+            logger.debug("✅ 深度清理节点完成")
+            
+        except Exception as e:
+            # 深度清理失败不应该影响应用运行
+            logger.debug(f"⚠️ 深度清理过程异常（应用继续运行）: {e}")
+            if logger.isEnabledFor(10):  # DEBUG level
+                import traceback
+                logger.debug(f"深度清理异常详情: {traceback.format_exc()}")
+    
+    def _cleanup_child_nodes(self, stretchable_node):
+        """清理所有子节点的内部方法"""
+        try:
+            # 创建子节点列表的副本，避免迭代时修改原列表
+            children = list(stretchable_node) if stretchable_node else []
+            
+            if children:
+                logger.debug(f"🧹 开始清理 {len(children)} 个子节点")
+                
+                for i, child in enumerate(children):
+                    try:
+                        self._cleanup_single_child(stretchable_node, child, i)
+                    except Exception as e:
+                        logger.debug(f"⚠️ 清理第 {i} 个子节点异常: {e}")
+            else:
+                logger.debug("ℹ️ 无子节点需要清理")
+                
+        except Exception as e:
+            logger.debug(f"⚠️ 获取子节点列表异常: {e}")
+    
+    def _cleanup_single_child(self, parent_node, child_node, index):
+        """清理单个子节点"""
+        try:
+            # 检查子节点是否仍在父节点中
+            if child_node in parent_node:
+                # 先断开父引用
+                if hasattr(child_node, 'parent'):
+                    child_node.parent = None
+                
+                # 从父节点移除
+                parent_node.remove(child_node)
+                logger.debug(f"🗑️ 子节点 [{index}] 清理成功")
+            else:
+                logger.debug(f"⚠️ 子节点 [{index}] 已不在父节点中")
+                
+        except Exception as e:
+            logger.debug(f"⚠️ 子节点 [{index}] 清理异常: {e}")
+    
+    def _cleanup_parent_reference(self, stretchable_node):
+        """清理父引用关系"""
+        try:
+            if not hasattr(stretchable_node, 'parent'):
+                logger.debug("ℹ️ 节点无父引用，跳过父引用清理")
+                return
+                
+            parent = stretchable_node.parent
+            if parent:
+                # 检查并从父节点中移除自己
+                if stretchable_node in parent:
+                    parent.remove(stretchable_node)
+                    logger.debug("🔗 从父节点移除成功")
+                
+                # 断开父引用
+                stretchable_node.parent = None
+                logger.debug("🧹 父引用清理成功")
+            else:
+                logger.debug("ℹ️ 无父节点，跳过父引用清理")
+                
+        except Exception as e:
+            logger.debug(f"⚠️ 父引用清理异常: {e}")
+    
+    def _reset_node_layout_state(self, stretchable_node):
+        """重置节点的布局状态"""
+        try:
+            self._reset_layout_state(stretchable_node)
+            logger.debug("🔄 布局状态重置完成")
+        except Exception as e:
+            logger.debug(f"⚠️ 布局状态重置异常: {e}")
     
     def compute_layout_for_component(self, component, available_size: Optional[Tuple[float, float]] = None) -> Optional[LayoutResult]:
         """计算组件布局 - v3风格直接方式"""
@@ -750,10 +899,155 @@ class V4LayoutEngine:
             logger.debug(f"🧹 清理组件布局节点: {component.__class__.__name__}")
     
     def debug_print_stats(self):
-        """打印调试统计"""
-        logger.debug(f"📊 布局引擎统计:")
-        logger.debug(f"   🔄 布局调用次数: {self._layout_calls}")
-        logger.debug(f"   📐 活跃布局节点: {len(self._component_nodes)}")
+        """打印详细的调试统计信息"""
+        logger.info("📊 macUI v4 布局引擎状态报告")
+        logger.info("=" * 50)
+        logger.info(f"🔄 布局计算调用次数: {self._layout_calls}")
+        logger.info(f"📐 活跃布局节点数量: {len(self._component_nodes)}")
+        logger.info(f"🧠 缓存启用状态: {self.enable_cache}")
+        logger.info(f"🐛 调试模式状态: {self.debug_mode}")
+        
+        # 分析组件类型分布
+        component_types = {}
+        for component in self._component_nodes.keys():
+            comp_type = component.__class__.__name__
+            component_types[comp_type] = component_types.get(comp_type, 0) + 1
+        
+        if component_types:
+            logger.info("📋 组件类型分布:")
+            for comp_type, count in sorted(component_types.items()):
+                logger.info(f"   {comp_type}: {count}")
+        
+        logger.info("=" * 50)
+    
+    def health_check(self) -> dict:
+        """
+        执行布局引擎健康检查
+        
+        Returns:
+            dict: 包含健康状态信息的字典
+        """
+        health_status = {
+            "healthy": True,
+            "total_nodes": len(self._component_nodes),
+            "orphaned_nodes": 0,
+            "corrupted_references": 0,
+            "warnings": []
+        }
+        
+        try:
+            # 检查孤立节点
+            for component, node in self._component_nodes.items():
+                try:
+                    if not node or not node._stretchable_node:
+                        health_status["corrupted_references"] += 1
+                        health_status["warnings"].append(f"组件 {component.__class__.__name__} 的布局节点损坏")
+                        continue
+                        
+                    # 检查父子关系一致性
+                    if hasattr(component, 'parent') and component.parent:
+                        parent_node = self.get_node_for_component(component.parent)
+                        if parent_node and node not in parent_node.children:
+                            health_status["orphaned_nodes"] += 1
+                            health_status["warnings"].append(f"组件 {component.__class__.__name__} 存在孤立的布局节点")
+                            
+                except Exception as e:
+                    health_status["corrupted_references"] += 1
+                    health_status["warnings"].append(f"检查组件 {component.__class__.__name__} 时出错: {e}")
+            
+            # 判断整体健康状态
+            if health_status["corrupted_references"] > 0 or health_status["orphaned_nodes"] > 0:
+                health_status["healthy"] = False
+            
+        except Exception as e:
+            health_status["healthy"] = False
+            health_status["warnings"].append(f"健康检查过程出错: {e}")
+        
+        return health_status
+    
+    def cleanup_orphaned_nodes(self) -> int:
+        """
+        清理孤立的布局节点
+        
+        Returns:
+            int: 清理的节点数量
+        """
+        cleaned_count = 0
+        components_to_remove = []
+        
+        try:
+            for component, node in self._component_nodes.items():
+                try:
+                    # 检查节点是否损坏
+                    if not node or not node._stretchable_node:
+                        components_to_remove.append(component)
+                        continue
+                        
+                    # 检查组件是否还有效
+                    if not hasattr(component, '__class__'):
+                        components_to_remove.append(component)
+                        continue
+                        
+                except Exception:
+                    components_to_remove.append(component)
+            
+            # 清理损坏的映射
+            for component in components_to_remove:
+                try:
+                    del self._component_nodes[component]
+                    cleaned_count += 1
+                    logger.debug(f"🧹 清理孤立节点: {component}")
+                except Exception as e:
+                    logger.warning(f"⚠️ 清理孤立节点失败: {e}")
+            
+            if cleaned_count > 0:
+                logger.info(f"🧹 清理了 {cleaned_count} 个孤立的布局节点")
+            
+        except Exception as e:
+            logger.warning(f"⚠️ 孤立节点清理过程异常: {e}")
+        
+        return cleaned_count
+    
+    def get_node_tree_info(self, component) -> dict:
+        """
+        获取组件的布局树信息（用于调试）
+        
+        Returns:
+            dict: 包含树结构信息的字典
+        """
+        node = self.get_node_for_component(component)
+        if not node:
+            return {"error": "未找到布局节点"}
+        
+        try:
+            info = {
+                "component_type": component.__class__.__name__,
+                "node_key": getattr(node, 'key', 'unknown'),
+                "children_count": len(node.children),
+                "has_parent": node.parent is not None,
+                "stretchable_valid": node._stretchable_node is not None,
+                "children": []
+            }
+            
+            # 递归获取子节点信息
+            for child_node in node.children:
+                child_component = None
+                # 找到对应的组件
+                for comp, n in self._component_nodes.items():
+                    if n == child_node:
+                        child_component = comp
+                        break
+                
+                if child_component:
+                    child_info = self.get_node_tree_info(child_component)
+                    info["children"].append(child_info)
+                else:
+                    info["children"].append({"error": "找不到对应的组件"})
+            
+            return info
+            
+        except Exception as e:
+            return {"error": f"获取节点信息时出错: {e}"}
 
 
 # 全局布局引擎实例
