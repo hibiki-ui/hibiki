@@ -20,8 +20,12 @@ from managers import (
 )
 from reactive import Signal, Computed, Effect, create_signal, create_computed, create_effect
 from .animation import Animation, AnimationGroup, AnimationManager
+from .logging import get_logger
 
 T = TypeVar("T")
+
+# 获取组件模块的日志器
+logger = get_logger("core.component")
 
 # ================================
 # 1. Component - 核心抽象基类
@@ -57,7 +61,6 @@ class Component(ABC):
         # 子组件管理
         self._children: List['Component'] = []
         
-        print(f"🔧 Component({self.__class__.__name__}) 初始化")
     
     @abstractmethod 
     def mount(self) -> NSView:
@@ -89,7 +92,6 @@ class Component(ABC):
         """
         signal = create_signal(initial_value)
         self._signals.append(signal)
-        print(f"🔧 Component({self.__class__.__name__}): 创建Signal[{id(signal)}] = {initial_value}")
         return signal
         
     def create_computed(self, fn: Callable[[], T]) -> Computed[T]:
@@ -99,7 +101,6 @@ class Component(ABC):
         """
         computed = create_computed(fn)
         self._computed.append(computed)
-        print(f"🔧 Component({self.__class__.__name__}): 创建Computed[{id(computed)}]")
         return computed
         
     def create_effect(self, fn: Callable[[], Optional[Callable[[], None]]]) -> Effect:
@@ -109,7 +110,6 @@ class Component(ABC):
         """
         effect = create_effect(fn)
         self._effects.append(effect)
-        print(f"🔧 Component({self.__class__.__name__}): 创建Effect[{id(effect)}]")
         return effect
     
     # ================================
@@ -132,7 +132,7 @@ class Component(ABC):
             创建的动画组，如果失败则返回None
         """
         if not self._mounted or not self._nsview:
-            print(f"⚠️ 组件未挂载或没有NSView，无法执行动画")
+            logger.warning(f"组件未挂载或没有NSView，无法执行动画: {self.__class__.__name__}")
             return None
         
         return AnimationManager.animate_view(self._nsview, **properties)
@@ -140,7 +140,7 @@ class Component(ABC):
     def fade_in(self, duration: float = 1.0) -> Optional['Animation']:
         """淡入动画"""
         if not self._mounted or not self._nsview:
-            print(f"⚠️ 组件未挂载或没有NSView，无法执行淡入动画")
+            logger.warning(f"组件未挂载或没有NSView，无法执行淡入动画: {self.__class__.__name__}")
             return None
         
         return AnimationManager.fade_in(self._nsview, duration)
@@ -148,7 +148,7 @@ class Component(ABC):
     def fade_out(self, duration: float = 1.0) -> Optional['Animation']:
         """淡出动画"""
         if not self._mounted or not self._nsview:
-            print(f"⚠️ 组件未挂载或没有NSView，无法执行淡出动画")
+            logger.warning(f"组件未挂载或没有NSView，无法执行淡出动画: {self.__class__.__name__}")
             return None
         
         return AnimationManager.fade_out(self._nsview, duration)
@@ -156,7 +156,7 @@ class Component(ABC):
     def bounce(self, duration: float = 0.6) -> Optional['AnimationGroup']:
         """弹性动画"""
         if not self._mounted or not self._nsview:
-            print(f"⚠️ 组件未挂载或没有NSView，无法执行弹性动画")
+            logger.warning(f"组件未挂载或没有NSView，无法执行弹性动画: {self.__class__.__name__}")
             return None
         
         return AnimationManager.scale_bounce(self._nsview, duration)
@@ -169,14 +169,12 @@ class Component(ABC):
         """添加子组件"""
         if child not in self._children:
             self._children.append(child)
-            print(f"➕ 添加子组件: {child.__class__.__name__}")
     
     def remove_child(self, child: 'Component') -> None:
         """移除子组件"""
         if child in self._children:
             child.cleanup()
             self._children.remove(child)
-            print(f"➖ 移除子组件: {child.__class__.__name__}")
     
     # ================================
     # 生命周期管理
@@ -188,14 +186,13 @@ class Component(ABC):
     
     def cleanup(self) -> None:
         """清理组件资源"""
-        print(f"🧹 清理组件: {self.__class__.__name__}")
         
         # 清理所有绑定
         for cleanup_fn in self._bindings:
             try:
                 cleanup_fn()
             except Exception as e:
-                print(f"⚠️ 绑定清理错误: {e}")
+                logger.error(f"绑定清理错误: {e}")
         self._bindings.clear()
         
         # 清理所有副作用
@@ -204,7 +201,7 @@ class Component(ABC):
                 if hasattr(effect, 'cleanup'):
                     effect.cleanup()
             except Exception as e:
-                print(f"⚠️ Effect清理错误: {e}")
+                logger.error(f"Effect清理错误: {e}")
         self._effects.clear()
         
         # 清理子组件
@@ -212,7 +209,7 @@ class Component(ABC):
             try:
                 child.cleanup()
             except Exception as e:
-                print(f"⚠️ 子组件清理错误: {e}")
+                logger.error(f"子组件清理错误: {e}")
         self._children.clear()
         
         # 调用自定义清理回调
@@ -220,7 +217,7 @@ class Component(ABC):
             try:
                 callback()
             except Exception as e:
-                print(f"⚠️ 清理回调错误: {e}")
+                logger.error(f"清理回调错误: {e}")
         self._cleanup_callbacks.clear()
         
         # 清理布局节点
@@ -229,14 +226,14 @@ class Component(ABC):
             engine = get_layout_engine()
             engine.cleanup_component(self)
         except Exception as e:
-            print(f"⚠️ 布局节点清理错误: {e}")
+            logger.error(f"布局节点清理错误: {e}")
         
         # 清理层级管理器注册（仅对UIComponent）
         if hasattr(self, 'layer_manager'):
             try:
                 self.layer_manager.unregister_component(self)
             except Exception as e:
-                print(f"⚠️ 层级管理器注销错误: {e}")
+                logger.error(f"层级管理器注销错误: {e}")
         
         # 清空状态
         self._signals.clear()
@@ -294,7 +291,6 @@ class UIComponent(Component):
         self.layout = HighLevelLayoutAPI(self)
         self.advanced = LowLevelLayoutAPI(self)
         
-        print(f"🎨 UIComponent({self.__class__.__name__}) 初始化完成")
     
     # ================================
     # 核心mount流程
@@ -316,11 +312,9 @@ class UIComponent(Component):
             NSView: 完全配置好的根视图
         """
         if self._nsview is None:
-            print(f"🚀 开始挂载组件: {self.__class__.__name__}")
             
             # 1. 创建NSView - 由子类实现
             self._nsview = self._create_nsview()
-            print(f"✅ NSView创建完成: {type(self._nsview).__name__}")
             
             # 2. 注册到层级管理器
             self.layer_manager.register_component(self, self.style.z_index)
@@ -339,14 +333,13 @@ class UIComponent(Component):
             if self.style.overflow in [OverflowBehavior.SCROLL, OverflowBehavior.AUTO]:
                 original_view = self._nsview
                 self._nsview = self.scroll_manager.create_scroll_view(original_view, self.style.overflow)
-                print(f"📜 滚动容器已创建")
             
             # 7. 执行原始配置器
             for configurator in self._raw_configurators:
                 try:
                     configurator(self._nsview)
                 except Exception as e:
-                    print(f"⚠️ 原始配置器执行失败: {e}")
+                    logger.error(f"原始配置器执行失败: {e}")
             
             # 8. 设置基础样式
             self._apply_basic_style()
@@ -354,7 +347,6 @@ class UIComponent(Component):
             # 9. 设置挂载状态
             self._mounted = True
             
-            print(f"✅ 组件挂载完成: {self.__class__.__name__}")
         
         return self._nsview
     
@@ -402,10 +394,9 @@ class UIComponent(Component):
             # 禁用Auto Layout
             self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(True)
             
-            print(f"📍 绝对定位已应用: ({x:.1f}, {y:.1f}, {w:.1f}, {h:.1f})")
             
         except Exception as e:
-            print(f"❌ 绝对定位应用失败: {e}")
+            logger.error(f"绝对定位应用失败: {e}")
             # v4应该完全依赖布局引擎，不提供回退方案
             raise e
     
@@ -428,10 +419,9 @@ class UIComponent(Component):
                 )
                 self._nsview.setFrame_(new_frame)
                 
-                print(f"🔄 相对定位偏移已应用: ({offset_x:.1f}, {offset_y:.1f})")
                 
         except Exception as e:
-            print(f"⚠️ 相对定位应用失败: {e}")
+            logger.error(f"相对定位应用失败: {e}")
     
     def _apply_stretchable_layout(self):
         """应用v4 Stretchable布局"""
@@ -449,7 +439,6 @@ class UIComponent(Component):
             is_child_component = getattr(self, '_parent_container', None) is not None
             
             # 调试信息
-            print(f"🔍 {self.__class__.__name__} 布局检查: has_children={has_children}, has_no_parent={has_no_parent}, is_root_container={is_root_container}, is_child_component={is_child_component}")
             
             # 只有根容器和独立组件才创建布局节点，子组件完全跳过
             if is_root_container:
@@ -466,18 +455,15 @@ class UIComponent(Component):
                 if layout_result:
                     # 应用根容器布局
                     self._apply_layout_result(layout_result)
-                    print(f"🔧 准备应用子组件布局: {self.__class__.__name__}")
                     
                     # 递归应用所有子组件的布局 - 使用Stretchable计算结果
                     self._apply_children_layout(engine)
                     
-                    print(f"📐 v4根容器布局已应用: {self.__class__.__name__} -> ({layout_result.x:.1f}, {layout_result.y:.1f}, {layout_result.width:.1f}x{layout_result.height:.1f})")
                     return True
                 else:
                     raise ValueError(f"v4根容器布局计算失败: {self.__class__.__name__}")
             elif is_child_component:
                 # 子组件：完全跳过布局处理，等父容器处理
-                print(f"📐 v4子组件跳过独立布局: {self.__class__.__name__}")
                 return True
             else:
                 # 独立组件（非容器子组件）：创建独立布局节点
@@ -491,13 +477,12 @@ class UIComponent(Component):
                 
                 if layout_result:
                     self._apply_layout_result(layout_result)
-                    print(f"📐 v4独立组件布局已应用: {self.__class__.__name__}")
                     return True
                 else:
                     raise ValueError(f"v4独立组件布局计算失败: {self.__class__.__name__}")
                 
         except Exception as e:
-            print(f"❌ v4布局应用失败: {e}")
+            logger.error(f"v4布局应用失败: {e}")
             import traceback
             traceback.print_exc()
             # v4应该完全依赖Stretchable布局引擎，不提供回退方案
@@ -540,11 +525,8 @@ class UIComponent(Component):
     
     def _apply_children_layout_from_stretchable(self, engine):
         """从Stretchable重建树应用子组件布局（简化版本）"""
-        print(f"🔧 开始应用子组件布局: {self.__class__.__name__}")
         if not hasattr(self, 'children'):
-            print(f"🔧 {self.__class__.__name__} 没有children属性")
             return
-        print(f"🔧 {self.__class__.__name__} 有 {len(self.children)} 个子组件")
         
         # 简化版本：直接为每个子组件设置合理的布局
         try:
@@ -569,17 +551,16 @@ class UIComponent(Component):
                             'compute_time': 0
                         })())
                         
-                        print(f"📐 v4子组件简单布局已应用: {child.__class__.__name__} -> ({x_offset}, {y_offset}, {width}x{height})")
                         
                         # 更新偏移
                         y_offset += height + 10  # 10px 间距
                             
                     except Exception as e:
-                        print(f"⚠️ v4子组件简单布局应用异常: {child.__class__.__name__} - {e}")
+                        logger.error(f"v4子组件简单布局应用异常: {child.__class__.__name__} - {e}")
                         child._apply_fallback_frame()
                         
         except Exception as e:
-            print(f"⚠️ 子组件简单布局应用整体异常: {e}")
+            logger.error(f"子组件简单布局应用整体异常: {e}")
             # 不再抛出异常，避免崩溃
     
     def _apply_simple_children_layout(self):
@@ -604,7 +585,6 @@ class UIComponent(Component):
                 from AppKit import NSMakeRect
                 frame = NSMakeRect(20, y, w, h)  # x=20px 左边距
                 child._nsview.setFrame_(frame)
-                print(f"✅ 简单布局: {child.__class__.__name__} -> (20, {y}, {w}x{h})")
                 
                 y += h + 15  # 15px间距
 
@@ -619,22 +599,16 @@ class UIComponent(Component):
                 child_node = engine.get_node_for_component(child)
                 if child_node:
                     try:
-                        print(f"🔍 开始处理子组件布局: {child.__class__.__name__}")
-                        print(f"🔍 child_node类型: {type(child_node)}")
-                        print(f"🔍 child_node._stretchable_node类型: {type(child_node._stretchable_node)}")
                         
                         # 获取子组件的布局结果
                         box = child_node._stretchable_node.get_box()
-                        print(f"🔍 获取到box: {box}")
                         x, y, width, height = box.x, box.y, box.width, box.height
-                        print(f"🔍 布局坐标: x={x}, y={y}, w={width}, h={height}")
                         
                         # 应用到子组件的NSView
                         child._apply_layout_result(type('LayoutResult', (), {
                             'x': x, 'y': y, 'width': width, 'height': height
                         })())
                         
-                        print(f"📐 v4子组件布局已应用: {child.__class__.__name__} -> ({x:.1f}, {y:.1f}, {width:.1f}x{height:.1f})")
                         
                         # 递归处理子组件的子组件
                         if hasattr(child, '_apply_children_layout'):
@@ -642,8 +616,8 @@ class UIComponent(Component):
                             
                     except Exception as e:
                         import traceback
-                        print(f"⚠️ 子组件布局应用失败: {child.__class__.__name__} - {e}")
-                        print(f"⚠️ 异常详情: {type(e).__name__}: {str(e)}")
+                        logger.error(f"子组件布局应用失败: {child.__class__.__name__} - {e}")
+                        logger.error(f"异常详情: {type(e).__name__}: {str(e)}")
                         traceback.print_exc()
                         child._apply_fallback_frame()
     
@@ -674,7 +648,6 @@ class UIComponent(Component):
         if not self.style.visible:
             self._nsview.setHidden_(True)
             
-        print(f"🎨 基础样式已应用: opacity={self.style.opacity}, visible={self.style.visible}")
     
     # ================================
     # 便捷方法
@@ -735,7 +708,6 @@ class Container(UIComponent):
         """🚀 创建容器NSView并挂载所有子组件"""
         container = NSView.alloc().init()
         
-        print(f"📦 Container创建，子组件数: {len(self.children)}")
         
         # 建立v4布局树关系
         try:
@@ -758,11 +730,10 @@ class Container(UIComponent):
                     child_view = child.mount()
                     container.addSubview_(child_view)
                     
-                    print(f"  ├─ 子组件 {i+1}: {child.__class__.__name__} 已添加到容器和v4布局树")
                 except Exception as e:
-                    print(f"  ├─ ⚠️ 子组件 {i+1} 挂载失败: {e}")
+                    logger.error(f"子组件 {i+1} 挂载失败: {e}")
         except Exception as e:
-            print(f"❌ Container v4布局树构建失败: {e}")
+            logger.error(f"Container v4布局树构建失败: {e}")
             import traceback
             traceback.print_exc()
             # v4应该完全依赖Stretchable布局引擎，不提供回退方案
@@ -793,9 +764,8 @@ class Container(UIComponent):
                 # 重新计算布局
                 self._update_layout()
                 
-                print(f"➕ 动态添加子组件: {child.__class__.__name__}")
             except Exception as e:
-                print(f"⚠️ 动态添加子组件失败: {e}")
+                logger.error(f"动态添加子组件失败: {e}")
 
     def remove_child_component(self, child: UIComponent):
         """移除子组件"""
@@ -820,9 +790,8 @@ class Container(UIComponent):
                 # 重新计算布局
                 self._update_layout()
                 
-                print(f"➖ 动态移除子组件: {child.__class__.__name__}")
             except Exception as e:
-                print(f"⚠️ 动态移除子组件失败: {e}")
+                logger.error(f"动态移除子组件失败: {e}")
 
     def clear_children(self):
         """清空所有子组件"""
@@ -841,7 +810,7 @@ class Container(UIComponent):
                 try:
                     engine.remove_child_relationship(self, child)
                 except Exception as layout_e:
-                    print(f"⚠️ 清理布局关系失败（可忽略）: {layout_e}")
+                    logger.warning(f"清理布局关系失败（可忽略）: {layout_e}")
                 
                 # 再移除UI关系
                 self.remove_child_component(child)
@@ -856,16 +825,15 @@ class Container(UIComponent):
                         del engine._component_nodes[self]
                     engine.create_node_for_component(self)
             except Exception as rebuild_e:
-                print(f"⚠️ 重建容器布局节点失败（可忽略）: {rebuild_e}")
+                logger.warning(f"重建容器布局节点失败（可忽略）: {rebuild_e}")
                 
-            print(f"🧹 清空容器所有子组件")
         except Exception as e:
-            print(f"⚠️ 清空子组件失败: {e}")
+            logger.error(f"清空子组件失败: {e}")
 
     def replace_child_component(self, old_child: UIComponent, new_child: UIComponent):
         """替换子组件"""
         if old_child not in self.children:
-            print(f"⚠️ 要替换的子组件不存在: {old_child.__class__.__name__}")
+            logger.warning(f"要替换的子组件不存在: {old_child.__class__.__name__}")
             return
             
         try:
@@ -896,9 +864,8 @@ class Container(UIComponent):
                 # 重新计算布局
                 self._update_layout()
             
-            print(f"🔄 替换子组件: {old_child.__class__.__name__} -> {new_child.__class__.__name__}")
         except Exception as e:
-            print(f"⚠️ 替换子组件失败: {e}")
+            logger.error(f"替换子组件失败: {e}")
 
     def set_children(self, new_children: List[UIComponent]):
         """批量设置子组件（替换所有现有子组件）"""
@@ -910,9 +877,8 @@ class Container(UIComponent):
             for child in new_children:
                 self.add_child_component(child)
                 
-            print(f"🔄 批量设置子组件: {len(new_children)}个组件")
         except Exception as e:
-            print(f"⚠️ 批量设置子组件失败: {e}")
+            logger.error(f"批量设置子组件失败: {e}")
 
     def _update_layout(self):
         """更新布局（在子组件变化后调用）"""
@@ -937,11 +903,10 @@ class Container(UIComponent):
                         # 应用子组件布局
                         self._apply_children_layout(engine)
                         
-                        print(f"🔄 容器布局已更新: {self.__class__.__name__}")
                     else:
-                        print(f"⚠️ 容器布局计算失败: {self.__class__.__name__}")
+                        logger.error(f"容器布局计算失败: {self.__class__.__name__}")
                 else:
-                    print(f"⚠️ 容器在布局引擎中没有节点，需要重新创建: {self.__class__.__name__}")
+                    logger.warning(f"容器在布局引擎中没有节点，需要重新创建: {self.__class__.__name__}")
                     # 如果容器节点不存在，重新创建
                     try:
                         layout_node = engine.create_node_for_component(self)
@@ -956,12 +921,11 @@ class Container(UIComponent):
                             if layout_result:
                                 self._apply_layout_result(layout_result)
                                 self._apply_children_layout(engine)
-                                print(f"🔄 容器布局节点重建并更新完成: {self.__class__.__name__}")
                     except Exception as rebuild_e:
-                        print(f"⚠️ 重建容器布局节点失败: {rebuild_e}")
+                        logger.error(f"重建容器布局节点失败: {rebuild_e}")
                     
             except Exception as e:
-                print(f"⚠️ 更新布局失败: {e}")
+                logger.error(f"更新布局失败: {e}")
                 import traceback
                 traceback.print_exc()
 
@@ -970,7 +934,6 @@ class Container(UIComponent):
 # ================================
 
 if __name__ == "__main__":
-    print("macUI v4.0 组件架构测试\n")
     
     # 初始化管理器系统
     ManagerFactory.initialize_all()
@@ -1012,23 +975,15 @@ if __name__ == "__main__":
     label_view = label.mount()
     button_view = button.mount()
     
-    print(f"Label视图: {type(label_view).__name__}")
-    print(f"Button视图: {type(button_view).__name__}")
     
     # 测试容器
-    print("\n📦 容器组件测试:")
     container = Container(
         children=[label, button],
         style=ComponentStyle(width=400, height=200)
     )
     
     container_view = container.mount()
-    print(f"Container视图: {type(container_view).__name__}")
-    print(f"Container子视图数: {len(container_view.subviews())}")
     
     # 测试样式方法
-    print("\n🎨 样式方法测试:")
     styled_label = TestLabel("Styled").size(300, 50).opacity(0.8)
-    print(f"样式化标签: width={styled_label.style.width}, opacity={styled_label.style.opacity}")
     
-    print("\n✅ 组件架构测试完成！")
