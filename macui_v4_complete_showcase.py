@@ -38,6 +38,12 @@ from components.layout import (
     StackDirection, LayoutPresets
 )
 
+# 导入动画系统
+from core.animation import (
+    animate, fade_in, fade_out, bounce,
+    Animation, AnimationGroup, AnimationManager, AnimationCurve
+)
+
 # PyObjC导入
 from AppKit import *
 from Foundation import *
@@ -1334,6 +1340,8 @@ class ShowcaseApp:
             return self.interaction_demo.create_component()
         elif demo_name == "forms":
             return self.forms_demo.create_form_demo()
+        elif demo_name == "animations":
+            return self.create_animation_demo()
         else:
             # 默认返回组件演示
             return self.components_demo.create_component()
@@ -1411,6 +1419,8 @@ class ShowcaseApp:
                       style=ComponentStyle(width=px(100), height=px(35))),
                 Button("📋 表单演示", on_click=self.switch_demo("forms"), 
                       style=ComponentStyle(width=px(100), height=px(35))),
+                Button("🎬 动画系统", on_click=self.switch_demo("animations"), 
+                      style=ComponentStyle(width=px(100), height=px(35))),
             ],
             style=ComponentStyle(
                 display=Display.FLEX,
@@ -1437,6 +1447,129 @@ class ShowcaseApp:
         )
         
         return main_container
+    
+    def create_animation_demo(self):
+        """创建动画系统演示"""
+        
+        # 动画目标标签
+        animation_target_label = Label("🎭 动画演示目标", 
+                                      style=ComponentStyle(width=px(250), height=px(40)))
+        
+        # 动画状态显示
+        animation_status = Signal("等待中...")
+        status_display = Label(animation_status, 
+                              style=ComponentStyle(width=px(300), height=px(25)))
+        
+        # 创建动画控制按钮
+        def create_fade_animation():
+            status_display.text.value = "🎭 执行淡出动画..."
+            fade_animation = animation_target_label.fade_out(duration=1.0)
+            if fade_animation:
+                def on_fade_out_complete():
+                    status_display.text.value = "🎭 淡出完成，执行淡入..."
+                    fade_in_anim = animation_target_label.fade_in(duration=1.0)
+                    if fade_in_anim:
+                        fade_in_anim.on_completion(lambda: setattr(status_display.text, 'value', "✅ 淡入淡出动画完成!"))
+                fade_animation.on_completion(on_fade_out_complete)
+            else:
+                status_display.text.value = "❌ 动画创建失败 (测试环境)"
+        
+        def create_scale_animation():
+            status_display.text.value = "📏 执行缩放动画..."
+            scale_animation = animation_target_label.animate(scale=1.5, duration=1.2)
+            if scale_animation:
+                def on_scale_complete():
+                    status_display.text.value = "📏 放大完成，缩回原大小..."
+                    scale_back_anim = animation_target_label.animate(scale=1.0, duration=0.8)
+                    if scale_back_anim:
+                        scale_back_anim.on_completion(lambda: setattr(status_display.text, 'value', "✅ 缩放动画完成!"))
+                scale_animation.on_completion(on_scale_complete)
+            else:
+                status_display.text.value = "❌ 动画创建失败 (测试环境)"
+        
+        def create_bounce_animation():
+            status_display.text.value = "⚡ 执行弹性动画..."
+            bounce_animation = animation_target_label.bounce(duration=1.5)
+            if bounce_animation:
+                bounce_animation.on_completion(lambda: setattr(status_display.text, 'value', "✅ 弹性动画完成!"))
+            else:
+                status_display.text.value = "❌ 动画创建失败 (测试环境)"
+        
+        def create_combo_animation():
+            status_display.text.value = "🎨 执行组合动画..."
+            combo_animation = animation_target_label.animate(
+                opacity=0.6, scale=1.3, rotation=180, duration=2.0
+            )
+            if combo_animation:
+                def on_combo_complete():
+                    status_display.text.value = "🎨 组合完成，恢复原状..."
+                    restore_anim = animation_target_label.animate(
+                        opacity=1.0, scale=1.0, rotation=0, duration=1.5
+                    )
+                    if restore_anim:
+                        restore_anim.on_completion(lambda: setattr(status_display.text, 'value', "✅ 组合动画完成!"))
+                combo_animation.on_completion(on_combo_complete)
+            else:
+                status_display.text.value = "❌ 动画创建失败 (测试环境)"
+        
+        # 控制按钮
+        fade_button = Button("🎭 淡入淡出", on_click=create_fade_animation,
+                            style=ComponentStyle(width=px(120), height=px(35)))
+        scale_button = Button("📏 缩放动画", on_click=create_scale_animation,
+                             style=ComponentStyle(width=px(120), height=px(35)))
+        bounce_button = Button("⚡ 弹性动画", on_click=create_bounce_animation,
+                              style=ComponentStyle(width=px(120), height=px(35)))
+        combo_button = Button("🎨 组合动画", on_click=create_combo_animation,
+                             style=ComponentStyle(width=px(120), height=px(35)))
+        
+        # 按钮行容器
+        button_row = Container(
+            children=[fade_button, scale_button, bounce_button, combo_button],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.ROW,
+                gap=px(10),
+                justify_content=JustifyContent.CENTER
+            )
+        )
+        
+        # 信息区域
+        info_section = Container(
+            children=[
+                Label("🎬 macUI v4 动画系统", 
+                     style=ComponentStyle(width=px(300), height=px(30))),
+                Label("基于Pure Core Animation的GPU硬件加速", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+                Label("支持声明式API、Signal集成、预设效果", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(5)
+            )
+        )
+        
+        # 主容器
+        return Container(
+            children=[
+                info_section,
+                animation_target_label,
+                status_display,
+                button_row,
+                Label("💡 提示: 在真实macOS环境下运行以体验完整动画效果", 
+                     style=ComponentStyle(width=px(400), height=px(25)))
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(20),
+                width=px(500),
+                height=px(400)
+            )
+        )
 
 # ================================
 # 🎯 应用启动和窗口管理

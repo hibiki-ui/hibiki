@@ -19,6 +19,7 @@ from managers import (
     TransformManager, ScrollManager, MaskManager, Position, OverflowBehavior
 )
 from reactive import Signal, Computed, Effect, create_signal, create_computed, create_effect
+from .animation import Animation, AnimationGroup, AnimationManager
 
 T = TypeVar("T")
 
@@ -110,6 +111,55 @@ class Component(ABC):
         self._effects.append(effect)
         print(f"🔧 Component({self.__class__.__name__}): 创建Effect[{id(effect)}]")
         return effect
+    
+    # ================================
+    # 动画系统集成
+    # ================================
+    
+    def animate(self, **properties) -> Optional['AnimationGroup']:
+        """
+        动画化组件
+        
+        Args:
+            **properties: 动画属性，支持:
+                - opacity: 透明度 (0.0-1.0)
+                - scale: 缩放 (float)
+                - rotation: 旋转角度 (度)
+                - duration: 持续时间 (默认1.0秒)
+                - curve: 动画曲线 (AnimationCurve)
+                
+        Returns:
+            创建的动画组，如果失败则返回None
+        """
+        if not self._mounted or not self._nsview:
+            print(f"⚠️ 组件未挂载或没有NSView，无法执行动画")
+            return None
+        
+        return AnimationManager.animate_view(self._nsview, **properties)
+    
+    def fade_in(self, duration: float = 1.0) -> Optional['Animation']:
+        """淡入动画"""
+        if not self._mounted or not self._nsview:
+            print(f"⚠️ 组件未挂载或没有NSView，无法执行淡入动画")
+            return None
+        
+        return AnimationManager.fade_in(self._nsview, duration)
+    
+    def fade_out(self, duration: float = 1.0) -> Optional['Animation']:
+        """淡出动画"""
+        if not self._mounted or not self._nsview:
+            print(f"⚠️ 组件未挂载或没有NSView，无法执行淡出动画")
+            return None
+        
+        return AnimationManager.fade_out(self._nsview, duration)
+    
+    def bounce(self, duration: float = 0.6) -> Optional['AnimationGroup']:
+        """弹性动画"""
+        if not self._mounted or not self._nsview:
+            print(f"⚠️ 组件未挂载或没有NSView，无法执行弹性动画")
+            return None
+        
+        return AnimationManager.scale_bounce(self._nsview, duration)
     
     # ================================
     # 子组件管理
@@ -293,6 +343,9 @@ class UIComponent(Component):
             
             # 8. 设置基础样式
             self._apply_basic_style()
+            
+            # 9. 设置挂载状态
+            self._mounted = True
             
             print(f"✅ 组件挂载完成: {self.__class__.__name__}")
         
