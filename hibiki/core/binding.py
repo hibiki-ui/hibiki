@@ -12,7 +12,7 @@ try:
 except ImportError:
     # 如果日志系统不可用，使用基本的打印
     import logging
-    logger = logging.getLogger("macui.binding")
+    logger = logging.getLogger("hibiki.binding")
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.INFO)
 
@@ -126,31 +126,31 @@ class ReactiveBinding:
         # 使用objc.setAssociatedObject对NSObject存储Python对象
         import objc
         try:
-            if not hasattr(view, '_macui_effects'):
-                view._macui_effects = []
-            view._macui_effects.append(effect)
-            logger.debug(f"Effect存储到view上: 总Effect数 = {len(view._macui_effects)}")
+            if not hasattr(view, '_hibiki_effects'):
+                view._hibiki_effects = []
+            view._hibiki_effects.append(effect)
+            logger.debug(f"Effect存储到view上: 总Effect数 = {len(view._hibiki_effects)}")
         except AttributeError:
             # 对于NSObject，使用关联对象
-            effects = objc.getAssociatedObject(view, b"macui_effects") or []
+            effects = objc.getAssociatedObject(view, b"hibiki_effects") or []
             effects.append(effect)
-            objc.setAssociatedObject(view, b"macui_effects", effects, objc.OBJC_ASSOCIATION_RETAIN)
+            objc.setAssociatedObject(view, b"hibiki_effects", effects, objc.OBJC_ASSOCIATION_RETAIN)
             logger.debug(f"Effect通过关联对象存储到view上: 总Effect数 = {len(effects)}")
 
         # 返回清理函数
         def cleanup():
             effect.cleanup()
             try:
-                if hasattr(view, '_macui_effects') and effect in view._macui_effects:
-                    view._macui_effects.remove(effect)
-                    logger.debug(f"Effect从view清理: 剩余Effect数 = {len(view._macui_effects)}")
+                if hasattr(view, '_hibiki_effects') and effect in view._hibiki_effects:
+                    view._hibiki_effects.remove(effect)
+                    logger.debug(f"Effect从view清理: 剩余Effect数 = {len(view._hibiki_effects)}")
             except AttributeError:
                 # 对于NSObject，从关联对象中清理
                 import objc
-                effects = objc.getAssociatedObject(view, b"macui_effects") or []
+                effects = objc.getAssociatedObject(view, b"hibiki_effects") or []
                 if effect in effects:
                     effects.remove(effect)
-                    objc.setAssociatedObject(view, b"macui_effects", effects, objc.OBJC_ASSOCIATION_RETAIN)
+                    objc.setAssociatedObject(view, b"hibiki_effects", effects, objc.OBJC_ASSOCIATION_RETAIN)
                     logger.debug(f"Effect从关联对象清理: 剩余Effect数 = {len(effects)}")
         
         return cleanup
@@ -199,15 +199,15 @@ class ReactiveBinding:
         effect = Effect(update)
         
         # 将effect存储在view上，防止被垃圾回收
-        if not hasattr(view, '_macui_effects'):
-            view._macui_effects = []
-        view._macui_effects.append(effect)
+        if not hasattr(view, '_hibiki_effects'):
+            view._hibiki_effects = []
+        view._hibiki_effects.append(effect)
 
         # 返回清理函数
         def cleanup():
             effect.cleanup()
-            if hasattr(view, '_macui_effects') and effect in view._macui_effects:
-                view._macui_effects.remove(effect)
+            if hasattr(view, '_hibiki_effects') and effect in view._hibiki_effects:
+                view._hibiki_effects.remove(effect)
         
         return cleanup
 
@@ -302,17 +302,17 @@ class FormDataBinding:
             change_cleanup = FormDataBinding._create_change_binding(view, field_name, form_data)
         
         # 存储effect到view上
-        if not hasattr(view, '_macui_form_effects'):
-            view._macui_form_effects = []
-        view._macui_form_effects.append(ui_effect)
+        if not hasattr(view, '_hibiki_form_effects'):
+            view._hibiki_form_effects = []
+        view._hibiki_form_effects.append(ui_effect)
         
         # 返回清理函数
         def cleanup():
             ui_effect.cleanup()
             if change_cleanup:
                 change_cleanup()
-            if hasattr(view, '_macui_form_effects') and ui_effect in view._macui_form_effects:
-                view._macui_form_effects.remove(ui_effect)
+            if hasattr(view, '_hibiki_form_effects') and ui_effect in view._hibiki_form_effects:
+                view._hibiki_form_effects.remove(ui_effect)
         
         return cleanup
     
@@ -363,14 +363,14 @@ class FormDataBinding:
             view.setAction_("fieldChanged:")
             
             # 存储委托引用防止被回收
-            if not hasattr(view, '_macui_form_delegates'):
-                view._macui_form_delegates = []
-            view._macui_form_delegates.append(delegate)
+            if not hasattr(view, '_hibiki_form_delegates'):
+                view._hibiki_form_delegates = []
+            view._hibiki_form_delegates.append(delegate)
             
             # 返回清理函数
             def cleanup():
-                if hasattr(view, '_macui_form_delegates') and delegate in view._macui_form_delegates:
-                    view._macui_form_delegates.remove(delegate)
+                if hasattr(view, '_hibiki_form_delegates') and delegate in view._hibiki_form_delegates:
+                    view._hibiki_form_delegates.remove(delegate)
                     view.setTarget_(None)
                     view.setAction_(None)
             

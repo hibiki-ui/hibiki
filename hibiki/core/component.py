@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-macUI v4.0 组件核心架构
+Hibiki UI v4.0 组件核心架构
 双层组件架构：Component (抽象基类) + UIComponent (具体基类)
 """
 
@@ -32,14 +32,14 @@ logger = get_logger("core.component")
 # ================================
 
 class Component(ABC):
-    """macUI组件核心抽象基类
+    """Hibiki UI组件核心抽象基类
     
     职责：
     - 响应式状态管理 (Signal, Computed, Effect) 
     - 核心生命周期方法 (mount, cleanup)
     - 基础组件功能 (绑定、子组件管理)
     
-    这是所有macUI组件的根基类，提供最基础的功能。
+    这是所有Hibiki UI组件的根基类，提供最基础的功能。
     类似于PyTorch的nn.Module，所有组件都必须实现mount方法。
     """
     
@@ -78,7 +78,7 @@ class Component(ABC):
         raise NotImplementedError(
             f"{self.__class__.__module__}.{self.__class__.__qualname__} is "
             "missing the required \"mount\" function. "
-            "All macUI components must implement this core method."
+            "All Hibiki UI components must implement this core method."
         )
     
     # ================================
@@ -88,7 +88,7 @@ class Component(ABC):
     def create_signal(self, initial_value: T) -> Signal[T]:
         """创建组件作用域的Signal
         
-        集成完整的macUI响应式系统
+        集成完整的Hibiki UI响应式系统
         """
         signal = create_signal(initial_value)
         self._signals.append(signal)
@@ -245,7 +245,7 @@ class Component(ABC):
 # ================================
 
 class UIComponent(Component):
-    """macUI UI组件基类
+    """Hibiki UI UI组件基类
     
     职责：
     - 完整的布局API (Flexbox + Grid + 绝对定位)

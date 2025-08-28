@@ -1,4 +1,4 @@
-"""macUI v4 外观管理
+"""Hibiki UI v4 外观管理
 
 提供系统外观检测和Dark/Light模式支持
 """

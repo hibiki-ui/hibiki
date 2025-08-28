@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-macUI v4.0 基础组件
+Hibiki UI v4.0 基础组件
 Label, Button等基本UI组件的新架构实现
 """
 
@@ -50,7 +50,7 @@ class ButtonDelegate(NSObject):
 class Label(UIComponent):
     """现代化Label组件
     
-    基于macUI v4.0新架构的文本标签组件。
+    基于Hibiki UI v4.0新架构的文本标签组件。
     支持完整的布局API和响应式绑定。
     
     Features:
@@ -158,7 +158,7 @@ class Label(UIComponent):
 class Button(UIComponent):
     """现代化Button组件
     
-    基于macUI v4.0新架构的按钮组件。
+    基于Hibiki UI v4.0新架构的按钮组件。
     支持完整的事件处理和布局API。
     
     Features:
@@ -264,7 +264,7 @@ class Button(UIComponent):
 class TextField(UIComponent):
     """现代化TextField组件
     
-    基于macUI v4.0新架构的文本输入组件。
+    基于Hibiki UI v4.0新架构的文本输入组件。
     支持完整的布局API和响应式绑定。
     
     Features:
@@ -442,7 +442,7 @@ class TextFieldDelegate(NSObject):
 class Slider(UIComponent):
     """现代化Slider滑块组件
     
-    基于macUI v4.0新架构的滑块组件。
+    基于Hibiki UI v4.0新架构的滑块组件。
     支持数值选择、范围限制和响应式绑定。
     
     Features:
@@ -621,7 +621,7 @@ class SliderDelegate(NSObject):
 class Switch(UIComponent):
     """现代化Switch开关组件
     
-    基于macUI v4.0新架构的开关组件。
+    基于Hibiki UI v4.0新架构的开关组件。
     支持布尔值切换、响应式绑定和状态回调。
     
     Features:
@@ -765,7 +765,7 @@ class SwitchDelegate(NSObject):
 class TextArea(UIComponent):
     """多行文本编辑器组件
     
-    基于macUI v4.0架构的多行文本输入组件。
+    基于Hibiki UI v4.0架构的多行文本输入组件。
     支持滚动、文本换行、响应式绑定等功能。
     
     Features:
@@ -947,7 +947,7 @@ class TextAreaDelegate(NSObject):
 class Checkbox(UIComponent):
     """复选框组件
     
-    基于macUI v4.0架构的复选框组件。
+    基于Hibiki UI v4.0架构的复选框组件。
     支持选中状态管理和响应式绑定。
     
     Features:
@@ -1086,7 +1086,7 @@ class CheckboxDelegate(NSObject):
 class RadioButton(UIComponent):
     """单选按钮组件
     
-    基于macUI v4.0架构的单选按钮组件。
+    基于Hibiki UI v4.0架构的单选按钮组件。
     支持分组选择和响应式绑定。
     
     Features:
@@ -1947,7 +1947,7 @@ class ComboBox(UIComponent):
 # ================================
 
 if __name__ == "__main__":
-    print("macUI v4.0 基础组件测试\n")
+    print("Hibiki UI v4.0 基础组件测试\n")
     
     # 初始化管理器系统
     from core.managers import ManagerFactory
@@ -1956,7 +1956,7 @@ if __name__ == "__main__":
     print("🧪 基础组件创建测试:")
     
     # 创建Label
-    label = Label("Hello, macUI v4.0!")
+    label = Label("Hello, Hibiki UI v4.0!")
     print(f"Label创建完成: {label.__class__.__name__}")
     
     # 创建Button

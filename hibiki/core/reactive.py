@@ -18,7 +18,7 @@ try:
 except ImportError:
     # 如果日志系统不可用，使用基本的打印
     import logging
-    logger = logging.getLogger("macui.signal")
+    logger = logging.getLogger("hibiki.signal")
     
     # 防止重复添加handlers
     if not logger.handlers:

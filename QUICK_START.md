@@ -1,6 +1,6 @@
-# macUI v2 快速开始指南 🚀
+# Hibiki UI v2 快速开始指南 🚀
 
-恭喜！macUI v2 框架已经完全可用！这是一个基于信号机制的声明式 macOS 原生应用开发框架。
+恭喜！Hibiki UI v2 框架已经完全可用！这是一个基于信号机制的声明式 macOS 原生应用开发框架。
 
 ## ✅ 已完成功能
 
@@ -19,7 +19,7 @@
 ### 🎨 UI 组件
 - **控件**: Button, TextField, Label ✅
 - **布局**: VStack, HStack, ScrollView ✅  
-- **应用管理**: MacUIApp, Window ✅
+- **应用管理**: HibikiApp, Window ✅
 
 ## 🚀 立即运行
 
@@ -91,7 +91,7 @@ app.run()
 
 ## 🎊 恭喜！
 
-**macUI v2 框架已完全可用！**
+**Hibiki UI v2 框架已完全可用！**
 
 你现在拥有一个：
 - 🎯 **现代化** 的响应式 UI 框架

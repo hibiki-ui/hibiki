@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-macUI v4.0 管理器系统
+Hibiki UI v4.0 管理器系统
 六大专业管理器，分离关注点，各司其职
 """
 
@@ -560,7 +560,7 @@ class ManagerFactory:
 # ================================
 
 if __name__ == "__main__":
-    print("macUI v4.0 管理器系统测试\n")
+    print("Hibiki UI v4.0 管理器系统测试\n")
     
     # 初始化所有管理器
     ManagerFactory.initialize_all()

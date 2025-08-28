@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-macUI v4.0 分层API接口
+Hibiki UI v4.0 分层API接口
 高层API（简化90%场景）+ 低层API（开放全部能力）
 """
 
@@ -620,7 +620,7 @@ class MockUIComponent:
 # ================================
 
 if __name__ == "__main__":
-    print("macUI v4.0 分层API测试\n")
+    print("Hibiki UI v4.0 分层API测试\n")
     
     # 创建测试组件
     component = MockUIComponent()

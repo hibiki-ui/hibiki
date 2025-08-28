@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-macUI - Reactive UI Framework for Native macOS Applications
+Hibiki UI - Reactive UI Framework for Native macOS Applications
 
-macUI is a modern, reactive UI framework for building native macOS applications with Python and PyObjC.
+Hibiki UI is a modern, Hibiki UI framework for building native macOS applications with Python and PyObjC.
 It combines signal-based reactivity with native macOS components, providing a clean and powerful API
 for creating responsive user interfaces.
 
@@ -31,9 +31,9 @@ AppKit/PyObjC (NSView, NSButton, etc.)
 ## 🚀 Quick Start
 
 ```python
-from macui import Signal, Computed, Effect
-from macui import Label, Button, Container, ComponentStyle, px
-from macui import ManagerFactory
+from hibiki import Signal, Computed, Effect
+from hibiki import Label, Button, Container, ComponentStyle, px
+from hibiki import ManagerFactory
 
 # Create reactive state
 count = Signal(0)
@@ -103,7 +103,7 @@ app_manager.run()
 **Signal Integration**: Animations react to Signal state changes
 
 ```python
-from macui import animate, fade_in, bounce
+from hibiki import animate, fade_in, bounce
 
 # Simple declarative animations
 animate(view, duration=0.5, opacity=0.8, scale=1.2)
@@ -145,7 +145,7 @@ class MyCustomComponent(UIComponent):
 
 ### Form Handling
 ```python
-from macui import Form, FormField, RequiredValidator, EmailValidator
+from hibiki import Form, FormField, RequiredValidator, EmailValidator
 
 form = Form([
     FormField("email", TextField(), [RequiredValidator(), EmailValidator()]),
@@ -155,7 +155,7 @@ form = Form([
 
 ### Theme Customization
 ```python
-from macui import set_theme, get_theme_manager
+from hibiki import set_theme, get_theme_manager
 
 theme_manager = get_theme_manager()
 theme_manager.set_color_scheme("ocean")

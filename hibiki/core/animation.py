@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-macUI v4 动画系统
+Hibiki UI v4 动画系统
 
 基于Pure Core Animation原则的动画系统实现，遵循以下设计要求：
 1. Pure Core Animation - 仅使用Core Animation APIs，禁用threading/time.sleep
 2. Hardware Acceleration First - 优先使用GPU加速的CALayer属性
 3. Declarative API - 提供简单的链式接口隐藏Core Animation复杂性
-4. Signal Integration - 与macUI的响应式Signal系统无缝集成
+4. Signal Integration - 与Hibiki UI的响应式Signal系统无缝集成
 
 作者: Claude Code AI Assistant
 日期: 2025-08-28
@@ -224,7 +224,7 @@ class Animation:
             CATransaction.setCompletionBlock_(completion_block)
             
             # 添加动画到图层
-            animation_key = f"macui_animation_{id(self)}"
+            animation_key = f"hibiki_animation_{id(self)}"
             layer.addAnimation_forKey_(self._ca_animation, animation_key)
             
             # 提交事务
@@ -326,7 +326,7 @@ class AnimationGroup:
             CATransaction.setCompletionBlock_(completion_block)
             
             # 添加动画组到图层
-            group_key = f"macui_animation_group_{id(self)}"
+            group_key = f"hibiki_animation_group_{id(self)}"
             layer.addAnimation_forKey_(animation_group, group_key)
             
             CATransaction.commit()
@@ -349,7 +349,7 @@ class AnimationManager:
     动画管理器 - 提供高级动画API和预设效果
     
     提供简单的声明式接口来创建常用动画效果，
-    并与macUI的Signal系统集成。
+    并与Hibiki UI的Signal系统集成。
     """
     
     @staticmethod

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-macUI v4.0 布局引擎
+Hibiki UI v4.0 布局引擎
 直接集成Stretchable，提供现代化的CSS-like布局能力
 完全独立的v4架构实现，不依赖旧版本代码
 """
@@ -49,7 +49,7 @@ try:
     logger = get_logger("layout")
 except ImportError:
     import logging
-    logger = logging.getLogger("macui_v4.layout")
+    logger = logging.getLogger("hibiki_v4.layout")
     logger.setLevel(logging.DEBUG)
     if not logger.handlers:
         handler = logging.StreamHandler()
@@ -900,7 +900,7 @@ class V4LayoutEngine:
     
     def debug_print_stats(self):
         """打印详细的调试统计信息"""
-        logger.info("📊 macUI v4 布局引擎状态报告")
+        logger.info("📊 Hibiki UI v4 布局引擎状态报告")
         logger.info("=" * 50)
         logger.info(f"🔄 布局计算调用次数: {self._layout_calls}")
         logger.info(f"📐 活跃布局节点数量: {len(self._component_nodes)}")
@@ -1072,7 +1072,7 @@ def set_debug_mode(enabled: bool):
 # ================================
 
 if __name__ == "__main__":
-    print("macUI v4.0 布局引擎测试\n")
+    print("Hibiki UI v4.0 布局引擎测试\n")
     
     # 测试样式转换
     print("🔄 样式转换测试:")

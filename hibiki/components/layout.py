@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-macUI v4.0 高级布局组件
+Hibiki UI v4.0 高级布局组件
 提供专业级的布局解决方案：Grid、ResponsiveGrid、Stack、Masonry等
 """
 
@@ -713,7 +713,7 @@ class LayoutAnimator:
 # ================================
 
 if __name__ == "__main__":
-    print("macUI v4.0 高级布局组件测试\n")
+    print("Hibiki UI v4.0 高级布局组件测试\n")
     
     # 测试Grid容器
     print("📐 Grid容器测试:")

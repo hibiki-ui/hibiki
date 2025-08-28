@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**macUI v3.0** is a reactive UI framework for native macOS applications using Python and PyObjC. It provides signal-based reactivity inspired by SolidJS, with fine-grained updates that directly manipulate native NSViews without a virtual DOM.
+**Hibiki UI v3.0** is a Hibiki UI framework for native macOS applications using Python and PyObjC. It provides signal-based reactivity inspired by SolidJS, with fine-grained updates that directly manipulate native NSViews without a virtual DOM.
 
 ### Key v3.0 Features
 - **Unified API**: Simple component names (`Label`, `Button`) automatically resolve to best implementations
@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Setup and Installation
 ```bash
 # Install with uv (recommended)
-uv add macui
+uv add hibiki
 
 # Development setup
 uv sync --all-extras
@@ -34,7 +34,7 @@ uv run ruff check .
 uv run ruff check --fix .
 uv run black .
 uv run isort .
-uv run mypy macui
+uv run mypy hibiki
 
 # Build package
 uv build
@@ -57,13 +57,13 @@ AppKit/PyObjC (NSView, NSButton, etc.)
 ```
 
 ### Key Directories
-- `macui/core/` - Reactive system core (Signal, Effect, Component)
-- `macui/components/` - UI components with unified API
+- `hibiki/core/` - Reactive system core (Signal, Effect, Component)
+- `hibiki/components/` - UI components with unified API
   - `components.py` - Core components (Label, Button, VStack, HStack)
   - `layout.py` - Advanced layout components (VStackLayout, HStackLayout)
   - `core.py` - Base component classes (LayoutAwareComponent)
-- `macui/layout/` - Stretchable layout engine integration
-- `macui/app.py` - Application and window management
+- `hibiki/layout/` - Stretchable layout engine integration
+- `hibiki/app.py` - Application and window management
 - `examples/` - Usage examples and reference implementations
 
 ## Signal-Based Reactivity
@@ -262,7 +262,7 @@ Complete project documentation for design decisions, investigations, and archite
 - **Layout Engine v3.0 Implementation**: `docs/LAYOUT_ENGINE_V3_IMPLEMENTATION.md` - Complete implementation report for the professional Stretchable-based layout system (方案B), including architecture, performance metrics, and technical achievements
 - **Component Refactoring Plan**: `docs/COMPONENT_REFACTORING_PLAN.md` - Comprehensive plan for refactoring existing components to work with the new layout system, including prioritization, migration strategies, and implementation roadmap
 - **Component Refactoring Progress**: `docs/COMPONENT_REFACTORING_PROGRESS.md` - First phase completion report for LayoutAwareComponent base class and modern component implementation, including technical details, test results, and next phase planning
-- **Animation Design Principles**: `docs/ANIMATION_DESIGN_PRINCIPLES.md` - Core design principles for macUI animation system, including Pure Core Animation requirements, GPU optimization strategies, and performance best practices
+- **Animation Design Principles**: `docs/ANIMATION_DESIGN_PRINCIPLES.md` - Core design principles for Hibiki UI animation system, including Pure Core Animation requirements, GPU optimization strategies, and performance best practices
 
 ## Animation System Development Principles
 
@@ -270,7 +270,7 @@ Complete project documentation for design decisions, investigations, and archite
 1. **Pure Core Animation**: NEVER use threading, time.sleep, or custom timers. All animations must use Core Animation APIs.
 2. **Hardware Acceleration First**: Leverage GPU acceleration through CALayer properties (shadowOpacity, transform.scale, position, etc.)
 3. **Declarative API**: Provide simple, chainable interfaces that hide Core Animation complexity
-4. **Signal Integration**: All animations should work seamlessly with macUI's reactive Signal system
+4. **Signal Integration**: All animations should work seamlessly with Hibiki UI's reactive Signal system
 
 ### Implementation Standards
 ```python

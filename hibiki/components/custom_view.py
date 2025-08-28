@@ -1,12 +1,12 @@
 """
-macUI v4 自定义视图组件
+Hibiki UI v4 自定义视图组件
 
 提供完整的自定义视图解决方案，包括：
 - 自定义绘制
 - 键盘事件处理
 - 鼠标事件处理
 - 响应式状态管理
-- 与macUI v4框架的完整集成
+- 与Hibiki UI v4框架的完整集成
 """
 
 from typing import Optional, Callable, Any, Tuple
@@ -188,7 +188,7 @@ class CustomNSView(NSView):
 
 
 class CustomView(UIComponent):
-    """macUI v4自定义视图组件"""
+    """Hibiki UI v4自定义视图组件"""
     
     def __init__(
         self,

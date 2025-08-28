@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-test-project - A macUI application
+test-project - A Hibiki UI application
 """
 
-from macui import MacUIApp, Signal, Computed
-from macui.components import Button, Label, VStack
+from hibiki import HibikiApp, Signal, Computed
+from hibiki.components import Button, Label, VStack
 
 class Test-projectApp:
     def __init__(self):
@@ -21,7 +21,7 @@ class Test-projectApp:
         ])
 
 def main():
-    app = MacUIApp("test-project")
+    app = HibikiApp("test-project")
     demo = Test-projectApp()
     window = app.create_window("test-project", content=demo.create_ui())
     window.show()

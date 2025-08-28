@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-macUI v4 Core Module
+Hibiki UI v4 Core Module
 核心模块导出
 """
 

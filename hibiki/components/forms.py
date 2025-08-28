@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-macUI v4.0 表单系统
+Hibiki UI v4.0 表单系统
 Form validation, data binding, and form container components
 """
 
@@ -553,7 +553,7 @@ class FormTemplates:
 # ================================
 
 if __name__ == "__main__":
-    print("🔧 macUI v4.0 表单系统测试\n")
+    print("🔧 Hibiki UI v4.0 表单系统测试\n")
     
     # 初始化管理器系统
     from core.managers import ManagerFactory

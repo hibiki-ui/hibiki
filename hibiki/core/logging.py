@@ -1,5 +1,5 @@
 """
-MacUI 日志系统
+Hibiki 日志系统
 提供统一的日志记录功能，支持文件输出和等级控制
 """
 
@@ -9,13 +9,13 @@ import os
 from pathlib import Path
 from typing import Optional
 
-class MacUILogger:
-    """MacUI 日志管理器"""
+class HibikiLogger:
+    """Hibiki 日志管理器"""
     
-    _instance: Optional['MacUILogger'] = None
+    _instance: Optional['HibikiLogger'] = None
     _initialized = False
     
-    def __new__(cls) -> 'MacUILogger':
+    def __new__(cls) -> 'HibikiLogger':
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
@@ -34,11 +34,11 @@ class MacUILogger:
         log_dir.mkdir(exist_ok=True)
         
         # 日志文件路径
-        self.log_file = log_dir / "macui.log"
-        self.debug_file = log_dir / "macui_debug.log"
+        self.log_file = log_dir / "hibiki.log"
+        self.debug_file = log_dir / "hibiki_debug.log"
         
         # 创建根日志器
-        self.logger = logging.getLogger("macui")
+        self.logger = logging.getLogger("hibiki")
         self.logger.setLevel(logging.DEBUG)
         
         # 清除现有处理器
@@ -84,7 +84,7 @@ class MacUILogger:
         self.logger.addHandler(debug_handler)
         
         # 记录初始化信息
-        self.logger.info("MacUI 日志系统初始化完成")
+        self.logger.info("Hibiki 日志系统初始化完成")
         self.logger.debug(f"主日志文件: {self.log_file}")
         self.logger.debug(f"调试日志文件: {self.debug_file}")
     
@@ -110,16 +110,16 @@ class MacUILogger:
     def get_logger(self, name: str = None) -> logging.Logger:
         """获取子日志器"""
         if name:
-            return logging.getLogger(f"macui.{name}")
+            return logging.getLogger(f"hibiki.{name}")
         return self.logger
 
 
 # 全局日志管理器实例
-_logger_manager = MacUILogger()
+_logger_manager = HibikiLogger()
 
 # 便捷函数
 def get_logger(name: str = None) -> logging.Logger:
-    """获取MacUI日志器"""
+    """获取Hibiki日志器"""
     return _logger_manager.get_logger(name)
 
 def set_log_level(level: str):

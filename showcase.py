@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-🎨 macUI v4 Complete Feature Showcase
+🎨 Hibiki UI v4 Complete Feature Showcase
 完整可运行的v4框架功能演示应用
 
 重点演示：
@@ -14,8 +14,8 @@
 import sys
 import os
 
-# 添加macui路径
-sys.path.append(os.path.join(os.path.dirname(__file__), "macui"))
+# 添加hibiki路径
+sys.path.append(os.path.join(os.path.dirname(__file__), "hibiki"))
 
 # 导入v4核心
 from core.managers import ManagerFactory
@@ -75,7 +75,7 @@ class ShowcaseData:
     def __init__(self):
         # 响应式状态
         self.counter = Signal(0)
-        self.user_name = Signal("macUI v4 User")
+        self.user_name = Signal("Hibiki UI v4 User")
         self.theme = Signal("Light")
         
         # 新组件状态
@@ -453,7 +453,7 @@ class InteractionDemo:
         action_buttons = Container(
             children=[
                 Button("打招呼", 
-                      on_click=self.handle_button_click("打招呼", "👋 你好！欢迎使用macUI v4"), 
+                      on_click=self.handle_button_click("打招呼", "👋 你好！欢迎使用Hibiki UI v4"), 
                       style=ComponentStyle(width=px(100), height=px(30))),
                 Button("显示时间", 
                       on_click=self.handle_button_click("显示时间", "⏰ 现在是演示时间"), 
@@ -614,7 +614,7 @@ class ComponentsDemo:
         """创建组件演示界面"""
         
         # 标题
-        title = Label("🧩 macUI v4 完整组件库演示", 
+        title = Label("🧩 Hibiki UI v4 完整组件库演示", 
                      style=ComponentStyle(width=px(450), height=px(40)))
         
         # === 滑块组件演示 ===
@@ -1079,7 +1079,7 @@ class ComponentsDemo:
                 display_section,
                 selection_section,
                 settings_summary,
-                Label("✨ macUI v4 完整组件库 - 支持响应式绑定和事件处理", 
+                Label("✨ Hibiki UI v4 完整组件库 - 支持响应式绑定和事件处理", 
                      style=ComponentStyle(width=px(450), height=px(25))),
             ],
             style=ComponentStyle(
@@ -1125,7 +1125,7 @@ class FormsDemo:
     
     def create_form_demo(self):
         """创建表单演示界面"""
-        title = Label("📋 macUI v4 表单系统演示", 
+        title = Label("📋 Hibiki UI v4 表单系统演示", 
                      style=ComponentStyle(width=px(400), height=px(40)))
         
         # === 基础表单演示 ===
@@ -1488,7 +1488,7 @@ class ThemeDemo:
         # 字体样式演示
         font_samples = Container(
             children=[
-                Label("大标题样式 - macUI v4主题系统",
+                Label("大标题样式 - Hibiki UI v4主题系统",
                      style=ComponentStyle(width=px(500), height=px(50))),
                 Label("标题1样式 - 主题切换演示", 
                      style=ComponentStyle(width=px(400), height=px(35))),
@@ -2079,7 +2079,7 @@ class ShowcaseApp:
                 "drawing": "✅ 当前: 🖌️ 简易画图程序",
                 "animations": "✅ 当前: 🎬 动画系统演示"
             }
-            return status_map.get(demo_name, "🎨 macUI v4 框架演示")
+            return status_map.get(demo_name, "🎨 Hibiki UI v4 框架演示")
         
         current_status = Computed(get_current_status)
         # 使用更独特的尺寸避免和子组件标签重叠
@@ -2121,7 +2121,7 @@ class ShowcaseApp:
         
         # 标题
         title = Label(
-            "🎨 macUI v4 Complete Showcase - 组件演示&表单系统",
+            "🎨 Hibiki UI v4 Complete Showcase - 组件演示&表单系统",
             style=ComponentStyle(width=px(500), height=px(50))
         )
         
@@ -2261,7 +2261,7 @@ class ShowcaseApp:
         # 信息区域
         info_section = Container(
             children=[
-                Label("🎬 macUI v4 动画系统", 
+                Label("🎬 Hibiki UI v4 动画系统", 
                      style=ComponentStyle(width=px(300), height=px(30))),
                 Label("基于Pure Core Animation的GPU硬件加速", 
                      style=ComponentStyle(width=px(350), height=px(25))),
@@ -2305,7 +2305,7 @@ class ShowcaseAppDelegate(NSObject):
     
     def applicationDidFinishLaunching_(self, notification):
         """应用启动完成"""
-        print("🚀 macUI v4 Complete Showcase 启动")
+        print("🚀 Hibiki UI v4 Complete Showcase 启动")
         
         # 初始化管理器
         ManagerFactory.initialize_all()
@@ -2318,7 +2318,7 @@ class ShowcaseAppDelegate(NSObject):
             False
         )
         
-        self.window.setTitle_("macUI v4 Complete Feature Showcase")
+        self.window.setTitle_("Hibiki UI v4 Complete Feature Showcase")
         
         # 最大化窗口到屏幕的可见区域（相当于最大化）
         from AppKit import NSScreen
@@ -2358,7 +2358,7 @@ class ShowcaseAppDelegate(NSObject):
         
         # 退出菜单项
         quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "Quit macUI v4 Showcase", "terminate:", "q"
+            "Quit Hibiki UI v4 Showcase", "terminate:", "q"
         )
         app_menu.addItem_(quit_item)
         
@@ -2373,7 +2373,7 @@ class ShowcaseAppDelegate(NSObject):
 
 def main():
     """主函数 - 启动应用"""
-    print("🎨 启动 macUI v4 Complete Feature Showcase")
+    print("🎨 启动 Hibiki UI v4 Complete Feature Showcase")
     
     try:
         # 创建应用实例
