@@ -285,4 +285,103 @@ MockNSTextField[...].setStringValue_: 'Count: 0' -> 'Count: 1'
 
 ---
 
+## 2025-08-28 - 响应式系统UI更新修复 ✅
+
+### 问题描述
+用户报告macUI v4 showcase应用中，虽然布局正常，但点击按钮后UI上的计数器数字不会更新。经过深入调试发现这是响应式系统的核心设计问题。
+
+### 问题分析
+通过系统性调试发现了根本的**设计错误**：
+
+**错误流程**：
+1. Signal变化 → Computed._rerun() → Computed._invalidate() → 仅设置dirty=true
+2. Computed值实际上没有重新计算
+3. Effect执行时读取到的仍是旧值
+
+**正确流程应该是**：
+1. Signal变化 → Computed._rerun() → **立即重新计算** → 通知观察者
+2. Effect执行时读取到的是新值
+
+### 核心修复
+
+#### 1. 修复Computed._rerun()设计错误
+```python
+# 修复前 - 错误设计
+def _rerun(self):
+    self._invalidate()  # 只标记为脏，不重新计算
+
+# 修复后 - 正确设计  
+def _rerun(self):
+    self._recompute()   # 立即重新计算并通知观察者
+```
+
+#### 2. 实现动态批处理队列
+修复了批处理系统无法处理处理过程中新增观察者的问题：
+
+```python
+def _flush_deferred_updates():
+    """真正的动态队列处理"""
+    while True:
+        # 获取当前队列快照
+        queue_snapshot = list(_deferred_updates)
+        _deferred_updates.clear()
+        
+        # 处理当前批次...
+        
+        # 检查是否有新观察者在处理过程中加入
+        if _deferred_updates:
+            continue  # 处理新的一轮
+        else:
+            break     # 完成
+```
+
+#### 3. 优化依赖顺序处理
+确保Computed总是在Effect之前执行：
+- Computed (优先级: 0) 
+- Effect (优先级: 1)
+- 其他 (优先级: 2)
+
+### 技术影响
+
+#### 响应式性能提升
+- **完整响应链**: Signal → Computed → Effect → UI 现在完全工作
+- **动态批处理**: 支持处理过程中动态添加的观察者  
+- **依赖顺序**: 按正确的依赖顺序执行更新
+
+#### 稳定性改进
+- **设计一致性**: Computed._rerun()现在按预期立即重新计算
+- **批处理可靠性**: 动态队列确保所有观察者都被处理
+- **调试友好**: 详细的多轮批处理日志
+
+### 验证结果
+
+#### 测试覆盖
+- ✅ **基础响应式测试** (`debug_computed_flow.py`) - Signal/Computed/Effect链条完整工作
+- ✅ **真实NSTextField测试** (`debug_real_nstext.py`) - UI正确接收响应式更新
+- ✅ **完整应用测试** (`macui_v4_complete_showcase.py`) - 计数器应用完全正常工作
+
+#### 实际验证
+```
+✅ 预期Effect调用: ['计数: 0', '计数: 1', '计数: 2']
+✅ 实际Effect调用: ['计数: 0', '计数: 1', '计数: 2']  
+✅ UI与Signal一致性: True
+```
+
+### 相关文件修改
+
+| 文件 | 修改类型 | 说明 |
+|------|----------|------|
+| `macui_v4/core/reactive.py` | 核心修复 | Computed._rerun()设计修复 + 动态批处理实现 |
+| `debug_computed_flow.py` | 新增测试 | 验证Computed响应式链条 |
+| `debug_real_nstext.py` | 新增测试 | 验证真实NSTextField响应式绑定 |
+| `debug_ui_update.py` | 新增测试 | Mock UI测试响应式更新 |
+
+### 后续工作
+
+- [ ] 清理调试日志，保留关键的错误处理日志
+- [ ] 添加响应式系统的单元测试
+- [ ] 考虑添加响应式系统性能监控
+
+---
+
 *本日志持续更新中...*

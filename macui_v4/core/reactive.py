@@ -54,59 +54,75 @@ def _enqueue_update(observer):
     logger.info(f"📥 更新入队: {type(observer).__name__}[{id(observer)}]")
 
 def _flush_deferred_updates():
-    """🆕 批处理刷新 - 依赖顺序优化"""
+    """🆕 批处理刷新 - 真正的动态队列处理"""
     if not _deferred_updates:
         return
     
-    # 收集所有排队的观察者并去重
-    observers_to_process = []
     processed_ids: Set[int] = set()
+    round_number = 1
     
-    while _deferred_updates:
-        observer = _deferred_updates.popleft()
-        observer_id = id(observer)
+    # 🔄 真正动态的处理：每处理完一批，立即检查是否有新观察者
+    while True:
+        # 收集当前队列中的所有观察者（快照）
+        current_batch = []
         
-        if observer_id not in processed_ids:
-            observers_to_process.append(observer)
-            processed_ids.add(observer_id)
-        else:
-            logger.debug(f"⏭️  跳过重复更新: {type(observer).__name__}[{observer_id}]")
-    
-    # 🚀 按依赖顺序排序：Computed -> Effect
-    # 优先级：Computed(0) < Effect(1) < 其他(2)
-    def get_priority(observer):
-        if observer.__class__.__name__ == 'Computed':
-            return 0  # 最高优先级
-        elif observer.__class__.__name__ == 'Effect':
-            return 1  # 中等优先级
-        else:
-            return 2  # 最低优先级
-    
-    observers_to_process.sort(key=get_priority)
-    
-    logger.info(f"🔄 按依赖顺序处理 {len(observers_to_process)} 个观察者")
-    for i, observer in enumerate(observers_to_process):
-        logger.info(f"   {i+1}. {type(observer).__name__}[{id(observer)}] (优先级: {get_priority(observer)})")
-    
-    # 按排序后的顺序执行更新
-    for observer in observers_to_process:
-        logger.info(f"⚡ 执行更新: {type(observer).__name__}[{id(observer)}]")
+        # 获取当前队列快照
+        queue_snapshot = list(_deferred_updates)
+        _deferred_updates.clear()
         
-        try:
-            if hasattr(observer, '_rerun') and hasattr(observer, '_active'):
-                if observer._active:
-                    logger.info(f"   调用 {type(observer).__name__}._rerun() - active")
+        for observer in queue_snapshot:
+            observer_id = id(observer)
+            if observer_id not in processed_ids:
+                current_batch.append(observer)
+                processed_ids.add(observer_id)
+            else:
+                logger.debug(f"⏭️  跳过重复更新: {type(observer).__name__}[{observer_id}]")
+        
+        if not current_batch:
+            break
+        
+        # 🚀 按依赖顺序排序：Computed -> Effect
+        def get_priority(observer):
+            if observer.__class__.__name__ == 'Computed':
+                return 0  # 最高优先级
+            elif observer.__class__.__name__ == 'Effect':
+                return 1  # 中等优先级
+            else:
+                return 2  # 最低优先级
+        
+        current_batch.sort(key=get_priority)
+        
+        logger.info(f"🔄 第{round_number}轮：按依赖顺序处理 {len(current_batch)} 个观察者")
+        for i, observer in enumerate(current_batch):
+            logger.info(f"   {i+1}. {type(observer).__name__}[{id(observer)}] (优先级: {get_priority(observer)})")
+        
+        # 按排序后的顺序执行更新
+        for observer in current_batch:
+            logger.info(f"⚡ 执行更新: {type(observer).__name__}[{id(observer)}]")
+            
+            try:
+                if hasattr(observer, '_rerun') and hasattr(observer, '_active'):
+                    if observer._active:
+                        logger.info(f"   调用 {type(observer).__name__}._rerun() - active")
+                        observer._rerun()
+                    else:
+                        logger.info(f"   跳过 {type(observer).__name__} - inactive")
+                elif hasattr(observer, '_rerun'):
+                    logger.info(f"   调用 {type(observer).__name__}._rerun() - no active check")
                     observer._rerun()
                 else:
-                    logger.info(f"   跳过 {type(observer).__name__} - inactive")
-            elif hasattr(observer, '_rerun'):
-                logger.info(f"   调用 {type(observer).__name__}._rerun() - no active check")
-                observer._rerun()
-            else:
-                logger.info(f"   直接调用 {type(observer).__name__}()")
-                observer()
-        except Exception as e:
-            logger.error(f"❌ 批处理更新错误: {e}")
+                    logger.info(f"   直接调用 {type(observer).__name__}()")
+                    observer()
+            except Exception as e:
+                logger.error(f"❌ 批处理更新错误: {e}")
+        
+        # 检查处理完这一轮后是否有新观察者
+        if _deferred_updates:
+            logger.info(f"🔄 第{round_number}轮完成，发现 {len(_deferred_updates)} 个新观察者，进入第{round_number + 1}轮...")
+            round_number += 1
+        else:
+            logger.info(f"🏁 批处理完成，共 {round_number} 轮")
+            break
 
 class BatchUpdater:
     """向后兼容的批量更新系统"""
@@ -306,10 +322,15 @@ class Computed(Generic[T]):
         return True
     
     def _notify_observers(self):
-        """🚀 通知观察者 - 批处理版本"""
+        """🚀 通知观察者 - 不启动新批处理，直接加入当前批处理队列"""
+        if not self._observers:
+            return
+            
         observers = list(self._observers)  # 创建副本避免并发修改
-        logger.debug(f"Computed[{id(self)}]._notify_observers: 通知 {len(observers)} 个观察者")
+        logger.debug(f"Computed[{id(self)}]._notify_observers: 通知 {len(observers)} 个观察者（直接加入队列）")
         
+        # ❌ 不启动新的批处理，避免嵌套批处理问题
+        # 直接将观察者加入当前的批处理队列
         for i, observer in enumerate(observers):
             try:
                 # 🆕 智能更新检查
@@ -338,15 +359,19 @@ class Computed(Generic[T]):
 
     def _invalidate(self):
         """标记为需要重新计算并通知"""
+        logger.info(f"Computed[{id(self)}]._invalidate: dirty={self._dirty}")
         if not self._dirty:  # 避免重复失效
             self._dirty = True
-            logger.debug(f"Computed[{id(self)}]: 标记为脏")
+            logger.info(f"Computed[{id(self)}]: 标记为脏，开始通知观察者")
             self._notify_observers()
+        else:
+            logger.info(f"Computed[{id(self)}]: 已经是脏状态，跳过通知观察者")
     
     def _rerun(self):
         """重新运行计算 - 与Effect接口兼容"""
-        logger.info(f"Computed[{id(self)}]._rerun: 收到重新运行请求")
-        self._invalidate()
+        logger.info(f"Computed[{id(self)}]._rerun: 收到重新运行请求，立即重新计算")
+        # 🚀 修复：直接重新计算，不只是标记为脏
+        self._recompute()
 
     def _notify_observers(self):
         """🚀 通知观察者 - 批处理优化"""
