@@ -15,24 +15,24 @@ import sys
 import os
 
 # 导入v4核心 - 使用正确的hibiki包导入
-from hibiki.core.managers import ManagerFactory
-from hibiki.core.styles import ComponentStyle, Display, FlexDirection, AlignItems, JustifyContent, px, percent
-from hibiki.core.reactive import Signal, Computed, Effect
-from hibiki.components.basic import (
+from hibiki.ui.core.managers import ManagerFactory
+from hibiki.ui.core.styles import ComponentStyle, Display, FlexDirection, AlignItems, JustifyContent, px, percent
+from hibiki.ui.core.reactive import Signal, Computed, Effect
+from hibiki.ui.components.basic import (
     Label, Button, TextField, Slider, Switch,
     TextArea, Checkbox, RadioButton, 
     ProgressBar, ImageView, PopUpButton, ComboBox
 )
-from hibiki.core.component import Container
+from hibiki.ui.core.component import Container
 
 # 导入表单系统
-from hibiki.components.forms import (
+from hibiki.ui.components.forms import (
     Form, FormField, FormBuilder, FormTemplates,
     RequiredValidator, EmailValidator, LengthValidator, NumberValidator, CustomValidator
 )
 
 # 导入高级布局系统
-from hibiki.components.layout import (
+from hibiki.ui.components.layout import (
     GridContainer, ResponsiveGrid, GridTemplate,
     HStack, VStack, ZStack,
     MasonryContainer, SplitView, ScrollableContainer,
@@ -40,20 +40,20 @@ from hibiki.components.layout import (
 )
 
 # 导入动画系统
-from hibiki.core.animation import (
+from hibiki.ui.core.animation import (
     animate, fade_in, fade_out, bounce,
     Animation, AnimationGroup, AnimationManager, AnimationCurve
 )
 
 # 导入主题系统
-from hibiki.theme import (
+from hibiki.ui.theme import (
     ThemeManager, Theme, PresetThemes, ThemeChangeEvent,
     get_theme_manager, get_current_theme, set_theme, get_color, get_font,
     ColorRole, TextStyle, AppearanceMode
 )
 
 # 导入自定义组件系统
-from hibiki.components.custom_view import CustomView, DrawingUtils
+from hibiki.ui.components.custom_view import CustomView, DrawingUtils
 import math
 import random
 

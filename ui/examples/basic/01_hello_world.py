@@ -9,7 +9,7 @@
 ✅ 使用ManagerFactory启动应用
 """
 
-from hibiki import Label, ManagerFactory, ComponentStyle, px
+from hibiki.ui import Label, ManagerFactory, ComponentStyle, px
 
 
 def main():

@@ -10,7 +10,7 @@
 ✅ 表单数据的响应式处理
 """
 
-from hibiki import (
+from hibiki.ui import (
     Signal,
     Computed,
     Label,

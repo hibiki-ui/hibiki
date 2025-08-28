@@ -10,8 +10,7 @@
 ✅ 观察状态变化如何自动更新UI
 """
 
-import hibiki
-from hibiki import (
+from hibiki.ui import (
     Signal,
     Computed,
     Effect,

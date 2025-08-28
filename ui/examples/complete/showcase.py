@@ -11,8 +11,7 @@
 ✅ 样式系统基础功能
 """
 
-import hibiki
-from hibiki import (
+from hibiki.ui import (
     # 核心系统
     Signal, Computed, Effect, create_signal, create_computed, create_effect,
     Component, UIComponent, Container,
