@@ -5,7 +5,10 @@
 基于 Hibiki UI 框架的智能音乐播放器 MVP
 """
 
-from hibiki.ui import ManagerFactory, Label, Container, ComponentStyle, px
+from hibiki.ui import (
+    ManagerFactory, Label, Container, ComponentStyle, px,
+    Display, FlexDirection, AlignItems, JustifyContent
+)
 from hibiki.music.core.app_state import MusicAppState
 
 class HibikiMusicApp:
@@ -90,9 +93,9 @@ class HibikiMusicApp:
             ],
             style=ComponentStyle(
                 padding=px(40),
-                display="flex",
-                flex_direction="column",
-                align_items="center"
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER
             )
         )
         
