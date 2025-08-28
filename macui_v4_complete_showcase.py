@@ -24,6 +24,12 @@ from core.reactive import Signal, Computed, Effect
 from components.basic import Label, Button, TextField, Slider, Switch
 from core.component import Container
 
+# 导入表单系统
+from components.forms import (
+    Form, FormField, FormBuilder, FormTemplates,
+    RequiredValidator, EmailValidator, LengthValidator, NumberValidator, CustomValidator
+)
+
 # PyObjC导入
 from AppKit import *
 from Foundation import *
@@ -51,6 +57,18 @@ class ShowcaseData:
         self.auto_save = Signal(True)
         self.text_input = Signal("输入一些文本...")
         
+        # 表单演示状态
+        self.form_data = Signal({
+            "name": "",
+            "email": "",
+            "age": 25,
+            "subscribe": False,
+            "bio": "",
+            "rating": 5
+        })
+        self.form_submit_count = Signal(0)
+        self.last_form_data = Signal({})
+        
         # 计算属性
         self.counter_doubled = Computed(lambda: self.counter.value * 2)
         self.counter_squared = Computed(lambda: self.counter.value ** 2)
@@ -66,6 +84,17 @@ class ShowcaseData:
             lambda: f"深色模式: {'开' if self.dark_mode.value else '关'} | "
                    f"通知: {'开' if self.notifications.value else '关'} | "
                    f"自动保存: {'开' if self.auto_save.value else '关'}"
+        )
+        
+        # 表单相关的计算属性
+        self.form_status = Computed(
+            lambda: f"表单提交次数: {self.form_submit_count.value} | "
+                   f"当前年龄: {self.form_data.value.get('age', 0)} | "
+                   f"订阅状态: {'是' if self.form_data.value.get('subscribe', False) else '否'}"
+        )
+        self.form_summary = Computed(
+            lambda: f"📝 姓名: {self.form_data.value.get('name', '未填写')} | "
+                   f"📧 邮箱: {self.form_data.value.get('email', '未填写')}"
         )
         
         # 统计信息
@@ -697,6 +726,331 @@ class ComponentsDemo:
         )
 
 # ================================
+# 📋 表单演示组件
+# ================================
+
+class FormsDemo:
+    """表单系统完整演示"""
+    
+    def __init__(self):
+        print("📋 FormsDemo初始化完成")
+    
+    def on_form_submit(self, form_data):
+        """表单提交处理"""
+        showcase_data.form_submit_count.value += 1
+        showcase_data.last_form_data.value = form_data.copy()
+        # 更新全局表单数据
+        showcase_data.form_data.value = form_data.copy()
+        print(f"📤 表单提交#{showcase_data.form_submit_count.value}: {form_data}")
+    
+    def on_form_reset(self):
+        """表单重置处理"""
+        initial_data = {
+            "name": "",
+            "email": "",
+            "age": 25,
+            "subscribe": False,
+            "bio": "",
+            "rating": 5
+        }
+        showcase_data.form_data.value = initial_data
+        print("🔄 表单已重置")
+    
+    def create_form_demo(self):
+        """创建表单演示界面"""
+        title = Label("📋 macUI v4 表单系统演示", 
+                     style=ComponentStyle(width=px(400), height=px(40)))
+        
+        # === 基础表单演示 ===
+        basic_form_section = self.create_basic_form()
+        
+        # === 验证器演示 ===
+        validation_section = self.create_validation_demo()
+        
+        # === 表单模板演示 ===
+        template_section = self.create_template_demo()
+        
+        # === 表单状态显示 ===
+        status_section = self.create_status_display()
+        
+        # 主容器
+        return Container(
+            children=[
+                title,
+                basic_form_section,
+                validation_section,
+                template_section,
+                status_section,
+                Label("✨ 支持响应式验证、数据绑定和模板系统", 
+                     style=ComponentStyle(width=px(400), height=px(25))),
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(20),
+                width=px(600),
+                height=px(800)
+            )
+        )
+    
+    def create_basic_form(self):
+        """创建基础表单"""
+        # 创建表单字段
+        name_field = TextField(
+            placeholder="请输入姓名",
+            style=ComponentStyle(width=px(200), height=px(30))
+        )
+        
+        email_field = TextField(
+            placeholder="请输入邮箱",
+            style=ComponentStyle(width=px(200), height=px(30))
+        )
+        
+        age_slider = Slider(
+            value=25, min_value=18, max_value=65,
+            style=ComponentStyle(width=px(200), height=px(30))
+        )
+        
+        rating_slider = Slider(
+            value=5, min_value=1, max_value=10,
+            style=ComponentStyle(width=px(200), height=px(30))
+        )
+        
+        subscribe_switch = Switch(
+            value=False,
+            style=ComponentStyle(width=px(60), height=px(30))
+        )
+        
+        bio_field = TextField(
+            placeholder="请输入个人简介（可选）",
+            style=ComponentStyle(width=px(200), height=px(30))
+        )
+        
+        # 创建FormField对象
+        form_fields = [
+            FormField(name_field, [
+                RequiredValidator("姓名不能为空"),
+                LengthValidator(2, 30, "姓名长度必须在2-30字符之间")
+            ], "name"),
+            
+            FormField(email_field, [
+                RequiredValidator("邮箱不能为空"),
+                EmailValidator("请输入有效的邮箱地址")
+            ], "email"),
+            
+            FormField(age_slider, [
+                NumberValidator(18, 65, "年龄必须在18-65岁之间")
+            ], "age"),
+            
+            FormField(rating_slider, [
+                NumberValidator(1, 10, "评分必须在1-10分之间")
+            ], "rating"),
+            
+            FormField(subscribe_switch, [], "subscribe"),
+            
+            FormField(bio_field, [
+                LengthValidator(0, 200, "个人简介不能超过200字符")
+            ], "bio")
+        ]
+        
+        # 创建Form容器
+        self.demo_form = Form(
+            fields=form_fields,
+            on_submit=self.on_form_submit,
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(10)
+            )
+        )
+        
+        # 创建提交和重置按钮
+        submit_btn = Button(
+            "📤 提交表单",
+            on_click=lambda: self.demo_form.submit(),
+            style=ComponentStyle(width=px(120), height=px(30))
+        )
+        
+        reset_btn = Button(
+            "🔄 重置表单",
+            on_click=lambda: self.demo_form.reset(),
+            style=ComponentStyle(width=px(120), height=px(30))
+        )
+        
+        return Container(
+            children=[
+                Label("📝 基础表单演示", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+                
+                # 表单字段行
+                Container([
+                    Container([
+                        Label("姓名:", style=ComponentStyle(width=px(50), height=px(30))),
+                        name_field
+                    ], style=ComponentStyle(display=Display.FLEX, flex_direction=FlexDirection.ROW, gap=px(10))),
+                    
+                    Container([
+                        Label("邮箱:", style=ComponentStyle(width=px(50), height=px(30))),
+                        email_field
+                    ], style=ComponentStyle(display=Display.FLEX, flex_direction=FlexDirection.ROW, gap=px(10))),
+                    
+                    Container([
+                        Label("年龄:", style=ComponentStyle(width=px(50), height=px(30))),
+                        age_slider,
+                        Label(Computed(lambda: f"{showcase_data.form_data.value.get('age', 25)}岁"),
+                             style=ComponentStyle(width=px(50), height=px(30)))
+                    ], style=ComponentStyle(display=Display.FLEX, flex_direction=FlexDirection.ROW, gap=px(10))),
+                    
+                    Container([
+                        Label("评分:", style=ComponentStyle(width=px(50), height=px(30))),
+                        rating_slider,
+                        Label(Computed(lambda: f"{showcase_data.form_data.value.get('rating', 5)}分"),
+                             style=ComponentStyle(width=px(50), height=px(30)))
+                    ], style=ComponentStyle(display=Display.FLEX, flex_direction=FlexDirection.ROW, gap=px(10))),
+                    
+                    Container([
+                        Label("订阅:", style=ComponentStyle(width=px(50), height=px(30))),
+                        subscribe_switch,
+                        Label(Computed(lambda: "✅" if showcase_data.form_data.value.get('subscribe', False) else "❌"),
+                             style=ComponentStyle(width=px(30), height=px(30)))
+                    ], style=ComponentStyle(display=Display.FLEX, flex_direction=FlexDirection.ROW, gap=px(10))),
+                    
+                    Container([
+                        Label("简介:", style=ComponentStyle(width=px(50), height=px(30))),
+                        bio_field
+                    ], style=ComponentStyle(display=Display.FLEX, flex_direction=FlexDirection.ROW, gap=px(10))),
+                    
+                ], style=ComponentStyle(display=Display.FLEX, flex_direction=FlexDirection.COLUMN, gap=px(5))),
+                
+                # 按钮组
+                Container(
+                    children=[submit_btn, reset_btn],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        gap=px(10)
+                    )
+                )
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(10)
+            )
+        )
+    
+    def create_validation_demo(self):
+        """创建验证器演示"""
+        return Container(
+            children=[
+                Label("🔍 验证器演示", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+                
+                # 表单验证状态显示
+                Container(
+                    children=[
+                        Label("验证状态:", style=ComponentStyle(width=px(80), height=px(30))),
+                        Label(
+                            Computed(lambda: "✅ 通过" if hasattr(self, 'demo_form') and self.demo_form.is_valid.value else "❌ 有错误"),
+                            style=ComponentStyle(width=px(80), height=px(30))
+                        )
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        gap=px(10)
+                    )
+                ),
+                
+                # 错误信息显示
+                Label(
+                    Computed(lambda: f"错误: {', '.join(self.demo_form.validation_errors.value) if hasattr(self, 'demo_form') and self.demo_form.validation_errors.value else '无错误'}"),
+                    style=ComponentStyle(width=px(400), height=px(40))
+                ),
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(5)
+            )
+        )
+    
+    def create_template_demo(self):
+        """创建表单模板演示"""
+        def create_login_form():
+            """创建登录表单"""
+            login_form = FormTemplates.login_form(
+                lambda data: print(f"🔐 登录: {data}")
+            )
+            print(f"✅ 登录表单创建: {len(login_form.fields)} 字段")
+            return f"登录表单 ({len(login_form.fields)} 字段)"
+        
+        def create_register_form():
+            """创建注册表单"""
+            register_form = FormTemplates.registration_form(
+                lambda data: print(f"📝 注册: {data}")
+            )
+            print(f"✅ 注册表单创建: {len(register_form.fields)} 字段")
+            return f"注册表单 ({len(register_form.fields)} 字段)"
+        
+        return Container(
+            children=[
+                Label("📋 表单模板演示", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+                
+                Container(
+                    children=[
+                        Button("🔐 创建登录表单", 
+                              on_click=lambda: print(create_login_form()),
+                              style=ComponentStyle(width=px(150), height=px(30))),
+                        Button("📝 创建注册表单", 
+                              on_click=lambda: print(create_register_form()),
+                              style=ComponentStyle(width=px(150), height=px(30)))
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        gap=px(10)
+                    )
+                )
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(10)
+            )
+        )
+    
+    def create_status_display(self):
+        """创建状态显示"""
+        return Container(
+            children=[
+                Label("📊 表单状态显示", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+                
+                # 表单摘要
+                Label(showcase_data.form_summary, 
+                     style=ComponentStyle(width=px(400), height=px(30))),
+                
+                # 表单状态
+                Label(showcase_data.form_status, 
+                     style=ComponentStyle(width=px(400), height=px(30))),
+                
+                # 最后提交的数据
+                Label(
+                    Computed(lambda: f"📤 最后提交: {showcase_data.last_form_data.value}" if showcase_data.last_form_data.value else "📤 尚未提交"),
+                    style=ComponentStyle(width=px(500), height=px(40))
+                ),
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(5)
+            )
+        )
+
+# ================================
 # 🚀 主应用
 # ================================
 
@@ -709,6 +1063,7 @@ class ShowcaseApp:
         self.layout_demo = LayoutDemo()
         self.interaction_demo = InteractionDemo()
         self.components_demo = ComponentsDemo()
+        self.forms_demo = FormsDemo()
         
         # 当前演示页面
         self.current_demo = Signal("components")  # 默认显示组件演示
@@ -741,6 +1096,8 @@ class ShowcaseApp:
             return self.layout_demo.create_component()
         elif demo_name == "interaction":
             return self.interaction_demo.create_component()
+        elif demo_name == "forms":
+            return self.forms_demo.create_form_demo()
         else:
             # 默认返回组件演示
             return self.components_demo.create_component()
@@ -754,7 +1111,8 @@ class ShowcaseApp:
                 "components": "✅ 当前: 🧩 五大组件演示",
                 "reactive": "✅ 当前: 🔄 响应式系统演示", 
                 "layout": "✅ 当前: 📐 布局系统演示",
-                "interaction": "✅ 当前: 🎮 交互系统演示"
+                "interaction": "✅ 当前: 🎮 交互系统演示",
+                "forms": "✅ 当前: 📋 表单系统演示"
             }
             return status_map.get(demo_name, "🎨 macUI v4 框架演示")
         
@@ -797,7 +1155,7 @@ class ShowcaseApp:
         
         # 标题
         title = Label(
-            "🎨 macUI v4 Complete Showcase - 5大组件演示",
+            "🎨 macUI v4 Complete Showcase - 组件演示&表单系统",
             style=ComponentStyle(width=px(500), height=px(50))
         )
         
@@ -811,6 +1169,8 @@ class ShowcaseApp:
                 Button("📐 布局演示", on_click=self.switch_demo("layout"), 
                       style=ComponentStyle(width=px(100), height=px(35))),
                 Button("🎮 交互演示", on_click=self.switch_demo("interaction"), 
+                      style=ComponentStyle(width=px(100), height=px(35))),
+                Button("📋 表单演示", on_click=self.switch_demo("forms"), 
                       style=ComponentStyle(width=px(100), height=px(35))),
             ],
             style=ComponentStyle(

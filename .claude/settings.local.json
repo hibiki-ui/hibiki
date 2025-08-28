@@ -33,7 +33,8 @@
       "WebFetch(domain:reaktiv.readthedocs.io)",
       "Bash(git log:*)",
       "Bash(timeout 30 uv run:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": [],

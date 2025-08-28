@@ -247,8 +247,176 @@ def bind_enabled(view: Any, enabled_source: Union[Signal, Computed, bool]) -> 'E
     """绑定启用状态的便捷函数"""
     return ReactiveBinding.bind(view, "enabled", enabled_source)
 
+# ================================
+# 表单数据绑定扩展
+# ================================
+
+class FormDataBinding:
+    """表单数据绑定系统，支持双向数据绑定"""
+    
+    @staticmethod
+    def bind_form_field(view: Any, field_name: str, form_data: Signal) -> Callable[[], None]:
+        """绑定表单字段到表单数据Signal
+        
+        Args:
+            view: NSView控件实例
+            field_name: 字段名称
+            form_data: 包含表单数据字典的Signal
+            
+        Returns:
+            清理函数
+        """
+        logger.debug(f"FormDataBinding: 绑定字段 {field_name} 到 {type(view).__name__}")
+        
+        # 单向绑定：从form_data到UI
+        def update_ui():
+            try:
+                data_dict = form_data.value
+                if isinstance(data_dict, dict) and field_name in data_dict:
+                    field_value = data_dict[field_name]
+                    
+                    # 根据控件类型设置值
+                    if hasattr(view, 'setStringValue_'):
+                        # TextField类型
+                        view.setStringValue_(str(field_value))
+                    elif hasattr(view, 'setDoubleValue_'):
+                        # Slider类型
+                        view.setDoubleValue_(float(field_value))
+                    elif hasattr(view, 'setState_'):
+                        # Switch类型
+                        view.setState_(1 if bool(field_value) else 0)
+                    
+                    logger.debug(f"FormDataBinding: UI更新 {field_name} = {field_value}")
+                    
+            except Exception as e:
+                logger.error(f"FormDataBinding UI更新错误: {e}")
+        
+        # 创建Effect进行单向绑定
+        ui_effect = Effect(update_ui)
+        
+        # 双向绑定：从UI到form_data (需要UI控件支持change事件)
+        change_cleanup = None
+        if hasattr(view, 'setTarget_') and hasattr(view, 'setAction_'):
+            # 为支持target/action的控件创建双向绑定
+            change_cleanup = FormDataBinding._create_change_binding(view, field_name, form_data)
+        
+        # 存储effect到view上
+        if not hasattr(view, '_macui_form_effects'):
+            view._macui_form_effects = []
+        view._macui_form_effects.append(ui_effect)
+        
+        # 返回清理函数
+        def cleanup():
+            ui_effect.cleanup()
+            if change_cleanup:
+                change_cleanup()
+            if hasattr(view, '_macui_form_effects') and ui_effect in view._macui_form_effects:
+                view._macui_form_effects.remove(ui_effect)
+        
+        return cleanup
+    
+    @staticmethod
+    def _create_change_binding(view: Any, field_name: str, form_data: Signal) -> Callable[[], None]:
+        """创建UI到数据的变化绑定"""
+        try:
+            from Foundation import NSObject
+            import objc
+            
+            # 创建委托类处理UI变化
+            class FormFieldDelegate(NSObject):
+                def init(self):
+                    self = objc.super(FormFieldDelegate, self).init()
+                    if self is None:
+                        return None
+                    self.field_name = field_name
+                    self.form_data = form_data
+                    return self
+                
+                def fieldChanged_(self, sender):
+                    try:
+                        # 获取新值
+                        new_value = None
+                        if hasattr(sender, 'stringValue'):
+                            new_value = sender.stringValue()
+                        elif hasattr(sender, 'doubleValue'):
+                            new_value = sender.doubleValue()
+                        elif hasattr(sender, 'state'):
+                            new_value = bool(sender.state())
+                        
+                        # 更新form_data
+                        current_data = self.form_data.value.copy() if isinstance(self.form_data.value, dict) else {}
+                        current_data[self.field_name] = new_value
+                        self.form_data.value = current_data
+                        
+                        logger.debug(f"FormDataBinding: 数据更新 {self.field_name} = {new_value}")
+                        
+                    except Exception as e:
+                        logger.error(f"FormDataBinding 变化处理错误: {e}")
+            
+            # 创建并设置委托
+            delegate = FormFieldDelegate.alloc().init()
+            delegate.field_name = field_name
+            delegate.form_data = form_data
+            
+            view.setTarget_(delegate)
+            view.setAction_("fieldChanged:")
+            
+            # 存储委托引用防止被回收
+            if not hasattr(view, '_macui_form_delegates'):
+                view._macui_form_delegates = []
+            view._macui_form_delegates.append(delegate)
+            
+            # 返回清理函数
+            def cleanup():
+                if hasattr(view, '_macui_form_delegates') and delegate in view._macui_form_delegates:
+                    view._macui_form_delegates.remove(delegate)
+                    view.setTarget_(None)
+                    view.setAction_(None)
+            
+            return cleanup
+            
+        except Exception as e:
+            logger.error(f"创建变化绑定失败: {e}")
+            return lambda: None
+    
+    @staticmethod
+    def bind_form_data(form_container: Any, form_data: Signal, field_mappings: Dict[str, Any]) -> Callable[[], None]:
+        """批量绑定表单数据到容器中的控件
+        
+        Args:
+            form_container: 表单容器组件
+            form_data: 表单数据Signal
+            field_mappings: 字段名到控件的映射
+            
+        Returns:
+            清理函数
+        """
+        cleanup_functions = []
+        
+        for field_name, view in field_mappings.items():
+            cleanup_fn = FormDataBinding.bind_form_field(view, field_name, form_data)
+            cleanup_functions.append(cleanup_fn)
+        
+        logger.debug(f"FormDataBinding: 批量绑定完成，共 {len(field_mappings)} 个字段")
+        
+        # 返回组合清理函数
+        def cleanup_all():
+            for cleanup_fn in cleanup_functions:
+                cleanup_fn()
+        
+        return cleanup_all
+
+def bind_form_field(view: Any, field_name: str, form_data: Signal) -> Callable[[], None]:
+    """绑定表单字段的便捷函数"""
+    return FormDataBinding.bind_form_field(view, field_name, form_data)
+
+def bind_form_data(form_container: Any, form_data: Signal, field_mappings: Dict[str, Any]) -> Callable[[], None]:
+    """批量绑定表单数据的便捷函数"""
+    return FormDataBinding.bind_form_data(form_container, form_data, field_mappings)
+
 # 导出
 __all__ = [
-    'ReactiveBinding',
-    'bind_text', 'bind_visibility', 'bind_enabled'
+    'ReactiveBinding', 'FormDataBinding',
+    'bind_text', 'bind_visibility', 'bind_enabled',
+    'bind_form_field', 'bind_form_data'
 ]
