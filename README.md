@@ -1,372 +1,441 @@
-# Hibiki UI v2
+# Hibiki UI
 
-[![PyPI version](https://badge.fury.io/py/hibiki.svg)](https://badge.fury.io/py/hibiki)
+[![PyPI version](https://badge.fury.io/py/hibiki-ui.svg)](https://badge.fury.io/py/hibiki-ui)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A modern, Hibiki UI framework for native macOS apps using Python and PyObjC. Inspired by SolidJS, Hibiki UI v2 provides signal-based reactivity with fine-grained updates, directly manipulating native Cocoa views without a virtual DOM.
+A modern, reactive UI framework for native macOS applications using Python and PyObjC. Hibiki UI combines signal-based reactivity with native macOS components, providing a clean and powerful API for creating responsive user interfaces.
+
+## 🎯 Core Features
+
+- **🔄 Signal-based Reactivity** - Fine-grained reactive updates with Signal, Computed, and Effect primitives
+- **🍎 Native macOS Integration** - Direct PyObjC integration with native AppKit components
+- **⚡ High Performance** - GPU-accelerated animations using Core Animation APIs only
+- **🧩 Component Architecture** - Modern component-based development with lifecycle management
+- **📐 Professional Layout System** - Flexbox-style layout engine with precise control
+- **🎨 Complete UI Toolkit** - Full set of native macOS controls and widgets
+- **🔧 Type Safe** - Complete type annotations with excellent IDE support
 
 ## 🚀 Quick Start
 
-### Installation with uv (Recommended)
+### Installation
 
 ```bash
-# Install uv if you haven't already
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Using uv (recommended)
+uv add hibiki-ui
 
-# Create a new project
-uv init my-hibiki-app
-cd my-hibiki-app
-
-# Add hibiki as dependency
-uv add hibiki
-
-# Create your first app
-cat > main.py << 'EOF'
-from hibiki import HibikiApp, Signal, Computed
-from hibiki.components import Button, Label, VStack
-
-class CounterApp:
-    def __init__(self):
-        self.count = Signal(0)
-        self.count_text = Computed(lambda: f"Count: {self.count.value}")
-    
-    def increment(self):
-        self.count.value += 1
-    
-    def create_ui(self):
-        return VStack(children=[
-            Label(self.count_text),
-            Button("Click me!", on_click=self.increment)
-        ])
-
-def main():
-    app = HibikiApp("Counter Demo")
-    counter = CounterApp()
-    window = app.create_window("My First Hibiki UI App", content=counter.create_ui())
-    window.show()
-    app.run()
-
-if __name__ == "__main__":
-    main()
-EOF
-
-# Run your app
-uv run main.py
+# Using pip
+pip install hibiki-ui
 ```
 
-### Traditional Installation
+### Hello World Example
 
-```bash
-pip install hibiki
+```python
+from hibiki import Signal, Computed
+from hibiki import Label, Button, Container, ComponentStyle, px
+from hibiki import ManagerFactory
+
+# Create reactive state
+count = Signal(0)
+
+# Create UI components with reactive bindings
+button = Button(
+    "Click me",
+    style=ComponentStyle(width=px(120), height=px(32)),
+    on_click=lambda: setattr(count, 'value', count.value + 1)
+)
+
+label = Label(
+    Computed(lambda: f"Clicked {count.value} times"),
+    style=ComponentStyle(height=px(25))
+)
+
+# Create layout container
+app_ui = Container(
+    children=[label, button],
+    style=ComponentStyle(
+        display="flex",
+        flex_direction="column",
+        gap=px(10),
+        padding=px(20)
+    )
+)
+
+# Create and run application
+app_manager = ManagerFactory.get_app_manager()
+window = app_manager.create_window("Hello Hibiki UI", 300, 150)
+window.set_content(app_ui)
+app_manager.run()
 ```
-
-### Using CLI Tools
-
-```bash
-# Create a new project from template
-uv run hibiki create my-app
-
-# Show system information
-uv run hibiki info
-
-# Run examples
-uv run hibiki examples
-```
-
-## ✨ Key Features
-
-- 🎯 **Signal-based Reactivity** - Fine-grained reactive updates inspired by SolidJS
-- ⚡ **No Virtual DOM** - Direct manipulation of native NSViews for maximum performance  
-- 🍎 **Native macOS** - Full access to AppKit and macOS-specific features
-- 🔓 **Zero Abstractions** - Direct PyObjC integration without limitations
-- 🧩 **Component Architecture** - Modern component-based development
-- 🔧 **Type Safe** - Complete type annotations with excellent IDE support
-- 📱 **Production Ready** - Proper lifecycle management and memory handling
 
 ## 🏗️ Architecture
 
 ```
-hibiki/
-├── core/                 # Core reactive system
-│   ├── signal.py        # Signal, Computed, Effect primitives  
-│   ├── component.py     # Component base class and lifecycle
-│   └── binding.py       # Reactive view bindings
-├── components/          # UI components
-│   ├── controls.py      # Button, TextField, Label, etc.
-│   └── layout.py        # VStack, HStack, ZStack, ScrollView
-├── app.py              # Application and window management
-└── cli.py              # Command-line tools
+Your Application Code
+       ↓
+Component System (Label, Button, Container)
+       ↓
+Reactive System (Signal, Computed, Effect) ← CORE
+       ↓
+Binding Layer (ReactiveBinding, Event handling)
+       ↓
+AppKit/PyObjC (NSView, NSButton, etc.)
 ```
 
-## 🎨 Reactive System
+## 🔄 Reactive System
 
 ### Signals - Reactive State
 
 ```python
-from hibiki import Signal, Computed, Effect
+from hibiki import Signal, Effect
 
-# Create reactive state
-count = Signal(0)
-name = Signal("World")
+# Create mutable reactive state
+user_name = Signal("Alice")
+user_age = Signal(25)
 
-# Signals automatically notify dependents when changed
-count.value = 5  # Triggers reactive updates
+# Signals automatically notify observers when changed
+user_name.value = "Bob"  # Triggers all dependent computations and effects
 ```
 
 ### Computed - Derived Values
 
 ```python
-# Computed values automatically update when dependencies change
-double_count = Computed(lambda: count.value * 2)
-greeting = Computed(lambda: f"Hello, {name.value}!")
+from hibiki import Computed
 
-print(double_count.value)  # 10 (automatically computed from count)
+# Computed values automatically recalculate when dependencies change
+full_info = Computed(lambda: f"{user_name.value} is {user_age.value} years old")
+is_adult = Computed(lambda: user_age.value >= 18)
+
+print(full_info.value)  # "Bob is 25 years old"
 ```
 
 ### Effects - Side Effects
 
 ```python
-# Effects run automatically when their dependencies change
-def log_count():
-    print(f"Count changed to: {count.value}")
+# Effects run when their reactive dependencies change
+def log_changes():
+    print(f"User info updated: {full_info.value}")
 
-effect = Effect(log_count)  # Runs immediately and on each count change
-count.value = 10  # Triggers the effect -> prints "Count changed to: 10"
+effect = Effect(log_changes)  # Runs immediately and on each change
+user_age.value = 30  # Triggers the effect
 ```
 
 ## 🧩 Component System
 
-### Basic Component
+### Basic Components
 
 ```python
-from hibiki import Component, Signal, Computed
-from hibiki.components import VStack, Label, Button
+from hibiki import (
+    Label, Button, TextField, Slider, Switch,
+    ProgressBar, ImageView, Checkbox, RadioButton
+)
 
-class CounterComponent(Component):
-    def __init__(self):
-        super().__init__()
-        self.count = self.create_signal(0)  # Component-managed signal
-        self.count_text = self.create_computed(lambda: f"Count: {self.count.value}")
-    
-    def increment(self):
-        self.count.value += 1
-    
-    def mount(self):
-        return VStack(children=[
-            Label(self.count_text),  # Automatically updates
-            Button("Increment", on_click=self.increment)
-        ])
+# Text display with reactive content
+status_label = Label(
+    Computed(lambda: f"Status: {'Online' if connected.value else 'Offline'}"),
+    style=ComponentStyle(color="green" if connected.value else "red")
+)
+
+# Interactive button with dynamic state
+action_button = Button(
+    title=Computed(lambda: "Disconnect" if connected.value else "Connect"),
+    enabled=Computed(lambda: not is_loading.value),
+    on_click=toggle_connection
+)
+
+# Two-way data binding with text input
+username_field = TextField(
+    value=username_signal,  # Automatic two-way binding
+    placeholder="Enter username...",
+    style=ComponentStyle(width=px(200))
+)
 ```
 
-### Reactive UI Components
+### Layout Components
 
 ```python
-from hibiki.components import Button, Label, TextField, VStack, HStack
+from hibiki import Container
 
-# Reactive button with dynamic title
-button = Button(
-    title=Computed(lambda: f"Clicked {clicks.value} times"),
-    on_click=lambda: setattr(clicks, 'value', clicks.value + 1),
-    enabled=Computed(lambda: clicks.value < 10)  # Disable after 10 clicks
+# Flexbox-style layouts
+header = Container(
+    children=[logo, title, menu_button],
+    style=ComponentStyle(
+        display="flex",
+        flex_direction="row",
+        justify_content="space-between",
+        align_items="center",
+        padding=px(15)
+    )
 )
 
-# Two-way data binding with text field
-text = Signal("Type here...")
-field = TextField(
-    value=text,  # Automatic two-way binding
-    placeholder="Enter text..."
+sidebar = Container(
+    children=[nav_menu, user_profile],
+    style=ComponentStyle(
+        display="flex",
+        flex_direction="column",
+        width=px(250),
+        background_color="lightgray"
+    )
 )
 
-# Layout with reactive visibility
-ui = VStack(children=[
-    Label("Reactive Demo"),
-    field,
-    Show(
-        when=Computed(lambda: len(text.value) > 0),  # Conditional rendering
-        children=lambda: Label(f"You typed: {text.value}")
-    ),
-    button
+main_content = Container(
+    children=[content_area],
+    style=ComponentStyle(
+        flex=1,  # Takes remaining space
+        padding=px(20)
+    )
+)
+
+app_layout = Container(
+    children=[header, Container(children=[sidebar, main_content])],
+    style=ComponentStyle(
+        display="flex",
+        flex_direction="column",
+        height=px(600)
+    )
+)
+```
+
+## 🎨 Advanced Features
+
+### Form Handling
+
+```python
+from hibiki import Form, FormField, RequiredValidator, EmailValidator
+
+# Create form with validation
+contact_form = Form([
+    FormField("name", TextField(), [RequiredValidator("Name is required")]),
+    FormField("email", TextField(), [EmailValidator(), RequiredValidator()]),
+    FormField("age", TextField(), [NumberValidator(min_value=0, max_value=120)])
 ])
+
+# Handle form submission
+def submit_form():
+    if contact_form.is_valid():
+        data = contact_form.get_data()
+        print(f"Submitting: {data}")
+    else:
+        print("Form has errors:", contact_form.get_errors())
 ```
 
-## 📱 Application Framework
-
-### Complete Application
+### Animations
 
 ```python
-from hibiki import HibikiApp, Component, Signal, Computed
-from hibiki.components import VStack, HStack, Label, Button, TextField
+from hibiki import animate, fade_in, bounce
 
-class TodoApp(Component):
-    def __init__(self):
+# Simple declarative animations
+animate(my_button, duration=0.3, scale=1.1, opacity=0.9)
+
+# Preset animation effects
+fade_in(welcome_label, duration=1.0)
+bounce(notification_view, scale=1.05)
+
+# Reactive animations
+effect = Effect(lambda: animate(
+    status_indicator,
+    opacity=1.0 if is_online.value else 0.3,
+    duration=0.2
+))
+```
+
+### Custom Components
+
+```python
+from hibiki import UIComponent
+
+class CounterWidget(UIComponent):
+    def __init__(self, initial_value=0):
         super().__init__()
-        self.todos = self.create_signal([])
-        self.new_todo = self.create_signal("")
-        self.todo_count = self.create_computed(lambda: len(self.todos.value))
+        self.count = Signal(initial_value)
+        self.count_text = Computed(lambda: f"Count: {self.count.value}")
+    
+    def _create_nsview(self):
+        # Create container with label and buttons
+        container = Container(
+            children=[
+                Button("-", on_click=lambda: setattr(self.count, 'value', self.count.value - 1)),
+                Label(self.count_text, style=ComponentStyle(min_width=px(60))),
+                Button("+", on_click=lambda: setattr(self.count, 'value', self.count.value + 1))
+            ],
+            style=ComponentStyle(
+                display="flex",
+                flex_direction="row",
+                gap=px(5),
+                align_items="center"
+            )
+        )
+        return container.mount()
+
+# Usage
+counter = CounterWidget(initial_value=10)
+```
+
+## 🎭 Complete Application Example
+
+```python
+from hibiki import *
+
+class TodoApp:
+    def __init__(self):
+        self.todos = Signal([])
+        self.new_todo_text = Signal("")
+        self.filter_mode = Signal("all")  # "all", "active", "completed"
     
     def add_todo(self):
-        if self.new_todo.value.strip():
-            self.todos.value = [*self.todos.value, self.new_todo.value.strip()]
-            self.new_todo.value = ""
+        text = self.new_todo_text.value.strip()
+        if text:
+            new_todo = {"id": len(self.todos.value), "text": text, "completed": False}
+            self.todos.value = [*self.todos.value, new_todo]
+            self.new_todo_text.value = ""
     
-    def mount(self):
-        return VStack(padding=20, spacing=15, children=[
-            Label("Todo App"),
-            
-            HStack(spacing=10, children=[
-                TextField(
-                    value=self.new_todo,
-                    placeholder="Add a new todo...",
-                    on_enter=self.add_todo
-                ),
-                Button("Add", on_click=self.add_todo)
-            ]),
-            
-            Label(Computed(lambda: f"Total todos: {self.todo_count.value}")),
-            
-            # Dynamic list rendering
-            For(
-                items=self.todos,
-                render_fn=lambda todo, index: Label(f"{index + 1}. {todo}")
-            )
-        ])
+    def toggle_todo(self, todo_id):
+        todos = self.todos.value
+        updated_todos = []
+        for todo in todos:
+            if todo["id"] == todo_id:
+                updated_todos.append({**todo, "completed": not todo["completed"]})
+            else:
+                updated_todos.append(todo)
+        self.todos.value = updated_todos
+    
+    def create_ui(self):
+        # Computed values
+        active_count = Computed(lambda: sum(1 for todo in self.todos.value if not todo["completed"]))
+        filtered_todos = Computed(lambda: self._filter_todos())
+        
+        # UI components
+        header = Container([
+            Label("Todo App", style=ComponentStyle(font_size=px(24), font_weight="bold")),
+            TextField(
+                value=self.new_todo_text,
+                placeholder="What needs to be done?",
+                on_enter=self.add_todo
+            ),
+            Button("Add Todo", on_click=self.add_todo)
+        ], style=ComponentStyle(gap=px(10)))
+        
+        # Dynamic todo list
+        todo_list = Container([
+            *[self._create_todo_item(todo) for todo in filtered_todos.value]
+        ], style=ComponentStyle(gap=px(5)))
+        
+        footer = Container([
+            Label(Computed(lambda: f"{active_count.value} items left")),
+            Container([
+                Button("All", on_click=lambda: setattr(self.filter_mode, 'value', "all")),
+                Button("Active", on_click=lambda: setattr(self.filter_mode, 'value', "active")),
+                Button("Completed", on_click=lambda: setattr(self.filter_mode, 'value', "completed"))
+            ], style=ComponentStyle(display="flex", flex_direction="row", gap=px(5)))
+        ], style=ComponentStyle(display="flex", justify_content="space-between"))
+        
+        return Container([header, todo_list, footer], style=ComponentStyle(
+            padding=px(20),
+            gap=px(15),
+            min_height=px(400)
+        ))
+    
+    def _filter_todos(self):
+        todos = self.todos.value
+        if self.filter_mode.value == "active":
+            return [todo for todo in todos if not todo["completed"]]
+        elif self.filter_mode.value == "completed":
+            return [todo for todo in todos if todo["completed"]]
+        return todos
+    
+    def _create_todo_item(self, todo):
+        return Container([
+            Checkbox(
+                checked=Signal(todo["completed"]),
+                on_change=lambda checked: self.toggle_todo(todo["id"])
+            ),
+            Label(todo["text"], style=ComponentStyle(
+                text_decoration="line-through" if todo["completed"] else "none"
+            ))
+        ], style=ComponentStyle(display="flex", flex_direction="row", gap=px(10)))
 
 def main():
-    app = HibikiApp("Todo App")
+    app = TodoApp()
     
-    window = app.create_window(
-        title="My Todo List",
-        size=(400, 500),
-        content=TodoApp()
-    )
+    # Create application
+    app_manager = ManagerFactory.get_app_manager()
+    window = app_manager.create_window("Hibiki UI Todo App", 500, 600)
+    window.set_content(app.create_ui())
     
-    window.show()
-    app.run()  # Uses AppHelper for proper lifecycle management
+    app_manager.run()
 
 if __name__ == "__main__":
     main()
 ```
 
-## 🔧 Development with uv
+## 📦 Development
 
 ### Project Setup
 
 ```bash
-# Initialize new project
-uv init my-hibiki-project
-cd my-hibiki-project
+# Clone the repository
+git clone https://github.com/hibiki-ui/hibiki-ui.git
+cd hibiki-ui
 
-# Add hibiki with development dependencies
-uv add hibiki[dev]
-
-# Install pre-commit hooks
+# Set up development environment
+uv sync --all-extras
 uv run pre-commit install
 ```
 
 ### Development Commands
 
 ```bash
+# Run the showcase demo
+uv run python showcase.py
+
 # Run tests
 uv run pytest
 
-# Code formatting
-uv run black .
-uv run isort .
-
-# Linting
+# Code quality
 uv run ruff check .
 uv run ruff check --fix .
-
-# Type checking
+uv run black .
+uv run isort .
 uv run mypy hibiki
 
 # Build package
 uv build
-
-# Run examples
-uv run python examples/counter.py
 ```
 
-### Development Dependencies
+## 🎯 Why Hibiki UI?
 
-The `[dev]` extra includes:
-- **Testing**: pytest, pytest-cov, pytest-xdist
-- **Code Quality**: ruff, black, isort, mypy
-- **Documentation**: sphinx, sphinx-rtd-theme  
-- **Tools**: pre-commit, build, twine
+### vs. Other macOS GUI Frameworks
 
-## 📖 Examples
-
-### Counter App
-```bash
-uv run python examples/counter.py
-```
-
-### Advanced Counter with Multiple States
-```bash
-uv run python examples/advanced_counter.py  
-```
-
-### Form Handling
-```bash
-uv run python examples/form_demo.py
-```
-
-## 🎯 Why Hibiki UI v2?
-
-### vs. Other GUI Frameworks
-
-| Feature | Hibiki UI v2 | Tkinter | PyQt/PySide | Kivy |
-|---------|----------|---------|-------------|------|
-| Native macOS | ✅ Full | ❌ Emulated | ⚠️ Themed | ❌ Custom |
+| Feature | Hibiki UI | Tkinter | PyQt/PySide | Kivy |
+|---------|-----------|---------|-------------|------|
+| Native macOS | ✅ Full AppKit | ❌ Emulated | ⚠️ Themed | ❌ Custom |
 | Reactive Updates | ✅ Automatic | ❌ Manual | ❌ Signals/Slots | ❌ Manual |
-| Performance | ✅ Native | ⚠️ Medium | ⚠️ Medium | ✅ Good |
+| Performance | ✅ Native | ⚠️ Medium | ⚠️ Good | ✅ Good |
 | macOS Integration | ✅ Complete | ❌ None | ⚠️ Limited | ❌ None |
-| Learning Curve | ✅ Gentle | ✅ Easy | ❌ Steep | ⚠️ Medium |
+| Learning Curve | ✅ Modern | ✅ Simple | ❌ Complex | ⚠️ Medium |
 | Bundle Size | ✅ Small | ✅ Small | ❌ Large | ⚠️ Medium |
+| Animation Support | ✅ GPU-accelerated | ❌ Limited | ⚠️ Basic | ✅ Good |
 
 ### Key Advantages
 
-- **Native Performance**: Direct AppKit integration, no abstraction overhead
-- **Reactive by Design**: Automatic UI updates, no manual DOM manipulation
-- **macOS-First**: Built specifically for macOS, leveraging platform strengths
-- **Modern Developer Experience**: Type hints, IDE support, modern tooling
-- **Production Ready**: Proper memory management, lifecycle handling
-
-## 📚 Documentation
-
-- [API Reference](docs/api.md)
-- [Component Guide](docs/components.md)
-- [Reactive Patterns](docs/reactivity.md)
-- [Best Practices](docs/best-practices.md)
-- [PyObjC Integration](docs/pyobjc.md)
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and development process.
-
-### Development Setup
-
-```bash
-git clone https://github.com/hibiki/hibiki.git
-cd hibiki
-uv sync --all-extras
-uv run pre-commit install
-uv run pytest
-```
+- **🍎 Native Performance**: Direct AppKit integration with zero abstraction overhead
+- **🔄 Reactive by Design**: Automatic UI updates, no manual DOM manipulation required
+- **🚀 Modern Developer Experience**: Type hints, IDE support, contemporary tooling
+- **🎨 Professional Animations**: GPU-accelerated Core Animation integration
+- **📱 Production Ready**: Proper memory management and lifecycle handling
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
 - **SolidJS** - Inspiration for the reactive system design
-- **PyObjC** - The foundation that makes this possible
-- **macOS AppKit** - The native UI framework we build upon
+- **PyObjC** - The foundation that makes this possible  
+- **AppKit** - The native macOS UI framework
+- **Core Animation** - GPU-accelerated animation system
 
 ---
 
-**Hibiki UI v2** - Bringing reactive, modern UI development to native macOS applications. 🍎✨
+**Hibiki UI** - Bringing reactive, modern UI development to native macOS applications. 🍎✨

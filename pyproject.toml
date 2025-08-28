@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "hibiki"
-version = "2.0.0"
-description = "A Hibiki UI framework for native macOS apps using Python and PyObjC"
+name = "hibiki-ui"
+version = "0.1.0"
+description = "A reactive UI framework for native macOS apps using Python and PyObjC"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
@@ -25,7 +25,7 @@ keywords = [
     "desktop"
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: MacOS",

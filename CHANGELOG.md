@@ -5,71 +5,65 @@ All notable changes to the Hibiki UI project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.1] - 2025-08-26
-
-### Fixed
-- **Critical Bug**: Fixed reactive system observer management issue
-  - Replaced WeakSet with regular set for Effect observers to prevent garbage collection
-  - Fixed UI components not updating when Signal values change
-  - Resolved button click handlers not triggering UI updates in counter application
-  - Improved observer notification mechanism with proper cleanup
-- Simplified batch update system to prevent infinite loops
-- Enhanced error handling in observer notification chain
-
-### Technical Improvements
-- Observer lifecycle management now uses explicit cleanup instead of weak references
-- Removed complex batch update system that was causing timing issues
-- Added comprehensive test suite for reactive system validation
-- Improved debugging and logging for reactive system troubleshooting
-
-### Testing
-- Added `test_reactive_fix.py` for core reactive system validation
-- Added `test_binding_simple.py` for UI binding verification
-- Added `test_counter_auto.py` for automated application testing
-- All reactive system tests now pass consistently
-
-## [2.0.0] - 2024-08-26
+## [0.1.0] - 2025-08-28
 
 ### Added
-- Signal-based reactive system with fine-grained reactivity
-- Computed properties with automatic dependency tracking
-- Effect system for side effects and UI updates
-- Component-based architecture with lifecycle management
-- Native macOS UI components via PyObjC integration
-- Reactive binding system for automatic UI updates
-- Event handling with proper target-action patterns
-- Layout components (VStack, HStack, ZStack, ScrollView)
-- Control components (Button, TextField, Label, Slider, Switch)
-- Application framework with window management
-- PyObjC command-line best practices implementation
-- CLI tools for project creation and management
-- Complete type annotations and IDE support
-- Comprehensive testing framework
-- Modern Python packaging with pyproject.toml
+- **🎉 Initial Release** - Complete reactive UI framework for native macOS applications
+- **🔄 Signal-based Reactivity** - Core reactive system with Signal, Computed, and Effect primitives
+- **🧩 Component System** - Modern component architecture with UIComponent base class
+- **📐 Professional Layout Engine** - Flexbox-style layout system with precise control
+- **🎨 Complete UI Toolkit** - Full set of native macOS components:
+  - Basic components: Label, Button, TextField, Slider, Switch
+  - Advanced components: TextArea, Checkbox, RadioButton, ProgressBar, ImageView
+  - Selection components: PopUpButton, ComboBox
+  - Layout components: Container with flexbox properties
+- **🎭 Form Handling System** - Complete form management with validation
+- **⚡ Animation System** - GPU-accelerated animations using Pure Core Animation
+- **🎨 Theme Management** - Comprehensive theme system with appearance mode support
+- **🔧 Advanced Layout Features** - Grid layouts, responsive design, and complex positioning
 
 ### Technical Features
-- Direct PyObjC integration (removed all mock objects)
-- AppHelper-based event loop for proper lifecycle management
-- Automatic menu bar creation with quit functionality
-- Proper application activation policy handling
-- Strong reference management to prevent garbage collection
-- Batch updates with CATransaction for performance
-- WeakSet-based observer management
-- Context-aware dependency tracking
+- **Native Performance** - Direct PyObjC integration with AppKit components
+- **Reaktiv-Inspired Optimizations** - Performance enhancements including:
+  - Version control system for intelligent dependency tracking
+  - Batch processing with deduplication for minimal UI updates
+  - Smart caching to avoid unnecessary recomputations
+  - Global version tracking for optimal performance
+- **Memory Management** - Proper lifecycle management and automatic cleanup
+- **Type Safety** - Complete type annotations with excellent IDE support
+- **Professional Architecture** - Layered architecture with clear separation of concerns
+
+### Animation System
+- **Pure Core Animation** - Strictly GPU-accelerated animations using Core Animation APIs
+- **Declarative API** - Simple animate() function with preset effects
+- **Signal Integration** - Reactive animations tied to state changes
+- **Performance First** - Zero threading or custom timing, all animations run on GPU
 
 ### Development Experience
-- Full uv package manager support
-- Modern tooling (ruff, black, mypy, pytest)
-- Pre-commit hooks for code quality
-- Comprehensive documentation
-- Multiple example applications
-- Interactive CLI for project scaffolding
+- **Modern Tooling** - Full uv package manager support
+- **Code Quality** - Integrated ruff, black, mypy, pytest
+- **Documentation** - Comprehensive README with examples
+- **Showcase Application** - Complete demo showing all features
+- **Project Structure** - Clean, organized codebase with clear documentation
+
+### Project Structure
+```
+hibiki/
+├── core/           # Core reactive system and architecture
+├── components/     # UI components and forms
+├── theme/          # Theme and appearance management
+└── showcase.py     # Complete feature demonstration
+```
 
 ### Breaking Changes
-- Complete rewrite from v1.x
-- Removed compatibility with older PyObjC versions
-- macOS-only support (removed cross-platform abstractions)
-- Requires Python 3.8+
+- Initial 0.1.0 release - no previous versions to break compatibility with
 
-## [1.0.0] - Previous Version
-- Initial release with basic PyObjC bindings
+### Migration from macUI
+- **Project Rename** - Complete migration from macUI to Hibiki UI
+- **Package Name** - Now available as `hibiki-ui` package
+- **Import Changes** - All imports now use `from hibiki import ...`
+- **Documentation** - Updated all documentation and examples
+
+---
+
+**Note**: Starting with v0.1.0, Hibiki UI follows semantic versioning. This release represents the foundation of the framework with all core features implemented and tested.
