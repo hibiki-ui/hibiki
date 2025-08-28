@@ -54,23 +54,43 @@ def _enqueue_update(observer):
     logger.info(f"📥 更新入队: {type(observer).__name__}[{id(observer)}]")
 
 def _flush_deferred_updates():
-    """🆕 批处理刷新 - 去重优化"""
+    """🆕 批处理刷新 - 依赖顺序优化"""
     if not _deferred_updates:
         return
     
-    # 去重处理：同一个观察者在一个批次中只处理一次
-    processed: Set[int] = set()
+    # 收集所有排队的观察者并去重
+    observers_to_process = []
+    processed_ids: Set[int] = set()
     
     while _deferred_updates:
         observer = _deferred_updates.popleft()
         observer_id = id(observer)
         
-        if observer_id in processed:
+        if observer_id not in processed_ids:
+            observers_to_process.append(observer)
+            processed_ids.add(observer_id)
+        else:
             logger.debug(f"⏭️  跳过重复更新: {type(observer).__name__}[{observer_id}]")
-            continue
-        
-        processed.add(observer_id)
-        logger.info(f"⚡ 执行更新: {type(observer).__name__}[{observer_id}]")
+    
+    # 🚀 按依赖顺序排序：Computed -> Effect
+    # 优先级：Computed(0) < Effect(1) < 其他(2)
+    def get_priority(observer):
+        if observer.__class__.__name__ == 'Computed':
+            return 0  # 最高优先级
+        elif observer.__class__.__name__ == 'Effect':
+            return 1  # 中等优先级
+        else:
+            return 2  # 最低优先级
+    
+    observers_to_process.sort(key=get_priority)
+    
+    logger.info(f"🔄 按依赖顺序处理 {len(observers_to_process)} 个观察者")
+    for i, observer in enumerate(observers_to_process):
+        logger.info(f"   {i+1}. {type(observer).__name__}[{id(observer)}] (优先级: {get_priority(observer)})")
+    
+    # 按排序后的顺序执行更新
+    for observer in observers_to_process:
+        logger.info(f"⚡ 执行更新: {type(observer).__name__}[{id(observer)}]")
         
         try:
             if hasattr(observer, '_rerun') and hasattr(observer, '_active'):
@@ -79,7 +99,6 @@ def _flush_deferred_updates():
                     observer._rerun()
                 else:
                     logger.info(f"   跳过 {type(observer).__name__} - inactive")
-                # 清理失活的观察者在各自的_notify_observers中处理
             elif hasattr(observer, '_rerun'):
                 logger.info(f"   调用 {type(observer).__name__}._rerun() - no active check")
                 observer._rerun()
@@ -264,6 +283,9 @@ class Computed(Generic[T]):
             if old_value != self._value:
                 self._version += 1
                 logger.debug(f"Computed[{id(self)}]: 版本更新 v{self._version-1} -> v{self._version}")
+                # 🚀 值改变时通知观察者
+                logger.debug(f"Computed[{id(self)}]: 值改变，通知观察者")
+                self._notify_observers()
             
             self._dirty = False
             self._global_version_seen = _global_version
@@ -283,6 +305,37 @@ class Computed(Generic[T]):
                 return needs_update
         return True
     
+    def _notify_observers(self):
+        """🚀 通知观察者 - 批处理版本"""
+        observers = list(self._observers)  # 创建副本避免并发修改
+        logger.debug(f"Computed[{id(self)}]._notify_observers: 通知 {len(observers)} 个观察者")
+        
+        for i, observer in enumerate(observers):
+            try:
+                # 🆕 智能更新检查
+                if hasattr(observer, '_needs_update'):
+                    if observer._needs_update(self):
+                        logger.debug(f"  观察者 {i+1}/{len(observers)}: {type(observer).__name__}[{id(observer)}] 需要更新")
+                        _enqueue_update(observer)
+                    else:
+                        logger.debug(f"  观察者 {i+1}/{len(observers)}: {type(observer).__name__}[{id(observer)}] 版本未变，跳过")
+                else:
+                    # 兼容现有Effect
+                    if hasattr(observer, '_active') and not observer._active:
+                        # 清理失活的Effect
+                        logger.debug(f"  观察者 {i+1}/{len(observers)}: Effect[{id(observer)}] 已失活，移除")
+                        self._observers.discard(observer)
+                    else:
+                        logger.debug(f"  观察者 {i+1}/{len(observers)}: {type(observer).__name__}[{id(observer)}] 加入批处理")
+                        _enqueue_update(observer)
+            except Exception as e:
+                logger.error(f"观察者 {i+1}/{len(observers)} 通知错误: {e}")
+                # 如果是失活的Effect，从观察者中移除
+                if hasattr(observer, '_active') and not observer._active:
+                    self._observers.discard(observer)
+        
+        logger.debug(f"Computed[{id(self)}]._notify_observers: 通知完成，剩余观察者: {len(self._observers)}")
+
     def _invalidate(self):
         """标记为需要重新计算并通知"""
         if not self._dirty:  # 避免重复失效

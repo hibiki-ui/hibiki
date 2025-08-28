@@ -31,7 +31,8 @@
       "Bash(pkill:*)",
       "WebFetch(domain:reactbits.dev)",
       "WebFetch(domain:reaktiv.readthedocs.io)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(timeout 30 uv run:*)"
     ],
     "deny": [],
     "ask": [],
