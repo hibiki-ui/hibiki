@@ -16,6 +16,9 @@ from .styles import ComponentStyle, StylePresets, px, percent, auto
 # 绑定系统
 from .binding import ReactiveBinding, FormDataBinding
 
+# 文本属性系统
+from .text_props import TextProps, TextStyles, text_props
+
 # 布局系统
 from .layout import get_layout_engine, LayoutNode, V4LayoutEngine
 
@@ -53,6 +56,11 @@ __all__ = [
     # 绑定系统
     'ReactiveBinding',
     'FormDataBinding',
+    
+    # 文本属性系统
+    'TextProps',
+    'TextStyles',
+    'text_props',
     
     # 布局系统
     'get_layout_engine',

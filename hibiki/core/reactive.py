@@ -1,7 +1,7 @@
 import threading
 from collections import deque
 from contextvars import ContextVar
-from typing import Callable, Generic, Optional, TypeVar, Dict, Set
+from typing import Callable, Generic, Optional, TypeVar, Dict, Set, Union, Any
 
 T = TypeVar("T")
 
@@ -151,7 +151,7 @@ batch_update = batch_updater.batch_update
 class Signal(Generic[T]):
     """🚀 优化版响应式信号 - 集成版本控制和智能缓存"""
 
-    _current_observer: ContextVar[Optional[Callable]] = ContextVar("observer", default=None)
+    _current_observer: ContextVar[Optional[Any]] = ContextVar("observer", default=None)
 
     def __init__(self, initial_value: T):
         self._value = initial_value
@@ -164,9 +164,9 @@ class Signal(Generic[T]):
         observer = Signal._current_observer.get()
         if observer:
             self._observers.add(observer)
-            # 🆕 记录观察者看到的版本
-            if hasattr(observer, '_dependency_versions'):
-                observer._dependency_versions[id(self)] = self._version
+            # 🆕 记录观察者看到的版本 - 只对 Computed 和 Effect 实例
+            if hasattr(observer, '_dependency_versions') and hasattr(observer, '_version'):
+                observer._dependency_versions[id(self)] = self._version  # type: ignore
             logger.debug(f"🔗 Signal[{id(self)}].get: 添加观察者 {type(observer).__name__}[{id(observer)}] (v{self._version}), 总观察者数: {len(self._observers)}")
         else:
             logger.debug(f"Signal[{id(self)}].get: 无当前观察者, 返回值: {self._value} (v{self._version})")
@@ -268,14 +268,14 @@ class Computed(Generic[T]):
         observer = Signal._current_observer.get()
         if observer:
             self._observers.add(observer)
-            # 🆕 记录观察者看到的版本
-            if hasattr(observer, '_dependency_versions'):
-                observer._dependency_versions[id(self)] = self._version
+            # 🆕 记录观察者看到的版本 - 只对 Computed 和 Effect 实例
+            if hasattr(observer, '_dependency_versions') and hasattr(observer, '_version'):
+                observer._dependency_versions[id(self)] = self._version  # type: ignore
             logger.debug(f"Computed[{id(self)}].get: 添加观察者 {type(observer).__name__}[{id(observer)}] (v{self._version}), 总观察者数: {len(self._observers)}")
         else:
             logger.debug(f"Computed[{id(self)}].get: 无当前观察者, 返回值: {self._value} (v{self._version})")
 
-        return self._value
+        return self._value  # type: ignore # _value is guaranteed to be T after _recompute()
 
     def _dependencies_changed(self) -> bool:
         """🆕 检查依赖版本是否变化"""
@@ -288,7 +288,7 @@ class Computed(Generic[T]):
         global _global_version
         
         # 设置当前观察者为自己
-        token = Signal._current_observer.set(self)
+        token = Signal._current_observer.set(self)  # type: ignore
         try:
             old_value = self._value
             self._value = self._fn()
@@ -371,34 +371,6 @@ class Computed(Generic[T]):
         # 🚀 修复：直接重新计算，不只是标记为脏
         self._recompute()
 
-    def _notify_observers(self):
-        """🚀 通知观察者 - 批处理优化"""
-        observers = list(self._observers)
-        logger.debug(f"Computed[{id(self)}]._notify_observers: 批处理通知 {len(observers)} 个观察者")
-        
-        for observer in observers:
-            try:
-                # 🆕 智能更新检查
-                if hasattr(observer, '_needs_update'):
-                    if observer._needs_update(self):
-                        logger.debug(f"  观察者 {type(observer).__name__}[{id(observer)}] 需要更新")
-                        _enqueue_update(observer)
-                    else:
-                        logger.debug(f"  观察者 {type(observer).__name__}[{id(observer)}] 版本未变，跳过")
-                else:
-                    # 兼容现有观察者
-                    if hasattr(observer, '_active') and not observer._active:
-                        # 清理失活的Effect
-                        logger.debug(f"  观察者 Effect[{id(observer)}] 已失活，移除")
-                        self._observers.discard(observer)
-                    else:
-                        logger.debug(f"  观察者 {type(observer).__name__}[{id(observer)}] 加入批处理")
-                        _enqueue_update(observer)
-            except Exception as e:
-                logger.error(f"Computed observer error: {e}")
-                # 如果是失活的Effect，从观察者中移除
-                if hasattr(observer, '_active') and not observer._active:
-                    self._observers.discard(observer)
 
     @property
     def value(self) -> T:
@@ -446,7 +418,7 @@ class Effect:
             self._cleanup_fn = None
 
         # 设置当前观察者为自己（而不是方法）
-        token = Signal._current_observer.set(self)
+        token = Signal._current_observer.set(self)  # type: ignore
         import threading
         thread_id = threading.get_ident()
         logger.debug(f"🎯 Effect[{id(self)}]: 线程ID={thread_id}, 设置为当前观察者，开始执行函数")
@@ -481,7 +453,7 @@ class Effect:
                 logger.debug(f"🔬 Effect[{id(self)}]: 函数globals中的Signal相关: {signal_in_globals}")
                 for key in signal_in_globals:
                     value = fn_globals.get(key)
-                    if hasattr(value, '_current_observer'):
+                    if value is not None and hasattr(value, '_current_observer'):
                         logger.debug(f"🔬 Effect[{id(self)}]: {key}._current_observer = {value._current_observer}")
                         logger.debug(f"🔬 Effect[{id(self)}]: {key}._current_observer.get() = {value._current_observer.get()}")
             

@@ -493,18 +493,122 @@ class MaskManager:
             print("🔓 遮罩已移除")
 
 # ================================
-# 7. 管理器工厂
+# 7. 应用程序管理器
+# ================================
+
+class AppWindow:
+    """应用程序窗口包装器"""
+    
+    def __init__(self, title: str, width: int, height: int):
+        from AppKit import NSWindow, NSWindowStyleMaskTitled, NSWindowStyleMaskClosable, NSWindowStyleMaskMiniaturizable, NSWindowStyleMaskResizable, NSBackingStoreBuffered
+        from Foundation import NSMakeRect
+        
+        # 创建窗口
+        style_mask = (NSWindowStyleMaskTitled | 
+                     NSWindowStyleMaskClosable | 
+                     NSWindowStyleMaskMiniaturizable | 
+                     NSWindowStyleMaskResizable)
+        
+        self.nswindow = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+            NSMakeRect(100, 100, width, height),
+            style_mask,
+            NSBackingStoreBuffered,
+            False
+        )
+        
+        self.nswindow.setTitle_(title)
+        self.nswindow.makeKeyAndOrderFront_(None)
+        self._content = None
+    
+    def set_content(self, component):
+        """设置窗口内容"""
+        self._content = component
+        if hasattr(component, 'mount'):
+            nsview = component.mount()
+            self.nswindow.setContentView_(nsview)
+        else:
+            print(f"⚠️ Component {component} doesn't have mount() method")
+
+class AppManager:
+    """应用程序管理器 - 处理应用启动、窗口管理等"""
+    
+    _instance: Optional['AppManager'] = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __init__(self):
+        if hasattr(self, '_initialized'):
+            return
+        self._initialized = True
+        
+        self._app = None
+        self._windows = []
+        self._setup_application()
+        print("📱 AppManager初始化完成")
+    
+    def _setup_application(self):
+        """设置NSApplication"""
+        from AppKit import NSApplication, NSApplicationActivationPolicyRegular, NSApp, NSMenu, NSMenuItem
+        from Foundation import NSStringFromSelector, NSObject
+        
+        # 创建应用程序实例
+        self._app = NSApplication.sharedApplication()
+        self._app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+        
+        # 创建基本菜单栏
+        main_menu = NSMenu.alloc().init()
+        app_menu_item = NSMenuItem.alloc().init()
+        main_menu.addItem_(app_menu_item)
+        
+        app_menu = NSMenu.alloc().init()
+        quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Quit", NSStringFromSelector("terminate:"), "q"
+        )
+        app_menu.addItem_(quit_item)
+        app_menu_item.setSubmenu_(app_menu)
+        
+        self._app.setMainMenu_(main_menu)
+    
+    def create_window(self, title: str, width: int = 800, height: int = 600) -> AppWindow:
+        """创建新窗口"""
+        window = AppWindow(title, width, height)
+        self._windows.append(window)
+        return window
+    
+    def run(self):
+        """运行应用程序"""
+        from PyObjCTools import AppHelper
+        print("🚀 启动应用程序事件循环...")
+        AppHelper.runEventLoop()
+    
+    def quit(self):
+        """退出应用程序"""
+        if self._app:
+            self._app.terminate_(None)
+
+# ================================
+# 8. 管理器工厂
 # ================================
 
 class ManagerFactory:
     """管理器工厂 - 统一创建和管理所有管理器实例"""
     
+    _app_manager: Optional[AppManager] = None
     _viewport_manager: Optional[ViewportManager] = None
     _layer_manager: Optional[LayerManager] = None
     _positioning_manager: Optional[PositioningManager] = None
     _transform_manager: Optional[TransformManager] = None
     _scroll_manager: Optional[ScrollManager] = None
     _mask_manager: Optional[MaskManager] = None
+    
+    @classmethod
+    def get_app_manager(cls) -> AppManager:
+        if cls._app_manager is None:
+            cls._app_manager = AppManager()
+        return cls._app_manager
     
     @classmethod
     def get_viewport_manager(cls) -> ViewportManager:
@@ -547,6 +651,7 @@ class ManagerFactory:
     def initialize_all(cls):
         """初始化所有管理器"""
         print("🏭 ManagerFactory: 初始化所有管理器...")
+        cls.get_app_manager()
         cls.get_viewport_manager()
         cls.get_layer_manager()
         cls.get_positioning_manager()

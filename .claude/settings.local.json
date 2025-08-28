@@ -35,7 +35,12 @@
       "Bash(timeout 30 uv run:*)",
       "Bash(git add:*)",
       "Bash(timeout:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "mcp__apple-docs__search_apple_docs",
+      "mcp__apple-docs__get_apple_doc_content",
+      "mcp__language-server__diagnostics",
+      "mcp__memory__create_entities",
+      "mcp__memory__add_observations"
     ],
     "deny": [],
     "ask": [],

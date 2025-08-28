@@ -7,13 +7,9 @@ name = "hibiki-ui"
 version = "0.1.0"
 description = "A reactive UI framework for native macOS apps using Python and PyObjC"
 readme = "README.md"
-license = {file = "LICENSE"}
-authors = [
-    {name = "Hibiki UI Team"},
-]
-maintainers = [
-    {name = "Hibiki UI Team"},
-]
+license = { file = "LICENSE" }
+authors = [{ name = "Hibiki UI Team" }]
+maintainers = [{ name = "Hibiki UI Team" }]
 keywords = [
     "macos",
     "gui",
@@ -22,16 +18,13 @@ keywords = [
     "ui",
     "cocoa",
     "native",
-    "desktop"
+    "desktop",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: MacOS",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -40,12 +33,12 @@ classifiers = [
     "Topic :: Software Development :: User Interfaces",
     "Framework :: AsyncIO",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "pyobjc>=11.1",
     "pyobjc-core>=10.0",
     "pyobjc-framework-cocoa>=10.0",
-    "pyobjc-framework-Quartz>=10.0",
+    "pyobjc-framework-Quartz>=11.0",
     "stretchable>=1.1.7",
 ]
 
@@ -58,18 +51,18 @@ dev = [
     "pytest-mock>=3.12.0",
     "pytest-asyncio>=0.21.0",
     "pytest-snapshot>=0.9.0",
-    
+
     # Linting and formatting
     "ruff>=0.6.0",
     "black>=24.0.0",
     "isort>=5.13.0",
     "mypy>=1.8.0",
-    
+
     # Documentation
-    "sphinx>=7.2.0",
+    "sphinx>=8.2.0",
     "sphinx-rtd-theme>=2.0.0",
-    "myst-parser>=3.0.0",
-    
+    "myst-parser>=4.0.0",
+
     # Development tools
     "pre-commit>=3.6.0",
     "twine>=5.0.0",
@@ -77,12 +70,10 @@ dev = [
 ]
 
 examples = [
-    "pillow>=10.0.0",  # For image handling in examples
+    "pillow>=10.0.0", # For image handling in examples
 ]
 
-full = [
-    "hibiki[dev,examples]",
-]
+full = ["hibiki[dev,examples]"]
 
 [project.urls]
 Homepage = "https://github.com/hibiki/hibiki"
@@ -128,7 +119,8 @@ select = [
     # Pyflakes
     "F",
     # Pycodestyle
-    "E", "W",
+    "E",
+    "W",
     # isort
     "I",
     # pydocstyle
@@ -149,23 +141,23 @@ select = [
     "Q",
 ]
 ignore = [
-    "D100",  # Missing docstring in public module
-    "D104",  # Missing docstring in public package
-    "D105",  # Missing docstring in magic method
-    "D107",  # Missing docstring in __init__
-    "D203",  # 1 blank line required before class docstring
-    "D213",  # Multi-line docstring summary should start at the second line
-    "E501",  # Line too long (handled by black)
+    "D100", # Missing docstring in public module
+    "D104", # Missing docstring in public package
+    "D105", # Missing docstring in magic method
+    "D107", # Missing docstring in __init__
+    "D203", # 1 blank line required before class docstring
+    "D213", # Multi-line docstring summary should start at the second line
+    "E501", # Line too long (handled by black)
 ]
 
 [tool.ruff.per-file-ignores]
 "examples/**" = [
-    "D",     # Don't require docstrings in examples
-    "T201",  # Allow print statements in examples
+    "D",    # Don't require docstrings in examples
+    "T201", # Allow print statements in examples
 ]
 "tests/**" = [
-    "D",     # Don't require docstrings in tests
-    "S101",  # Allow assert statements in tests
+    "D",    # Don't require docstrings in tests
+    "S101", # Allow assert statements in tests
 ]
 
 [tool.ruff.pydocstyle]
@@ -218,13 +210,7 @@ warn_unreachable = true
 strict_equality = true
 
 [[tool.mypy.overrides]]
-module = [
-    "AppKit.*",
-    "Foundation.*",
-    "Quartz.*",
-    "objc.*",
-    "PyObjCTools.*",
-]
+module = ["AppKit.*", "Foundation.*", "Quartz.*", "objc.*", "PyObjCTools.*"]
 ignore_missing_imports = true
 
 # Pytest configuration
@@ -254,11 +240,7 @@ markers = [
 [tool.coverage.run]
 branch = true
 source = ["hibiki"]
-omit = [
-    "tests/*",
-    "examples/*",
-    "hibiki/__main__.py",
-]
+omit = ["tests/*", "examples/*", "hibiki/__main__.py"]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -278,11 +260,7 @@ exclude_lines = [
 directory = "htmlcov"
 
 [dependency-groups]
-dev = [
-    "pytest-asyncio>=1.1.0",
-    "pytest-mock>=3.14.1",
-    "pytest-snapshot>=0.9.0",
-]
+dev = ["pytest-asyncio>=1.1.0", "pytest-mock>=3.14.1", "pytest-snapshot>=0.9.0"]
 
 # Pre-commit hooks configuration (separate file recommended)
 # To use pre-commit, create a .pre-commit-config.yaml file
