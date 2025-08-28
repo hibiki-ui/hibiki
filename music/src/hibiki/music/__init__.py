@@ -10,9 +10,7 @@ __author__ = "Hibiki Music Team"
 __description__ = "智能原生 macOS 音乐播放器"
 
 from .core import MusicAppState
-from .ui import MusicMainWindow
 
 __all__ = [
     "MusicAppState",
-    "MusicMainWindow",
 ]
