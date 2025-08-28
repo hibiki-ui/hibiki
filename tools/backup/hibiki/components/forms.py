@@ -175,7 +175,7 @@ class FormField:
         # 延迟绑定验证事件，避免在初始化时造成循环
         self._validation_effect = None
         
-        logger.info(f"📝 FormField创建: name='{self.name}', validators={len(self.validators)}")
+        print(f"📝 FormField创建: name='{self.name}', validators={len(self.validators)}")
     
     def _bind_validation(self):
         """绑定验证事件"""
@@ -188,9 +188,9 @@ class FormField:
                         self._validate_on_change()
                 
                 self._validation_effect = Effect(validation_callback)
-                logger.info(f"🔗 FormField验证绑定: {self.name}")
+                print(f"🔗 FormField验证绑定: {self.name}")
             except Exception as e:
-                logger.warning(f"⚠️ FormField验证绑定失败: {e}")
+                print(f"⚠️ FormField验证绑定失败: {e}")
     
     def _validate_on_change(self):
         """值变化时触发验证"""
@@ -223,13 +223,13 @@ class FormField:
             if not result.is_valid:
                 self.is_valid.value = False
                 self.validation_message.value = result.message
-                logger.error(f"❌ Field '{self.name}' validation failed: {result.message}")
+                print(f"❌ Field '{self.name}' validation failed: {result.message}")
                 return result
         
         # 所有验证器都通过
         self.is_valid.value = True
         self.validation_message.value = ""
-        logger.info(f"✅ Field '{self.name}' validation passed")
+        print(f"✅ Field '{self.name}' validation passed")
         return ValidationResult(True)
     
     def touch(self):
@@ -288,7 +288,7 @@ class Form(Container):
         # 创建验证状态计算属性
         self._create_validation_computed()
         
-        logger.info(f"📋 Form创建: fields={len(self.fields)}")
+        print(f"📋 Form创建: fields={len(self.fields)}")
     
     def add_field(self, field: FormField):
         """添加表单字段"""
@@ -300,7 +300,7 @@ class Form(Container):
         # 重新计算表单验证状态
         self._update_form_validation()
         
-        logger.info(f"➕ Form字段添加: '{field.name}'")
+        print(f"➕ Form字段添加: '{field.name}'")
     
     def remove_field(self, field_name: str):
         """移除表单字段"""
@@ -314,7 +314,7 @@ class Form(Container):
             # 重新计算表单验证状态
             self._update_form_validation()
             
-            logger.info(f"➖ Form字段移除: '{field_name}'")
+            print(f"➖ Form字段移除: '{field_name}'")
     
     def _create_validation_computed(self):
         """创建表单验证状态计算属性"""
@@ -355,7 +355,7 @@ class Form(Container):
         self.is_valid.value = all_valid
         self.validation_errors.value = errors
         
-        logger.error(f"📋 Form validation: valid={all_valid}, errors={len(errors)}")
+        print(f"📋 Form validation: valid={all_valid}, errors={len(errors)}")
         return all_valid
     
     def get_form_data(self) -> Dict[str, Any]:
@@ -382,17 +382,17 @@ class Form(Container):
                 elif hasattr(field.component, 'set_value'):
                     field.component.set_value(value)
         
-        logger.info(f"📋 Form数据设置: {list(data.keys())}")
+        print(f"📋 Form数据设置: {list(data.keys())}")
     
     def submit(self):
         """提交表单"""
         if self.is_submitting.value:
-            logger.warning("⚠️ Form已在提交中，忽略重复提交")
+            print("⚠️ Form已在提交中，忽略重复提交")
             return
         
         # 验证表单
         if not self.validate():
-            logger.error("❌ Form验证失败，不能提交")
+            print("❌ Form验证失败，不能提交")
             return
         
         # 设置提交状态
@@ -405,12 +405,12 @@ class Form(Container):
             # 调用提交回调
             if self.on_submit:
                 self.on_submit(form_data)
-                logger.info(f"✅ Form提交成功: {list(form_data.keys())}")
+                print(f"✅ Form提交成功: {list(form_data.keys())}")
             else:
-                logger.info("📋 Form数据已收集但无提交处理器")
+                print("📋 Form数据已收集但无提交处理器")
         
         except Exception as e:
-            logger.error(f"❌ Form提交失败: {e}")
+            print(f"❌ Form提交失败: {e}")
         
         finally:
             self.is_submitting.value = False
@@ -426,7 +426,7 @@ class Form(Container):
             elif hasattr(field.component, 'set_value'):
                 field.component.set_value(0)
         
-        logger.info("🔄 Form已重置")
+        print("🔄 Form已重置")
 
 # ================================
 # 便捷表单构建器
@@ -557,28 +557,28 @@ class FormTemplates:
 # ================================
 
 if __name__ == "__main__":
-    logger.info("🔧 Hibiki UI v4.0 表单系统测试\n")
+    print("🔧 Hibiki UI v4.0 表单系统测试\n")
     
     # 初始化管理器系统
     from core.managers import ManagerFactory
     ManagerFactory.initialize_all()
     
-    logger.info("🧪 验证器测试:")
+    print("🧪 验证器测试:")
     
     # 测试验证器
     required_validator = RequiredValidator()
-    logger.info(f"Required validation (empty): {required_validator.validate('')}")
-    logger.info(f"Required validation (filled): {required_validator.validate('hello')}")
+    print(f"Required validation (empty): {required_validator.validate('')}")
+    print(f"Required validation (filled): {required_validator.validate('hello')}")
     
     email_validator = EmailValidator()
-    logger.info(f"Email validation (invalid): {email_validator.validate('invalid-email')}")
-    logger.info(f"Email validation (valid): {email_validator.validate('test@example.com')}")
+    print(f"Email validation (invalid): {email_validator.validate('invalid-email')}")
+    print(f"Email validation (valid): {email_validator.validate('test@example.com')}")
     
-    logger.info("\n📋 表单构建器测试:")
+    print("\n📋 表单构建器测试:")
     
     # 使用构建器创建表单
     def handle_submit(data):
-        logger.info(f"📤 Form submitted: {data}")
+        print(f"📤 Form submitted: {data}")
     
     form = (FormBuilder()
             .add_text_field("name", validators=[RequiredValidator(), LengthValidator(2, 50)])
@@ -588,12 +588,12 @@ if __name__ == "__main__":
             .on_submit(handle_submit)
             .build())
     
-    logger.info(f"Form created with {len(form.fields)} fields")
+    print(f"Form created with {len(form.fields)} fields")
     
-    logger.info("\n🎯 表单模板测试:")
+    print("\n🎯 表单模板测试:")
     
     # 测试登录表单模板
     login_form = FormTemplates.login_form(handle_submit)
-    logger.info(f"Login form created with {len(login_form.fields)} fields")
+    print(f"Login form created with {len(login_form.fields)} fields")
     
-    logger.info("\n✅ 表单系统测试完成！")
+    print("\n✅ 表单系统测试完成！")

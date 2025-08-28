@@ -8,10 +8,6 @@ from dataclasses import dataclass
 from typing import Optional, Union
 from AppKit import NSFont, NSColor, NSTextAlignmentLeft, NSTextAlignmentCenter, NSTextAlignmentRight
 
-from .logging import get_logger
-logger = get_logger('core.text_props')
-
-
 @dataclass
 class TextProps:
     """文本属性类 - 关注点分离的文本样式管理

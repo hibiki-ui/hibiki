@@ -385,10 +385,10 @@ class Effect:
 
     def __init__(self, fn: Callable[[], None]):
         import traceback
-        logger.info(f"📍 Effect.__init__ 被调用! Effect ID: {id(self)}")
+        print(f"📍 Effect.__init__ 被调用! Effect ID: {id(self)}")
         stack_lines = traceback.format_stack()
         for i, line in enumerate(stack_lines[-5:-1]):  # 显示最近4层调用栈
-            logger.info(f"   调用栈[{i}]: {line.strip()}")
+            print(f"   调用栈[{i}]: {line.strip()}")
         
         self._fn = fn
         self._cleanup_fn: Optional[Callable[[], None]] = None

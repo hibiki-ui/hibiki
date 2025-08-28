@@ -717,39 +717,39 @@ class LayoutAnimator:
 # ================================
 
 if __name__ == "__main__":
-    logger.info("Hibiki UI v4.0 高级布局组件测试\n")
+    print("Hibiki UI v4.0 高级布局组件测试\n")
     
     # 测试Grid容器
-    logger.info("📐 Grid容器测试:")
+    print("📐 Grid容器测试:")
     grid = GridContainer(
         columns="repeat(3, 1fr)",
         rows="100px auto",
         gap=16
     )
-    logger.info(f"Grid列定义: {grid.style.grid_template_columns}")
-    logger.info(f"Grid行定义: {grid.style.grid_template_rows}")
-    logger.info(f"Grid间距: {grid.style.gap}")
+    print(f"Grid列定义: {grid.style.grid_template_columns}")
+    print(f"Grid行定义: {grid.style.grid_template_rows}")
+    print(f"Grid间距: {grid.style.gap}")
     
     # 测试响应式Grid
-    logger.info("\n📱 响应式Grid测试:")
+    print("\n📱 响应式Grid测试:")
     responsive_grid = ResponsiveGrid(
         min_column_width=200,
         max_columns=4,
         gap=16
     )
-    logger.info(f"响应式Grid列模板: {responsive_grid.style.grid_template_columns}")
+    print(f"响应式Grid列模板: {responsive_grid.style.grid_template_columns}")
     
     # 测试Stack容器
-    logger.info("\n📚 Stack容器测试:")
+    print("\n📚 Stack容器测试:")
     vstack = VStack(spacing=12, alignment="center")
     hstack = HStack(spacing=8, distribution="space-between")
-    logger.info(f"VStack方向: {vstack.style.flex_direction}")
-    logger.info(f"HStack分布: {vstack.style.justify_content}")
+    print(f"VStack方向: {vstack.style.flex_direction}")
+    print(f"HStack分布: {vstack.style.justify_content}")
     
     # 测试瀑布流
-    logger.info("\n🌊 瀑布流测试:")
+    print("\n🌊 瀑布流测试:")
     masonry = MasonryContainer(columns=3, gap=16)
-    logger.info(f"瀑布流列数: {masonry.columns}")
-    logger.info(f"瀑布流Grid模板: {masonry.style.grid_template_columns}")
+    print(f"瀑布流列数: {masonry.columns}")
+    print(f"瀑布流Grid模板: {masonry.style.grid_template_columns}")
     
-    logger.info("\n✅ 高级布局组件测试完成！")
+    print("\n✅ 高级布局组件测试完成！")

@@ -13,12 +13,12 @@ from Foundation import NSMakeRect
 import sys
 import os
 sys.path.append(os.path.dirname(__file__))
-from .styles import ComponentStyle, StylePresets
-from .managers import (
+from styles import ComponentStyle, StylePresets
+from managers import (
     ManagerFactory, ViewportManager, LayerManager, PositioningManager,
     TransformManager, ScrollManager, MaskManager, Position, OverflowBehavior
 )
-from .reactive import Signal, Computed, Effect, create_signal, create_computed, create_effect
+from reactive import Signal, Computed, Effect, create_signal, create_computed, create_effect
 from .animation import Animation, AnimationGroup, AnimationManager
 from .logging import get_logger
 
@@ -287,7 +287,7 @@ class UIComponent(Component):
         self._parent_container: Optional['UIComponent'] = None
         
         # 分层API接口 - 延迟导入避免循环依赖
-        from .api import HighLevelLayoutAPI, LowLevelLayoutAPI
+        from api import HighLevelLayoutAPI, LowLevelLayoutAPI
         self.layout = HighLevelLayoutAPI(self)
         self.advanced = LowLevelLayoutAPI(self)
         
@@ -965,7 +965,7 @@ if __name__ == "__main__":
             button.setButtonType_(NSButtonTypeMomentaryPushIn)
             return button
     
-    logger.info("🧪 组件创建和挂载测试:")
+    print("🧪 组件创建和挂载测试:")
     
     # 创建组件
     label = TestLabel("Hello World")

@@ -78,7 +78,7 @@ class ThemeManager:
         self._register_preset_themes()
         self._setup_appearance_tracking()
         
-        logger.info(f"🎨 ThemeManager初始化完成，默认主题: {self._current_theme.value}")
+        print(f"🎨 ThemeManager初始化完成，默认主题: {self._current_theme.value}")
     
     @classmethod
     def shared(cls) -> "ThemeManager":
@@ -134,7 +134,7 @@ class ThemeManager:
                 self._notify_theme_change(
                     ThemeChangeEvent(current_theme, current_theme, "appearance_change")
                 )
-                logger.info(f"🌗 主题响应外观变化: {appearance}")
+                print(f"🌗 主题响应外观变化: {appearance}")
         
         self._appearance_observer = self._appearance_manager.add_observer(on_appearance_change)
     
@@ -150,7 +150,7 @@ class ThemeManager:
                 try:
                     callback(event)
                 except Exception as e:
-                    logger.error(f"ThemeManager observer callback error: {e}")
+                    print(f"ThemeManager observer callback error: {e}")
     
     @property
     def current_theme(self) -> Signal[Theme]:
@@ -185,7 +185,7 @@ class ThemeManager:
         event = ThemeChangeEvent(old_theme, theme, "manual")
         self._notify_theme_change(event)
         
-        logger.info(f"🎨 主题已切换: {old_theme.name} -> {theme.name}")
+        print(f"🎨 主题已切换: {old_theme.name} -> {theme.name}")
     
     def set_theme_by_name(self, theme_name: str):
         """通过名称设置主题"""
@@ -193,13 +193,13 @@ class ThemeManager:
         if theme:
             self.set_theme(theme)
         else:
-            logger.error(f"❌ 未找到主题: {theme_name}")
-            logger.info(f"可用主题: {list(self._registered_themes.keys())}")
+            print(f"❌ 未找到主题: {theme_name}")
+            print(f"可用主题: {list(self._registered_themes.keys())}")
     
     def register_theme(self, theme: Theme):
         """注册自定义主题"""
         self._registered_themes[theme.name.lower().replace(" ", "_")] = theme
-        logger.info(f"📝 已注册主题: {theme.name}")
+        print(f"📝 已注册主题: {theme.name}")
     
     def get_registered_themes(self) -> Dict[str, Theme]:
         """获取所有注册的主题"""

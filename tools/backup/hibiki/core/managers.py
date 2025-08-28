@@ -11,10 +11,6 @@ from enum import Enum
 from AppKit import NSView, NSWindow, NSScrollView
 from Foundation import NSMakeRect, NSAffineTransform, NSBezierPath
 
-from .logging import get_logger
-logger = get_logger('core.managers')
-
-
 # ================================
 # 1. ViewportManager - 视口管理器
 # ================================

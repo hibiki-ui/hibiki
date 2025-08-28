@@ -190,10 +190,10 @@ class ReactiveBinding:
 
                         style_setter(view, actual_value)
                     else:
-                        logger.info(f"Unknown style property: {style_prop}")
+                        print(f"Unknown style property: {style_prop}")
 
             except Exception as e:
-                logger.error(f"Style binding error: {e}")
+                print(f"Style binding error: {e}")
 
         # 创建 Effect 来自动更新
         effect = Effect(update)

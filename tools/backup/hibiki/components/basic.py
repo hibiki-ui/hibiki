@@ -45,7 +45,7 @@ class ButtonDelegate(NSObject):
             try:
                 self.callback()
             except Exception as e:
-                logger.error(f"⚠️ 按钮点击回调错误: {e}")
+                print(f"⚠️ 按钮点击回调错误: {e}")
 
 # ================================
 # 1. Label - 文本标签组件
@@ -121,7 +121,7 @@ class Label(UIComponent):
             from core.reactive import Signal, Computed
         self._is_reactive_text = isinstance(text, (Signal, Computed))
         
-        logger.info(f"🏷️ Label创建: text='{text}', reactive={self._is_reactive_text}, text_props={bool(self.text_props)}")
+        print(f"🏷️ Label创建: text='{text}', reactive={self._is_reactive_text}, text_props={bool(self.text_props)}")
     
     def _create_nsview(self) -> NSView:
         """🚀 创建NSTextField作为Label"""
@@ -144,9 +144,9 @@ class Label(UIComponent):
         if binding_cleanup:
             # 如果有响应式绑定，记录清理函数以便后续清理
             self._bindings.append(binding_cleanup)
-            logger.info(f"🔗 Label响应式绑定已创建: {self.text}")
+            print(f"🔗 Label响应式绑定已创建: {self.text}")
         else:
-            logger.info(f"📝 Label静态文本已设置: {str(self.text)}")
+            print(f"📝 Label静态文本已设置: {str(self.text)}")
         
         # 多行文本支持配置
         label.setUsesSingleLineMode_(False)
@@ -165,7 +165,7 @@ class Label(UIComponent):
             # 设置字体
             font = self.text_props.to_nsfont()
             label.setFont_(font)
-            logger.info(f"🔤 Label字体: {font.fontName()}, 大小: {font.pointSize()}")
+            print(f"🔤 Label字体: {font.fontName()}, 大小: {font.pointSize()}")
             
             # 设置文字颜色
             color = self.text_props.to_nscolor()
@@ -175,7 +175,7 @@ class Label(UIComponent):
             alignment = self.text_props.get_text_alignment()
             label.setAlignment_(alignment)
             
-            logger.info(f"🎨 Label样式已应用: 字体={font.fontName()}, 对齐={alignment}")
+            print(f"🎨 Label样式已应用: 字体={font.fontName()}, 对齐={alignment}")
         
         return label
     
@@ -203,7 +203,7 @@ class Label(UIComponent):
             else:
                 content = str(text)
             self._nsview.setStringValue_(content)
-            logger.info(f"📝 Label文本更新: '{content}'")
+            print(f"📝 Label文本更新: '{content}'")
         
         return self
 
@@ -243,7 +243,7 @@ class Button(UIComponent):
         self.on_click = on_click
         self._target_delegate = None
         
-        logger.info(f"🔘 Button创建: title='{title}', has_click={on_click is not None}")
+        print(f"🔘 Button创建: title='{title}', has_click={on_click is not None}")
     
     def _create_nsview(self) -> NSView:
         """🚀 创建NSButton"""
@@ -268,7 +268,7 @@ class Button(UIComponent):
             # 使用全局ButtonDelegate类
             self._target_delegate = ButtonDelegate.alloc().init()
             if self._target_delegate is None:
-                logger.warning("⚠️ 无法创建ButtonDelegate")
+                print("⚠️ 无法创建ButtonDelegate")
                 return
                 
             self._target_delegate.callback = self.on_click
@@ -276,10 +276,10 @@ class Button(UIComponent):
             button.setTarget_(self._target_delegate)
             button.setAction_("buttonClicked:")
             
-            logger.info(f"🔗 Button点击事件已绑定")
+            print(f"🔗 Button点击事件已绑定")
             
         except Exception as e:
-            logger.warning(f"⚠️ Button事件绑定失败: {e}")
+            print(f"⚠️ Button事件绑定失败: {e}")
     
     def set_title(self, title: str) -> 'Button':
         """动态设置按钮标题
@@ -292,7 +292,7 @@ class Button(UIComponent):
         if self._nsview:
             self._nsview.setTitle_(title)
             self._nsview.sizeToFit()  # 重新调整尺寸
-            logger.info(f"📝 Button标题更新: '{title}'")
+            print(f"📝 Button标题更新: '{title}'")
         
         return self
     
@@ -306,7 +306,7 @@ class Button(UIComponent):
         
         if self._target_delegate:
             self._target_delegate.callback = callback
-            logger.info(f"🔗 Button点击回调已更新")
+            print(f"🔗 Button点击回调已更新")
         elif self._nsview:
             # 如果按钮已创建但没有事件绑定，重新绑定
             self._bind_click_event(self._nsview)
@@ -357,7 +357,7 @@ class TextField(UIComponent):
         self._is_reactive_value = isinstance(value, (Signal, Computed))
         self._delegate = None
         
-        logger.info(f"📝 TextField创建: value='{value}', placeholder='{placeholder}', reactive={self._is_reactive_value}")
+        print(f"📝 TextField创建: value='{value}', placeholder='{placeholder}', reactive={self._is_reactive_value}")
     
     def _create_nsview(self) -> NSView:
         """🚀 创建NSTextField作为文本输入框"""
@@ -382,14 +382,14 @@ class TextField(UIComponent):
         if binding_cleanup:
             # 如果有响应式绑定，记录清理函数以便后续清理
             self._bindings.append(binding_cleanup)
-            logger.info(f"🔗 TextField响应式绑定已创建: {self.value}")
+            print(f"🔗 TextField响应式绑定已创建: {self.value}")
         else:
-            logger.info(f"📝 TextField静态值已设置: {str(self.value)}")
+            print(f"📝 TextField静态值已设置: {str(self.value)}")
         
         # 设置占位符
         if self.placeholder:
             textfield.setPlaceholderString_(self.placeholder)
-            logger.info(f"💬 TextField占位符: '{self.placeholder}'")
+            print(f"💬 TextField占位符: '{self.placeholder}'")
         
         # 绑定文本改变事件
         if self.on_change:
@@ -403,7 +403,7 @@ class TextField(UIComponent):
             # 使用全局TextFieldDelegate类
             self._delegate = TextFieldDelegate.alloc().init()
             if self._delegate is None:
-                logger.warning("⚠️ 无法创建TextFieldDelegate")
+                print("⚠️ 无法创建TextFieldDelegate")
                 return
             
             self._delegate.callback = self.on_change
@@ -411,10 +411,10 @@ class TextField(UIComponent):
             
             textfield.setDelegate_(self._delegate)
             
-            logger.info(f"🔗 TextField文本改变事件已绑定")
+            print(f"🔗 TextField文本改变事件已绑定")
             
         except Exception as e:
-            logger.warning(f"⚠️ TextField事件绑定失败: {e}")
+            print(f"⚠️ TextField事件绑定失败: {e}")
     
     def get_text(self) -> str:
         """获取当前文本内容"""
@@ -438,7 +438,7 @@ class TextField(UIComponent):
             else:
                 content = str(text)
             self._nsview.setStringValue_(content)
-            logger.info(f"📝 TextField文本更新: '{content}'")
+            print(f"📝 TextField文本更新: '{content}'")
         
         return self
     
@@ -452,7 +452,7 @@ class TextField(UIComponent):
         
         if self._nsview:
             self._nsview.setPlaceholderString_(placeholder)
-            logger.info(f"💬 TextField占位符更新: '{placeholder}'")
+            print(f"💬 TextField占位符更新: '{placeholder}'")
         
         return self
 
@@ -486,10 +486,10 @@ class TextFieldDelegate(NSObject):
                 
                 # 调用回调函数
                 self.callback(current_text)
-                logger.info(f"📝 TextField文本改变: '{current_text}'")
+                print(f"📝 TextField文本改变: '{current_text}'")
                 
             except Exception as e:
-                logger.error(f"⚠️ TextField文本改变回调错误: {e}")
+                print(f"⚠️ TextField文本改变回调错误: {e}")
 
 # ================================
 # 4. Slider - 滑块组件
@@ -539,7 +539,7 @@ class Slider(UIComponent):
             from core.reactive import Signal, Computed
         self._is_reactive_value = isinstance(value, (Signal, Computed))
         
-        logger.info(f"🎚️ Slider创建: value={value}, range=[{min_value}, {max_value}], reactive={self._is_reactive_value}")
+        print(f"🎚️ Slider创建: value={value}, range=[{min_value}, {max_value}], reactive={self._is_reactive_value}")
     
     def _create_nsview(self) -> NSView:
         """🚀 创建NSSlider作为滑块"""
@@ -577,12 +577,12 @@ class Slider(UIComponent):
                 slider.setTarget_(self._delegate)
                 slider.setAction_("sliderChanged:")
                 
-                logger.info(f"🔗 Slider值变化事件已绑定")
+                print(f"🔗 Slider值变化事件已绑定")
                 
             except Exception as e:
-                logger.warning(f"⚠️ Slider事件绑定失败: {e}")
+                print(f"⚠️ Slider事件绑定失败: {e}")
         
-        logger.info(f"🎚️ NSSlider创建完成: range=[{self.min_value}, {self.max_value}]")
+        print(f"🎚️ NSSlider创建完成: range=[{self.min_value}, {self.max_value}]")
         return slider
     
     def get_value(self) -> float:
@@ -610,7 +610,7 @@ class Slider(UIComponent):
         
         if self._nsview:
             self._nsview.setDoubleValue_(value)
-            logger.info(f"🎚️ Slider值更新: {value}")
+            print(f"🎚️ Slider值更新: {value}")
         
         return self
     
@@ -632,7 +632,7 @@ class Slider(UIComponent):
             if current_value < min_value or current_value > max_value:
                 new_value = max(min_value, min(max_value, current_value))
                 self._nsview.setDoubleValue_(new_value)
-            logger.info(f"🎚️ Slider范围更新: [{min_value}, {max_value}]")
+            print(f"🎚️ Slider范围更新: [{min_value}, {max_value}]")
         
         return self
 
@@ -665,10 +665,10 @@ class SliderDelegate(NSObject):
                 
                 # 调用回调函数
                 self.callback(current_value)
-                logger.info(f"🎚️ Slider值变化: {current_value}")
+                print(f"🎚️ Slider值变化: {current_value}")
                 
             except Exception as e:
-                logger.error(f"⚠️ Slider值变化回调错误: {e}")
+                print(f"⚠️ Slider值变化回调错误: {e}")
 
 # ================================
 # 5. Switch - 开关组件  
@@ -712,7 +712,7 @@ class Switch(UIComponent):
             from core.reactive import Signal, Computed
         self._is_reactive_value = isinstance(value, (Signal, Computed))
         
-        logger.info(f"🔘 Switch创建: value={value}, reactive={self._is_reactive_value}")
+        print(f"🔘 Switch创建: value={value}, reactive={self._is_reactive_value}")
     
     def _create_nsview(self) -> NSView:
         """🚀 创建NSButton配置为开关样式"""
@@ -751,12 +751,12 @@ class Switch(UIComponent):
                 switch.setTarget_(self._delegate)
                 switch.setAction_("switchChanged:")
                 
-                logger.info(f"🔗 Switch状态变化事件已绑定")
+                print(f"🔗 Switch状态变化事件已绑定")
                 
             except Exception as e:
-                logger.warning(f"⚠️ Switch事件绑定失败: {e}")
+                print(f"⚠️ Switch事件绑定失败: {e}")
         
-        logger.info(f"🔘 NSButton(Switch)创建完成: state={self.get_value()}")
+        print(f"🔘 NSButton(Switch)创建完成: state={self.get_value()}")
         return switch
     
     def get_value(self) -> bool:
@@ -782,7 +782,7 @@ class Switch(UIComponent):
         
         if self._nsview:
             self._nsview.setState_(1 if value else 0)
-            logger.info(f"🔘 Switch状态更新: {value}")
+            print(f"🔘 Switch状态更新: {value}")
         
         return self
     
@@ -811,7 +811,7 @@ class SwitchDelegate(NSObject):
                 is_on = sender.state() == 1  # NSOnState = 1
                 self.callback(is_on)
             except Exception as e:
-                logger.error(f"⚠️ Switch切换回调错误: {e}")
+                print(f"⚠️ Switch切换回调错误: {e}")
 
 
 # ================================
@@ -867,7 +867,7 @@ class TextArea(UIComponent):
         self._bindings = []  # 存储绑定清理函数
         self._text_delegate = None
         
-        logger.info(f"📝 TextArea创建: text_length={len(str(text))}, editable={editable}")
+        print(f"📝 TextArea创建: text_length={len(str(text))}, editable={editable}")
     
     def _create_nsview(self) -> NSView:
         """创建多行文本编辑器NSView"""
@@ -918,7 +918,7 @@ class TextArea(UIComponent):
             from core.binding import ReactiveBinding
             binding_cleanup = ReactiveBinding.bind(text_view, "string", self.text)
             self._bindings.append(binding_cleanup)
-            logger.info(f"🔗 TextArea响应式绑定已创建")
+            print(f"🔗 TextArea响应式绑定已创建")
         
         # 保存文本视图引用以便后续操作
         self._text_view = text_view
@@ -934,7 +934,7 @@ class TextArea(UIComponent):
         
         text_view.setDelegate_(delegate)
         self._text_delegate = delegate  # 保持引用防止被垃圾回收
-        logger.info("🔗 TextArea文本变化事件已绑定")
+        print("🔗 TextArea文本变化事件已绑定")
     
     def get_text(self) -> str:
         """获取当前文本内容"""
@@ -956,7 +956,7 @@ class TextArea(UIComponent):
             else:
                 content = str(text)
             self._text_view.setString_(content)
-            logger.info(f"📝 TextArea文本更新: length={len(content)}")
+            print(f"📝 TextArea文本更新: length={len(content)}")
         
         return self
     
@@ -993,7 +993,7 @@ class TextAreaDelegate(NSObject):
                 new_text = text_view.string()
                 self.callback(new_text)
             except Exception as e:
-                logger.error(f"⚠️ TextArea文本变化回调错误: {e}")
+                print(f"⚠️ TextArea文本变化回调错误: {e}")
 
 
 # ================================
@@ -1040,7 +1040,7 @@ class Checkbox(UIComponent):
         self._bindings = []
         self._checkbox_delegate = None
         
-        logger.info(f"☑️ Checkbox创建: title='{title}', checked={checked}")
+        print(f"☑️ Checkbox创建: title='{title}', checked={checked}")
     
     def _create_nsview(self) -> NSView:
         """创建复选框NSView"""
@@ -1078,7 +1078,7 @@ class Checkbox(UIComponent):
             from core.reactive import Effect
             effect = Effect(update_checkbox_state)
             self._bindings.append(effect)
-            logger.info(f"🔗 Checkbox响应式绑定已创建")
+            print(f"🔗 Checkbox响应式绑定已创建")
         
         return checkbox
     
@@ -1091,7 +1091,7 @@ class Checkbox(UIComponent):
         checkbox.setTarget_(delegate)
         checkbox.setAction_("checkboxToggled:")
         self._checkbox_delegate = delegate
-        logger.info("🔗 Checkbox状态变化事件已绑定")
+        print("🔗 Checkbox状态变化事件已绑定")
     
     def get_checked(self) -> bool:
         """获取当前选中状态"""
@@ -1132,7 +1132,7 @@ class CheckboxDelegate(NSObject):
                 is_checked = sender.state() == 1
                 self.callback(is_checked)
             except Exception as e:
-                logger.error(f"⚠️ Checkbox状态变化回调错误: {e}")
+                print(f"⚠️ Checkbox状态变化回调错误: {e}")
 
 
 # ================================
@@ -1185,7 +1185,7 @@ class RadioButton(UIComponent):
         self._bindings = []
         self._radio_delegate = None
         
-        logger.info(f"🔘 RadioButton创建: title='{title}', value={self.value}, selected={selected}")
+        print(f"🔘 RadioButton创建: title='{title}', value={self.value}, selected={selected}")
     
     def _create_nsview(self) -> NSView:
         """创建单选按钮NSView"""
@@ -1223,7 +1223,7 @@ class RadioButton(UIComponent):
             from core.reactive import Effect
             effect = Effect(update_radio_state)
             self._bindings.append(effect)
-            logger.info(f"🔗 RadioButton响应式绑定已创建")
+            print(f"🔗 RadioButton响应式绑定已创建")
         
         return radio
     
@@ -1237,7 +1237,7 @@ class RadioButton(UIComponent):
         radio.setTarget_(delegate)
         radio.setAction_("radioSelected:")
         self._radio_delegate = delegate
-        logger.info("🔗 RadioButton选择事件已绑定")
+        print("🔗 RadioButton选择事件已绑定")
     
     def get_selected(self) -> bool:
         """获取当前选中状态"""
@@ -1279,7 +1279,7 @@ class RadioButtonDelegate(NSObject):
                 if sender.state() == 1:  # 只在选中时触发回调
                     self.callback(self.value)
             except Exception as e:
-                logger.error(f"⚠️ RadioButton选择回调错误: {e}")
+                print(f"⚠️ RadioButton选择回调错误: {e}")
 
 # ================================
 # 6. 显示组件 (Display Components)
@@ -1323,7 +1323,7 @@ class ProgressBar(UIComponent):
         # 初始化基础组件
         super().__init__(style=style)
         
-        logger.info(f"🔧 ProgressBar组件创建: value={self._get_value()}, max={self._get_maximum()}")
+        print(f"🔧 ProgressBar组件创建: value={self._get_value()}, max={self._get_maximum()}")
         
     def _get_value(self) -> float:
         """获取当前进度值"""
@@ -1362,7 +1362,7 @@ class ProgressBar(UIComponent):
         if self._is_reactive_maximum:
             self._bind_reactive_maximum()
             
-        logger.info(f"📊 ProgressBar NSProgressIndicator创建完成")
+        print(f"📊 ProgressBar NSProgressIndicator创建完成")
         return progress
     
     def _bind_reactive_value(self):
@@ -1374,7 +1374,7 @@ class ProgressBar(UIComponent):
             if self._progress_indicator and not self.indeterminate:
                 new_value = self.value.value
                 self._progress_indicator.setDoubleValue_(float(new_value))
-                logger.info(f"📊 ProgressBar值更新: {new_value}")
+                print(f"📊 ProgressBar值更新: {new_value}")
         
         # 使用Effect建立响应式绑定
         from core.reactive import Effect
@@ -1389,7 +1389,7 @@ class ProgressBar(UIComponent):
             if self._progress_indicator and not self.indeterminate:
                 new_maximum = self.maximum.value
                 self._progress_indicator.setMaxValue_(float(new_maximum))
-                logger.info(f"📊 ProgressBar最大值更新: {new_maximum}")
+                print(f"📊 ProgressBar最大值更新: {new_maximum}")
         
         # 使用Effect建立响应式绑定
         from core.reactive import Effect
@@ -1408,7 +1408,7 @@ class ProgressBar(UIComponent):
             if self._progress_indicator and not self.indeterminate:
                 self._progress_indicator.setDoubleValue_(float(value))
                 
-        logger.info(f"📊 ProgressBar进度更新: {value}")
+        print(f"📊 ProgressBar进度更新: {value}")
         return self
     
     def set_maximum(self, maximum: float) -> 'ProgressBar':
@@ -1424,21 +1424,21 @@ class ProgressBar(UIComponent):
             if self._progress_indicator and not self.indeterminate:
                 self._progress_indicator.setMaxValue_(float(maximum))
                 
-        logger.info(f"📊 ProgressBar最大值更新: {maximum}")
+        print(f"📊 ProgressBar最大值更新: {maximum}")
         return self
         
     def start_animation(self) -> 'ProgressBar':
         """开始动画（仅适用于不确定进度条）"""
         if self._progress_indicator and self.indeterminate:
             self._progress_indicator.startAnimation_(None)
-            logger.info(f"🎬 ProgressBar动画开始")
+            print(f"🎬 ProgressBar动画开始")
         return self
         
     def stop_animation(self) -> 'ProgressBar':
         """停止动画（仅适用于不确定进度条）"""
         if self._progress_indicator and self.indeterminate:
             self._progress_indicator.stopAnimation_(None)
-            logger.info(f"⏹️ ProgressBar动画停止")
+            print(f"⏹️ ProgressBar动画停止")
         return self
     
     def cleanup(self):
@@ -1474,7 +1474,7 @@ class ImageView(UIComponent):
         # 初始化基础组件
         super().__init__(style=style)
         
-        logger.info(f"🖼️ ImageView组件创建: path={image_path}, name={image_name}")
+        print(f"🖼️ ImageView组件创建: path={image_path}, name={image_name}")
     
     def _create_nsview(self) -> NSView:
         """创建NSImageView"""
@@ -1497,7 +1497,7 @@ class ImageView(UIComponent):
             
         self._image_view = image_view
         
-        logger.info(f"🖼️ ImageView NSImageView创建完成")
+        print(f"🖼️ ImageView NSImageView创建完成")
         return image_view
     
     def _load_image_from_path(self, image_view: NSImageView, path: str):
@@ -1506,11 +1506,11 @@ class ImageView(UIComponent):
             image = NSImage.alloc().initWithContentsOfFile_(path)
             if image:
                 image_view.setImage_(image)
-                logger.info(f"📁 图像加载成功: {path}")
+                print(f"📁 图像加载成功: {path}")
             else:
-                logger.warning(f"⚠️ 图像加载失败: {path}")
+                print(f"⚠️ 图像加载失败: {path}")
         except Exception as e:
-            logger.error(f"❌ 图像加载异常: {e}")
+            print(f"❌ 图像加载异常: {e}")
     
     def _load_image_from_name(self, image_view: NSImageView, name: str):
         """从应用包资源加载图像"""
@@ -1518,11 +1518,11 @@ class ImageView(UIComponent):
             image = NSImage.imageNamed_(name)
             if image:
                 image_view.setImage_(image)
-                logger.info(f"📦 系统图像加载成功: {name}")
+                print(f"📦 系统图像加载成功: {name}")
             else:
-                logger.warning(f"⚠️ 系统图像加载失败: {name}")
+                print(f"⚠️ 系统图像加载失败: {name}")
         except Exception as e:
-            logger.error(f"❌ 系统图像加载异常: {e}")
+            print(f"❌ 系统图像加载异常: {e}")
     
     def set_image_path(self, path: str) -> 'ImageView':
         """设置图像文件路径
@@ -1535,7 +1535,7 @@ class ImageView(UIComponent):
         if self._image_view:
             self._load_image_from_path(self._image_view, path)
             
-        logger.info(f"🖼️ ImageView图像路径更新: {path}")
+        print(f"🖼️ ImageView图像路径更新: {path}")
         return self
     
     def set_image_name(self, name: str) -> 'ImageView':
@@ -1549,7 +1549,7 @@ class ImageView(UIComponent):
         if self._image_view:
             self._load_image_from_name(self._image_view, name)
             
-        logger.info(f"🖼️ ImageView图像名称更新: {name}")
+        print(f"🖼️ ImageView图像名称更新: {name}")
         return self
     
     def set_scaling(self, scaling: str) -> 'ImageView':
@@ -1568,7 +1568,7 @@ class ImageView(UIComponent):
             else:  # "none"
                 self._image_view.setImageScaling_(NSImageScaleNone)
                 
-        logger.info(f"🖼️ ImageView缩放模式更新: {scaling}")
+        print(f"🖼️ ImageView缩放模式更新: {scaling}")
         return self
 
 
@@ -1605,10 +1605,10 @@ class PopUpButtonDelegate(NSObject):
                 
                 # 调用回调函数
                 self.callback(selected_index, selected_title)
-                logger.info(f"🔽 PopUpButton选择: index={selected_index}, title='{selected_title}'")
+                print(f"🔽 PopUpButton选择: index={selected_index}, title='{selected_title}'")
                 
             except Exception as e:
-                logger.error(f"⚠️ PopUpButton选择回调错误: {e}")
+                print(f"⚠️ PopUpButton选择回调错误: {e}")
 
 
 class PopUpButton(UIComponent):
@@ -1645,7 +1645,7 @@ class PopUpButton(UIComponent):
         # 初始化基础组件
         super().__init__(style=style)
         
-        logger.info(f"🔽 PopUpButton组件创建: items={len(self.items)}, selected={self._get_selected_index()}")
+        print(f"🔽 PopUpButton组件创建: items={len(self.items)}, selected={self._get_selected_index()}")
     
     def _get_selected_index(self) -> int:
         """获取当前选中索引"""
@@ -1677,7 +1677,7 @@ class PopUpButton(UIComponent):
         if self._is_reactive_selected:
             self._bind_reactive_selection()
             
-        logger.info(f"🔽 PopUpButton NSPopUpButton创建完成")
+        print(f"🔽 PopUpButton NSPopUpButton创建完成")
         return popup_button
     
     def _bind_selection_event(self, popup_button: NSPopUpButton):
@@ -1686,7 +1686,7 @@ class PopUpButton(UIComponent):
             # 创建委托
             self._target_delegate = PopUpButtonDelegate.alloc().init()
             if self._target_delegate is None:
-                logger.warning("⚠️ 无法创建PopUpButtonDelegate")
+                print("⚠️ 无法创建PopUpButtonDelegate")
                 return
                 
             self._target_delegate.callback = self.on_selection
@@ -1695,10 +1695,10 @@ class PopUpButton(UIComponent):
             popup_button.setTarget_(self._target_delegate)
             popup_button.setAction_("itemSelected:")
             
-            logger.info(f"🔗 PopUpButton选择事件已绑定")
+            print(f"🔗 PopUpButton选择事件已绑定")
             
         except Exception as e:
-            logger.warning(f"⚠️ PopUpButton事件绑定失败: {e}")
+            print(f"⚠️ PopUpButton事件绑定失败: {e}")
     
     def _bind_reactive_selection(self):
         """建立选中索引的响应式绑定"""
@@ -1710,7 +1710,7 @@ class PopUpButton(UIComponent):
                 new_index = self.selected_index.value
                 if 0 <= new_index < len(self.items):
                     self._popup_button.selectItemAtIndex_(new_index)
-                    logger.info(f"🔽 PopUpButton选中更新: index={new_index}")
+                    print(f"🔽 PopUpButton选中更新: index={new_index}")
         
         # 使用Effect建立响应式绑定
         from core.reactive import Effect
@@ -1734,7 +1734,7 @@ class PopUpButton(UIComponent):
             else:
                 self._popup_button.insertItemWithTitle_atIndex_(item, at_index)
         
-        logger.info(f"🔽 PopUpButton添加选项: '{item}' at {at_index if at_index != -1 else len(self.items)-1}")
+        print(f"🔽 PopUpButton添加选项: '{item}' at {at_index if at_index != -1 else len(self.items)-1}")
         return self
     
     def remove_item(self, index: int) -> 'PopUpButton':
@@ -1749,7 +1749,7 @@ class PopUpButton(UIComponent):
             if self._popup_button:
                 self._popup_button.removeItemAtIndex_(index)
             
-            logger.info(f"🔽 PopUpButton移除选项: '{removed_item}' at {index}")
+            print(f"🔽 PopUpButton移除选项: '{removed_item}' at {index}")
         
         return self
     
@@ -1766,7 +1766,7 @@ class PopUpButton(UIComponent):
             if self._popup_button and 0 <= index < len(self.items):
                 self._popup_button.selectItemAtIndex_(index)
                 
-        logger.info(f"🔽 PopUpButton选中设置: index={index}")
+        print(f"🔽 PopUpButton选中设置: index={index}")
         return self
     
     def cleanup(self):
@@ -1805,10 +1805,10 @@ class ComboBoxDelegate(NSObject):
                         self.combo_component.text = selected_value
                 
                 self.selection_callback(selected_index, selected_value)
-                logger.info(f"📝 ComboBox选择: index={selected_index}, value='{selected_value}'")
+                print(f"📝 ComboBox选择: index={selected_index}, value='{selected_value}'")
                 
             except Exception as e:
-                logger.error(f"⚠️ ComboBox选择回调错误: {e}")
+                print(f"⚠️ ComboBox选择回调错误: {e}")
     
     def controlTextDidChange_(self, notification):
         """文本输入变化事件处理"""
@@ -1826,10 +1826,10 @@ class ComboBoxDelegate(NSObject):
                         self.combo_component.text = current_text
                 
                 self.text_callback(current_text)
-                logger.info(f"📝 ComboBox文本变化: '{current_text}'")
+                print(f"📝 ComboBox文本变化: '{current_text}'")
                 
             except Exception as e:
-                logger.error(f"⚠️ ComboBox文本变化回调错误: {e}")
+                print(f"⚠️ ComboBox文本变化回调错误: {e}")
 
 
 class ComboBox(UIComponent):
@@ -1873,7 +1873,7 @@ class ComboBox(UIComponent):
         # 初始化基础组件
         super().__init__(style=style)
         
-        logger.info(f"📝 ComboBox组件创建: items={len(self.items)}, text='{self._get_text()}'")
+        print(f"📝 ComboBox组件创建: items={len(self.items)}, text='{self._get_text()}'")
     
     def _get_text(self) -> str:
         """获取当前文本"""
@@ -1906,7 +1906,7 @@ class ComboBox(UIComponent):
         if self._is_reactive_text:
             self._bind_reactive_text()
             
-        logger.info(f"📝 ComboBox NSComboBox创建完成")
+        print(f"📝 ComboBox NSComboBox创建完成")
         return combo_box
     
     def _bind_events(self, combo_box: NSComboBox):
@@ -1915,7 +1915,7 @@ class ComboBox(UIComponent):
             # 创建委托
             self._target_delegate = ComboBoxDelegate.alloc().init()
             if self._target_delegate is None:
-                logger.warning("⚠️ 无法创建ComboBoxDelegate")
+                print("⚠️ 无法创建ComboBoxDelegate")
                 return
                 
             self._target_delegate.text_callback = self.on_text_change
@@ -1925,10 +1925,10 @@ class ComboBox(UIComponent):
             # 设置委托
             combo_box.setDelegate_(self._target_delegate)
             
-            logger.info(f"🔗 ComboBox事件已绑定")
+            print(f"🔗 ComboBox事件已绑定")
             
         except Exception as e:
-            logger.warning(f"⚠️ ComboBox事件绑定失败: {e}")
+            print(f"⚠️ ComboBox事件绑定失败: {e}")
     
     def _bind_reactive_text(self):
         """建立文本的响应式绑定"""
@@ -1939,7 +1939,7 @@ class ComboBox(UIComponent):
             if self._combo_box:
                 new_text = self.text.value
                 self._combo_box.setStringValue_(new_text)
-                logger.info(f"📝 ComboBox文本更新: '{new_text}'")
+                print(f"📝 ComboBox文本更新: '{new_text}'")
         
         # 使用Effect建立响应式绑定
         from core.reactive import Effect
@@ -1956,7 +1956,7 @@ class ComboBox(UIComponent):
         if self._combo_box:
             self._combo_box.addItemWithObjectValue_(item)
         
-        logger.info(f"📝 ComboBox添加选项: '{item}'")
+        print(f"📝 ComboBox添加选项: '{item}'")
         return self
     
     def remove_item(self, item: str) -> 'ComboBox':
@@ -1971,7 +1971,7 @@ class ComboBox(UIComponent):
             if self._combo_box:
                 self._combo_box.removeItemWithObjectValue_(item)
             
-            logger.info(f"📝 ComboBox移除选项: '{item}'")
+            print(f"📝 ComboBox移除选项: '{item}'")
         
         return self
     
@@ -1988,7 +1988,7 @@ class ComboBox(UIComponent):
             if self._combo_box:
                 self._combo_box.setStringValue_(text)
                 
-        logger.info(f"📝 ComboBox文本设置: '{text}'")
+        print(f"📝 ComboBox文本设置: '{text}'")
         return self
     
     def cleanup(self):
@@ -2003,62 +2003,62 @@ class ComboBox(UIComponent):
 # ================================
 
 if __name__ == "__main__":
-    logger.info("Hibiki UI v4.0 基础组件测试\n")
+    print("Hibiki UI v4.0 基础组件测试\n")
     
     # 初始化管理器系统
     from core.managers import ManagerFactory
     ManagerFactory.initialize_all()
     
-    logger.info("🧪 基础组件创建测试:")
+    print("🧪 基础组件创建测试:")
     
     # 创建Label
     label = Label("Hello, Hibiki UI v4.0!")
-    logger.info(f"Label创建完成: {label.__class__.__name__}")
+    print(f"Label创建完成: {label.__class__.__name__}")
     
     # 创建Button
     def on_button_click():
-        logger.info("🎉 按钮被点击了！")
+        print("🎉 按钮被点击了！")
     
     button = Button("Click Me", on_click=on_button_click)
-    logger.info(f"Button创建完成: {button.__class__.__name__}")
+    print(f"Button创建完成: {button.__class__.__name__}")
     
-    logger.info("\n🎨 高层API测试:")
+    print("\n🎨 高层API测试:")
     
     # 测试高层API
     modal_label = Label("模态框内容").layout.modal(300, 200)
-    logger.info(f"模态Label: position={modal_label.style.position}")
+    print(f"模态Label: position={modal_label.style.position}")
     
     floating_button = Button("悬浮按钮").layout.floating_button("bottom-right")
-    logger.info(f"悬浮Button: position={floating_button.style.position}")
+    print(f"悬浮Button: position={floating_button.style.position}")
     
     # 测试链式调用
     styled_label = Label("样式化标签")
     styled_label.layout.center()
     styled_label.layout.fade(0.8)
     styled_label.layout.scale(1.2)
-    logger.info(f"样式化Label: opacity={styled_label.style.opacity}, scale={styled_label.style.scale}")
+    print(f"样式化Label: opacity={styled_label.style.opacity}, scale={styled_label.style.scale}")
     
-    logger.info("\n🔧 低层API测试:")
+    print("\n🔧 低层API测试:")
     
     # 测试低层API
     from core.managers import Position
     advanced_button = Button("高级按钮")
     advanced_button.advanced.set_position(Position.ABSOLUTE, left=100, top=200)
     advanced_button.advanced.set_transform(rotation=15)
-    logger.info(f"高级Button: position={advanced_button.style.position}, rotation={advanced_button.style.rotation}°")
+    print(f"高级Button: position={advanced_button.style.position}, rotation={advanced_button.style.rotation}°")
     
-    logger.info("\n🚀 挂载测试:")
+    print("\n🚀 挂载测试:")
     
     # 测试挂载
     label_view = label.mount()
     button_view = button.mount()
     
-    logger.info(f"Label NSView: {type(label_view).__name__}")
-    logger.info(f"Button NSView: {type(button_view).__name__}")
+    print(f"Label NSView: {type(label_view).__name__}")
+    print(f"Button NSView: {type(button_view).__name__}")
     
     # 测试动态更新
-    logger.info("\n📝 动态更新测试:")
+    print("\n📝 动态更新测试:")
     label.set_text("更新后的文本")
     button.set_title("更新后的按钮")
     
-    logger.info("\n✅ 基础组件测试完成！")
+    print("\n✅ 基础组件测试完成！")

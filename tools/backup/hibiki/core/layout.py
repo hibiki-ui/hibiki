@@ -1072,10 +1072,10 @@ def set_debug_mode(enabled: bool):
 # ================================
 
 if __name__ == "__main__":
-    logger.info("Hibiki UI v4.0 布局引擎测试\n")
+    print("Hibiki UI v4.0 布局引擎测试\n")
     
     # 测试样式转换
-    logger.info("🔄 样式转换测试:")
+    print("🔄 样式转换测试:")
     # 导入已经在模块顶部处理了
     
     v4_style = ComponentStyle(
@@ -1089,10 +1089,10 @@ if __name__ == "__main__":
     )
     
     stretchable_style = V4StyleConverter.convert_to_stretchable_style(v4_style)
-    logger.info(f"✅ 转换完成: {stretchable_style}")
+    print(f"✅ 转换完成: {stretchable_style}")
     
     # 测试布局引擎
-    logger.info("\n📐 布局引擎测试:")
+    print("\n📐 布局引擎测试:")
     engine = get_layout_engine()
     
     # 创建测试组件
@@ -1129,9 +1129,9 @@ if __name__ == "__main__":
     # 计算布局
     result = engine.compute_layout_for_component(parent, available_size=(500, 400))
     if result:
-        logger.info(f"✅ 父组件布局: {result.width:.1f}x{result.height:.1f} @ ({result.x:.1f}, {result.y:.1f})")
+        print(f"✅ 父组件布局: {result.width:.1f}x{result.height:.1f} @ ({result.x:.1f}, {result.y:.1f})")
     
     # 打印统计
     engine.debug_print_stats()
     
-    logger.info("\n✅ v4布局引擎测试完成！")
+    print("\n✅ v4布局引擎测试完成！")

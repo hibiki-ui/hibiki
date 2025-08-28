@@ -86,7 +86,7 @@ class CustomNSView(NSView):
             try:
                 self._draw_callback(context, rect, self.bounds())
             except Exception as e:
-                logger.error(f"❌ 绘制回调出错: {e}")
+                print(f"❌ 绘制回调出错: {e}")
                 # 绘制错误提示
                 NSColor.redColor().setFill()
                 NSRectFill(rect)
@@ -106,7 +106,7 @@ class CustomNSView(NSView):
             try:
                 self._mouse_down_callback(point.x, point.y, event)
             except Exception as e:
-                logger.error(f"❌ 鼠标按下回调出错: {e}")
+                print(f"❌ 鼠标按下回调出错: {e}")
     
     def mouseUp_(self, event):
         """鼠标抬起事件"""
@@ -118,7 +118,7 @@ class CustomNSView(NSView):
             try:
                 self._mouse_up_callback(point.x, point.y, event)
             except Exception as e:
-                logger.error(f"❌ 鼠标抬起回调出错: {e}")
+                print(f"❌ 鼠标抬起回调出错: {e}")
     
     def mouseMoved_(self, event):
         """鼠标移动事件"""
@@ -129,7 +129,7 @@ class CustomNSView(NSView):
             try:
                 self._mouse_moved_callback(point.x, point.y, event)
             except Exception as e:
-                logger.error(f"❌ 鼠标移动回调出错: {e}")
+                print(f"❌ 鼠标移动回调出错: {e}")
     
     def mouseDragged_(self, event):
         """鼠标拖拽事件"""
@@ -140,7 +140,7 @@ class CustomNSView(NSView):
             try:
                 self._mouse_dragged_callback(point.x, point.y, event)
             except Exception as e:
-                logger.error(f"❌ 鼠标拖拽回调出错: {e}")
+                print(f"❌ 鼠标拖拽回调出错: {e}")
     
     def mouseEntered_(self, event):
         """鼠标进入"""
@@ -165,7 +165,7 @@ class CustomNSView(NSView):
                 characters = event.characters()
                 self._key_down_callback(key_code, characters, event)
             except Exception as e:
-                logger.error(f"❌ 键盘按下回调出错: {e}")
+                print(f"❌ 键盘按下回调出错: {e}")
     
     def keyUp_(self, event):
         """键盘抬起事件"""
@@ -175,7 +175,7 @@ class CustomNSView(NSView):
                 characters = event.characters()
                 self._key_up_callback(key_code, characters, event)
             except Exception as e:
-                logger.error(f"❌ 键盘抬起回调出错: {e}")
+                print(f"❌ 键盘抬起回调出错: {e}")
     
     # === 属性访问 ===
     def mousePosition(self):
@@ -238,7 +238,7 @@ class CustomView(UIComponent):
     
     def _create_nsview(self):
         """创建自定义NSView"""
-        logger.info("🎨 创建CustomView组件")
+        print("🎨 创建CustomView组件")
         
         # 创建自定义NSView
         custom_view = CustomNSView.alloc().initWithFrame_(NSMakeRect(0, 0, 200, 200))
@@ -265,7 +265,7 @@ class CustomView(UIComponent):
         if self.on_key_up:
             custom_view.setKeyUpCallback_(self.on_key_up)
         
-        logger.info("✅ CustomView组件创建成功")
+        print("✅ CustomView组件创建成功")
         return custom_view
     
     def setup_auto_redraw(self, *signals):
@@ -281,13 +281,13 @@ class CustomView(UIComponent):
                         _ = sig.value
                         # 触发重绘
                         if self._nsview:
-                            logger.info(f"🔄 信号变化触发重绘")
+                            print(f"🔄 信号变化触发重绘")
                             self._nsview.setNeedsDisplay_(True)
                     
                     return Effect(redraw_on_change)
                 
                 effect = create_redraw_effect(signal)
-                logger.info(f"📡 已设置信号 {signal} 的自动重绘")
+                print(f"📡 已设置信号 {signal} 的自动重绘")
     
     def _wrap_mouse_callback(self, callback):
         """包装鼠标回调，同时更新响应式状态"""

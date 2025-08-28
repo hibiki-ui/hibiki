@@ -69,7 +69,7 @@ class AppearanceManager:
         # 开始监听系统外观变化
         self._setup_system_observation()
         
-        logger.info(f"🌗 AppearanceManager初始化，当前外观: {self.current_appearance.value}")
+        print(f"🌗 AppearanceManager初始化，当前外观: {self.current_appearance.value}")
     
     @classmethod
     def shared(cls) -> "AppearanceManager":
@@ -88,7 +88,7 @@ class AppearanceManager:
                     appearance_name = str(appearance.name())
                     return "dark" if "dark" in appearance_name.lower() else "light"
         except Exception as e:
-            logger.warning(f"⚠️ 获取系统外观失败: {e}")
+            print(f"⚠️ 获取系统外观失败: {e}")
         
         return "light"
     
@@ -118,16 +118,16 @@ class AppearanceManager:
                 self.current_appearance.value = new_appearance
                 self._notify_observers(new_appearance)
             
-            logger.info(f"🌗 应用外观已设置: {mode} -> {new_appearance}")
+            print(f"🌗 应用外观已设置: {mode} -> {new_appearance}")
             
         except Exception as e:
-            logger.error(f"❌ 设置应用外观失败: {e}")
+            print(f"❌ 设置应用外观失败: {e}")
     
     def add_observer(self, callback: Callable[[str], None]) -> "AppearanceObserver":
         """添加外观变化观察者"""
         observer_ref = weakref.ref(callback)
         self._observers.append(observer_ref)
-        logger.info(f"📡 已添加外观观察者，当前共 {len(self._observers)} 个")
+        print(f"📡 已添加外观观察者，当前共 {len(self._observers)} 个")
         return callback  # 返回callback作为观察者标识
     
     def _setup_system_observation(self):
@@ -138,7 +138,7 @@ class AppearanceManager:
                 # 创建KVO观察者
                 def on_appearance_change(appearance_name):
                     if self.current_appearance.value != appearance_name:
-                        logger.info(f"🌗 系统外观变化: {self.current_appearance.value} -> {appearance_name}")
+                        print(f"🌗 系统外观变化: {self.current_appearance.value} -> {appearance_name}")
                         self.current_appearance.value = appearance_name
                         self._notify_observers(appearance_name)
                 
@@ -148,10 +148,10 @@ class AppearanceManager:
                 )
                 self._kvo_observers.append(observer)
                 
-                logger.info("📡 系统外观观察已设置")
+                print("📡 系统外观观察已设置")
                 
         except Exception as e:
-            logger.warning(f"⚠️ 设置系统外观观察失败: {e}")
+            print(f"⚠️ 设置系统外观观察失败: {e}")
     
     def _notify_observers(self, appearance_name: str):
         """通知观察者外观变化"""
@@ -165,7 +165,7 @@ class AppearanceManager:
                 try:
                     callback(appearance_name)
                 except Exception as e:
-                    logger.error(f"AppearanceManager observer callback error: {e}")
+                    print(f"AppearanceManager observer callback error: {e}")
 
 
 # 便捷函数

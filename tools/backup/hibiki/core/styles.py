@@ -12,7 +12,7 @@ from enum import Enum
 import sys
 import os
 sys.path.append(os.path.dirname(__file__))
-from .managers import Position, ZLayer, OverflowBehavior
+from managers import Position, ZLayer, OverflowBehavior
 
 from .logging import get_logger
 logger = get_logger('core.styles')
@@ -162,7 +162,6 @@ class ComponentStyle:
     flex_grow: float = 0
     flex_shrink: float = 1
     flex_basis: Optional[Union[int, float, str, Length]] = None
-    flex: Optional[Union[str, int, float]] = None  # CSS flex shorthand "1", "auto", etc.
     
     # Grid属性（预留）
     grid_template_columns: Optional[str] = None
@@ -210,14 +209,6 @@ class ComponentStyle:
     visible: bool = True
     overflow: OverflowBehavior = OverflowBehavior.VISIBLE
     
-    # 边框和背景
-    border: Optional[str] = None  # CSS-style border "1px solid #ccc"
-    border_radius: Optional[Union[int, float, str, Length]] = None
-    border_width: Optional[Union[int, float, str, Length]] = None
-    border_color: Optional[str] = None
-    border_style: Optional[str] = None  # "solid", "dashed", "dotted"
-    background_color: Optional[str] = None  # 背景颜色
-    
     # ================================
     # 变换
     # ================================
@@ -243,8 +234,7 @@ class ComponentStyle:
             'width', 'height', 'min_width', 'min_height', 'max_width', 'max_height',
             'margin', 'margin_top', 'margin_right', 'margin_bottom', 'margin_left',
             'padding', 'padding_top', 'padding_right', 'padding_bottom', 'padding_left',
-            'gap', 'row_gap', 'column_gap', 'flex_basis',
-            'border_radius', 'border_width'
+            'gap', 'row_gap', 'column_gap', 'flex_basis'
         ]
         
         for prop in length_props:
@@ -431,10 +421,10 @@ class StyleUtils:
 # ================================
 
 if __name__ == "__main__":
-    logger.info("Hibiki UI v4.0 样式系统测试\n")
+    print("Hibiki UI v4.0 样式系统测试\n")
     
     # 测试基础样式创建
-    logger.info("🎨 基础样式测试:")
+    print("🎨 基础样式测试:")
     style = ComponentStyle(
         width=px(200),
         height=px(100),
@@ -442,12 +432,12 @@ if __name__ == "__main__":
         position=Position.ABSOLUTE,
         z_index=ZLayer.MODAL
     )
-    logger.info(f"宽度: {style.width}")
-    logger.info(f"位置: {style.position}")
-    logger.info(f"层级: {style.z_index}")
+    print(f"宽度: {style.width}")
+    print(f"位置: {style.position}")
+    print(f"层级: {style.z_index}")
     
     # 测试长度单位解析
-    logger.info("\n📏 长度单位测试:")
+    print("\n📏 长度单位测试:")
     lengths = [
         px(100),
         percent(50),
@@ -460,24 +450,24 @@ if __name__ == "__main__":
     ]
     
     for length in lengths:
-        logger.info(f"{length} -> value={length.value}, unit={length.unit}")
+        print(f"{length} -> value={length.value}, unit={length.unit}")
     
     # 测试预设样式
-    logger.info("\n🎯 预设样式测试:")
+    print("\n🎯 预设样式测试:")
     modal_style = StylePresets.modal(400, 300)
-    logger.info(f"模态框: position={modal_style.position}, z_index={modal_style.z_index}")
+    print(f"模态框: position={modal_style.position}, z_index={modal_style.z_index}")
     
     tooltip_style = StylePresets.tooltip()
-    logger.info(f"工具提示: position={tooltip_style.position}, top={tooltip_style.top}")
+    print(f"工具提示: position={tooltip_style.position}, top={tooltip_style.top}")
     
     fab_style = StylePresets.floating_button("bottom-right")
-    logger.info(f"悬浮按钮: position={fab_style.position}, bottom={fab_style.bottom}, right={fab_style.right}")
+    print(f"悬浮按钮: position={fab_style.position}, bottom={fab_style.bottom}, right={fab_style.right}")
     
     # 测试样式合并
-    logger.info("\n🔄 样式合并测试:")
+    print("\n🔄 样式合并测试:")
     base_style = ComponentStyle(width=px(100), height=px(50))
     override_style = ComponentStyle(width=px(200), opacity=0.8)
     merged_style = base_style.merge(override_style)
-    logger.info(f"合并结果: width={merged_style.width}, height={merged_style.height}, opacity={merged_style.opacity}")
+    print(f"合并结果: width={merged_style.width}, height={merged_style.height}, opacity={merged_style.opacity}")
     
-    logger.info("\n✅ 样式系统测试完成！")
+    print("\n✅ 样式系统测试完成！")
