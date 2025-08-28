@@ -1,39 +1,38 @@
 """
-macUI v3.0 统一组件接口
-基于Stretchable布局引擎的现代化组件库，提供简洁统一的API
+macUI v4.0 组件库
+基于新架构的现代化组件集合
 """
 
-# 导入核心组件 - 直接使用最佳实现
-from .components import Label, Button
-from .components import LineBreakMode, LabelStyle
-
-# 导入布局组件  
-from .layout import VStackLayout as VStack
-from .layout import HStackLayout as HStack
-
-# 导入自定义视图组件
+from .basic import (
+    Label, Button, TextField, Slider, Switch,
+    TextArea, Checkbox, RadioButton, 
+    ProgressBar, ImageView,
+    PopUpButton, ComboBox
+)
 from .custom_view import CustomView, DrawingUtils
-
-# 导入样式系统
-from ..layout.styles import LayoutStyle
 
 __all__ = [
     # 基础组件
-    "Label",          # 文本标签组件
-    "Button",         # 按钮组件
+    'Label',
+    'Button', 
+    'TextField',
+    'Slider',
+    'Switch',
     
-    # 自定义视图组件
-    "CustomView",     # 自定义视图组件
-    "DrawingUtils",   # 绘制工具类
+    # 扩展输入组件
+    'TextArea',
+    'Checkbox', 
+    'RadioButton',
     
-    # 布局组件
-    "VStack",         # 垂直布局（支持Stretchable引擎）
-    "HStack",         # 水平布局（支持Stretchable引擎） 
+    # 显示组件
+    'ProgressBar',
+    'ImageView',
     
-    # 样式系统
-    "LayoutStyle",    # 布局样式
+    # 选择组件
+    'PopUpButton',
+    'ComboBox',
     
-    # 文本相关枚举
-    "LineBreakMode",  # 文本换行模式
-    "LabelStyle",     # Label预设样式
+    # 自定义组件
+    'CustomView',
+    'DrawingUtils'
 ]

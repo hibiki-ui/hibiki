@@ -1,20 +1,20 @@
 """
-macUI v3.0 自定义视图组件
+macUI v4 自定义视图组件
 
 提供完整的自定义视图解决方案，包括：
 - 自定义绘制
 - 键盘事件处理
 - 鼠标事件处理
 - 响应式状态管理
-- 与macUI框架的完整集成
+- 与macUI v4框架的完整集成
 """
 
 from typing import Optional, Callable, Any, Tuple
 from AppKit import *
 from Foundation import *
-from .core import LayoutAwareComponent
-from ..layout.styles import LayoutStyle
-from ..core.signal import Signal
+from core.component import UIComponent
+from core.styles import ComponentStyle, px
+from core.reactive import Signal
 import objc
 
 
@@ -187,12 +187,12 @@ class CustomNSView(NSView):
         return self._is_dragging
 
 
-class CustomView(LayoutAwareComponent):
-    """macUI自定义视图组件"""
+class CustomView(UIComponent):
+    """macUI v4自定义视图组件"""
     
     def __init__(
         self,
-        style: Optional[LayoutStyle] = None,
+        style: Optional[ComponentStyle] = None,
         on_draw: Optional[Callable] = None,
         on_mouse_down: Optional[Callable] = None,
         on_mouse_up: Optional[Callable] = None,
@@ -205,7 +205,7 @@ class CustomView(LayoutAwareComponent):
         初始化自定义视图
         
         Args:
-            style: 布局样式
+            style: 组件样式
             on_draw: 绘制回调 (context, rect, bounds) -> None
             on_mouse_down: 鼠标按下回调 (x, y, event) -> None
             on_mouse_up: 鼠标抬起回调 (x, y, event) -> None
@@ -214,7 +214,9 @@ class CustomView(LayoutAwareComponent):
             on_key_down: 键盘按下回调 (key_code, characters, event) -> None
             on_key_up: 键盘抬起回调 (key_code, characters, event) -> None
         """
-        super().__init__(layout_style=style)
+        super().__init__(
+            style=style or ComponentStyle(width=px(200), height=px(200))
+        )
         
         # 回调函数
         self.on_draw = on_draw
@@ -229,12 +231,10 @@ class CustomView(LayoutAwareComponent):
         self.mouse_position = Signal((0.0, 0.0))
         self.is_mouse_inside = Signal(False)
         self.is_dragging = Signal(False)
-        
-        self._nsview = None
     
-    def mount(self):
-        """挂载自定义视图"""
-        print("🎨 挂载CustomView组件")
+    def _create_nsview(self):
+        """创建自定义NSView"""
+        print("🎨 创建CustomView组件")
         
         # 创建自定义NSView
         custom_view = CustomNSView.alloc().initWithFrame_(NSMakeRect(0, 0, 200, 200))
@@ -261,18 +261,12 @@ class CustomView(LayoutAwareComponent):
         if self.on_key_up:
             custom_view.setKeyUpCallback_(self.on_key_up)
         
-        # 创建布局节点
-        self.create_layout_node()
-        
-        # 保存引用
-        self._nsview = custom_view
-        
-        print("✅ CustomView组件挂载成功")
+        print("✅ CustomView组件创建成功")
         return custom_view
     
     def setup_auto_redraw(self, *signals):
         """设置信号自动重绘 - 当指定信号变化时自动重绘视图"""
-        from ..core.signal import Signal, Effect
+        from core.reactive import Signal, Effect
         
         for signal in signals:
             if isinstance(signal, Signal):

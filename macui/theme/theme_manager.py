@@ -1,6 +1,6 @@
-"""macUI v2 主题管理器
+"""macUI v4 主题管理器
 
-统一管理应用的颜色、字体和外观，提供响应式主题切换。
+统一管理应用的颜色、字体和外观，提供响应式主题切换
 """
 
 from typing import Optional, Dict, List, Callable
@@ -9,7 +9,7 @@ import weakref
 from .colors import ColorScheme, ColorRole, PresetColorSchemes
 from .fonts import FontScheme, TextStyle, PresetFontSchemes  
 from .appearance import AppearanceManager, AppearanceMode, AppearanceObserver
-from ..core.signal import Signal, Effect
+from core.reactive import Signal, Effect
 
 
 class Theme:

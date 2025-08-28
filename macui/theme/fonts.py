@@ -1,212 +1,182 @@
-"""macUI v2 字体系统
+"""macUI v4 字体系统
 
-提供字体管理和文本样式定义。
+提供系统级字体管理和文本样式支持
 """
 
 from typing import Optional, Dict
 from enum import Enum
-
-from AppKit import (
-    NSFont,
-    NSFontWeightUltraLight,
-    NSFontWeightThin,
-    NSFontWeightLight, 
-    NSFontWeightRegular,
-    NSFontWeightMedium,
-    NSFontWeightSemibold,
-    NSFontWeightBold,
-    NSFontWeightHeavy,
-    NSFontWeightBlack
-)
-
-
-class FontWeight(Enum):
-    """字体粗细"""
-    ULTRALIGHT = "UltraLight"
-    THIN = "Thin" 
-    LIGHT = "Light"
-    REGULAR = "Regular"
-    MEDIUM = "Medium"
-    SEMIBOLD = "Semibold"
-    BOLD = "Bold"
-    HEAVY = "Heavy"
-    BLACK = "Black"
+from AppKit import NSFont
 
 
 class TextStyle(Enum):
-    """文本样式角色 - 基于苹果Typography指南"""
-    # 标题
-    LARGE_TITLE = "large_title"      # 大标题 (34pt)
-    TITLE_1 = "title_1"              # 标题1 (28pt)
-    TITLE_2 = "title_2"              # 标题2 (22pt) 
-    TITLE_3 = "title_3"              # 标题3 (20pt)
+    """文本样式定义"""
+    # 标题类
+    LARGE_TITLE = "large_title"
+    TITLE_1 = "title_1" 
+    TITLE_2 = "title_2"
+    TITLE_3 = "title_3"
+    HEADLINE = "headline"
+    SUBHEADLINE = "subheadline"
     
-    # 标题栏
-    HEADLINE = "headline"            # 标题栏 (17pt, Semibold)
-    SUBHEADLINE = "subheadline"      # 副标题栏 (15pt)
+    # 正文类
+    BODY = "body"
+    BODY_EMPHASIZED = "body_emphasized"
+    CALLOUT = "callout"
     
-    # 正文
-    BODY = "body"                    # 正文 (17pt)
-    BODY_EMPHASIZED = "body_emphasized" # 强调正文 (17pt, Semibold)
+    # 辅助类
+    FOOTNOTE = "footnote"
+    CAPTION_1 = "caption_1"
+    CAPTION_2 = "caption_2"
     
-    # 辅助文本
-    CALLOUT = "callout"              # 标注 (16pt)
-    FOOTNOTE = "footnote"            # 脚注 (13pt) 
-    CAPTION_1 = "caption_1"          # 说明1 (12pt)
-    CAPTION_2 = "caption_2"          # 说明2 (11pt)
-    
-    # 控件字体
-    CONTROL = "control"              # 控件字体 (13pt)
-    CONTROL_SMALL = "control_small"  # 小控件字体 (11pt)
+    # 特殊类
+    MONOSPACE = "monospace"
+    CODE = "code"
 
 
 class SystemFonts:
-    """macOS系统字体封装"""
+    """系统字体获取器"""
     
     @classmethod
-    def system_font(cls, size: float = 13.0, weight: Optional[FontWeight] = None) -> NSFont:
-        """系统字体"""
-        if weight:
-            return NSFont.systemFontOfSize_weight_(size, cls._get_font_weight(weight))
-        return NSFont.systemFontOfSize_(size)
+    def large_title(cls) -> NSFont:
+        """大标题字体"""
+        return NSFont.systemFontOfSize_weight_(34.0, -0.8)  # NSFontWeightThin
+    
+    @classmethod  
+    def title_1(cls) -> NSFont:
+        """标题1字体"""
+        return NSFont.systemFontOfSize_weight_(28.0, 0.0)  # NSFontWeightRegular
     
     @classmethod
-    def bold_system_font(cls, size: float = 13.0) -> NSFont:
-        """粗体系统字体"""
-        return NSFont.boldSystemFontOfSize_(size)
-    
-    @classmethod 
-    def monospace_font(cls, size: float = 13.0, weight: Optional[FontWeight] = None) -> NSFont:
-        """等宽字体（代码字体）"""
-        if weight:
-            return NSFont.monospacedSystemFontOfSize_weight_(size, cls._get_font_weight(weight))
-        return NSFont.monospacedSystemFontOfSize_weight_(size, NSFontWeightRegular)
+    def title_2(cls) -> NSFont:
+        """标题2字体"""
+        return NSFont.systemFontOfSize_weight_(22.0, 0.0)  # NSFontWeightRegular
     
     @classmethod
-    def label_font(cls, size: float = 13.0) -> NSFont:
-        """标签字体"""
-        return NSFont.labelFontOfSize_(size)
+    def title_3(cls) -> NSFont:
+        """标题3字体"""
+        return NSFont.systemFontOfSize_weight_(20.0, 0.0)  # NSFontWeightRegular
     
     @classmethod
-    def control_content_font(cls, size: float = 13.0) -> NSFont:
-        """控件内容字体"""
-        return NSFont.controlContentFontOfSize_(size)
+    def headline(cls) -> NSFont:
+        """标题栏字体"""
+        return NSFont.systemFontOfSize_weight_(17.0, 0.23)  # NSFontWeightSemibold
     
     @classmethod
-    def menu_font(cls, size: float = 14.0) -> NSFont:
-        """菜单字体"""
-        return NSFont.menuFontOfSize_(size)
+    def subheadline(cls) -> NSFont:
+        """副标题字体"""
+        return NSFont.systemFontOfSize_weight_(15.0, 0.0)  # NSFontWeightRegular
     
     @classmethod
-    def _get_font_weight(cls, weight: FontWeight) -> float:
-        """转换字体粗细枚举到NSFont权重值"""
-        weight_mapping = {
-            FontWeight.ULTRALIGHT: NSFontWeightUltraLight,
-            FontWeight.THIN: NSFontWeightThin,
-            FontWeight.LIGHT: NSFontWeightLight, 
-            FontWeight.REGULAR: NSFontWeightRegular,
-            FontWeight.MEDIUM: NSFontWeightMedium,
-            FontWeight.SEMIBOLD: NSFontWeightSemibold,
-            FontWeight.BOLD: NSFontWeightBold,
-            FontWeight.HEAVY: NSFontWeightHeavy,
-            FontWeight.BLACK: NSFontWeightBlack,
-        }
-        return weight_mapping.get(weight, NSFontWeightRegular)
+    def body(cls) -> NSFont:
+        """正文字体"""
+        return NSFont.systemFontOfSize_(17.0)
+    
+    @classmethod
+    def body_emphasized(cls) -> NSFont:
+        """强调正文字体"""
+        return NSFont.systemFontOfSize_weight_(17.0, 0.23)  # NSFontWeightSemibold
+    
+    @classmethod
+    def callout(cls) -> NSFont:
+        """标注字体"""
+        return NSFont.systemFontOfSize_(16.0)
+    
+    @classmethod
+    def footnote(cls) -> NSFont:
+        """脚注字体"""
+        return NSFont.systemFontOfSize_(13.0)
+    
+    @classmethod
+    def caption_1(cls) -> NSFont:
+        """说明文字1"""
+        return NSFont.systemFontOfSize_(12.0)
+    
+    @classmethod
+    def caption_2(cls) -> NSFont:
+        """说明文字2"""
+        return NSFont.systemFontOfSize_(11.0)
+    
+    @classmethod
+    def monospace(cls) -> NSFont:
+        """等宽字体"""
+        return NSFont.monospacedSystemFontOfSize_weight_(13.0, 0.0)  # NSFontWeightRegular
+    
+    @classmethod
+    def code(cls) -> NSFont:
+        """代码字体"""
+        return NSFont.monospacedSystemFontOfSize_weight_(14.0, 0.0)  # NSFontWeightRegular
 
 
 class FontScheme:
-    """字体方案类 - 定义应用的字体系统"""
+    """字体方案"""
     
-    def __init__(self, name: str):
+    def __init__(self, name: str, fonts: Optional[Dict[TextStyle, NSFont]] = None):
         self.name = name
-        self._fonts: Dict[TextStyle, NSFont] = {}
-        self._setup_default_fonts()
-    
-    def _setup_default_fonts(self):
-        """设置默认字体配置（基于苹果设计指南）"""
-        self._fonts = {
-            # 标题
-            TextStyle.LARGE_TITLE: SystemFonts.system_font(34.0, FontWeight.REGULAR),
-            TextStyle.TITLE_1: SystemFonts.system_font(28.0, FontWeight.REGULAR), 
-            TextStyle.TITLE_2: SystemFonts.system_font(22.0, FontWeight.REGULAR),
-            TextStyle.TITLE_3: SystemFonts.system_font(20.0, FontWeight.REGULAR),
-            
-            # 标题栏
-            TextStyle.HEADLINE: SystemFonts.system_font(17.0, FontWeight.SEMIBOLD),
-            TextStyle.SUBHEADLINE: SystemFonts.system_font(15.0, FontWeight.REGULAR),
-            
-            # 正文
-            TextStyle.BODY: SystemFonts.system_font(17.0, FontWeight.REGULAR),
-            TextStyle.BODY_EMPHASIZED: SystemFonts.system_font(17.0, FontWeight.SEMIBOLD),
-            
-            # 辅助文本
-            TextStyle.CALLOUT: SystemFonts.system_font(16.0, FontWeight.REGULAR),
-            TextStyle.FOOTNOTE: SystemFonts.system_font(13.0, FontWeight.REGULAR),
-            TextStyle.CAPTION_1: SystemFonts.system_font(12.0, FontWeight.REGULAR),
-            TextStyle.CAPTION_2: SystemFonts.system_font(11.0, FontWeight.REGULAR),
-            
-            # 控件字体
-            TextStyle.CONTROL: SystemFonts.control_content_font(13.0),
-            TextStyle.CONTROL_SMALL: SystemFonts.control_content_font(11.0),
-        }
+        self._fonts = fonts or {}
     
     def get_font(self, style: TextStyle) -> NSFont:
         """获取指定样式的字体"""
-        return self._fonts.get(style, SystemFonts.system_font())
+        if style in self._fonts:
+            return self._fonts[style]
+        
+        # 回退到系统字体
+        return self._get_system_font(style)
     
     def set_font(self, style: TextStyle, font: NSFont):
-        """设置指定样式的字体"""
+        """设置字体"""
         self._fonts[style] = font
     
-    def update_font_size(self, style: TextStyle, size: float):
-        """更新指定样式的字体大小"""
-        current_font = self._fonts.get(style, SystemFonts.system_font())
-        font_descriptor = current_font.fontDescriptor()
-        new_font = NSFont.fontWithDescriptor_size_(font_descriptor, size)
-        self._fonts[style] = new_font
-    
-    @classmethod 
-    def system_scheme(cls) -> "FontScheme":
-        """创建系统默认字体方案"""
-        return cls("System")
-    
-    @classmethod
-    def developer_scheme(cls) -> "FontScheme":
-        """创建开发者字体方案（更多使用等宽字体）"""
-        scheme = cls("Developer")
-        # 为代码相关的样式使用等宽字体
-        scheme.set_font(TextStyle.BODY, SystemFonts.monospace_font(14.0))
-        scheme.set_font(TextStyle.CALLOUT, SystemFonts.monospace_font(13.0))
-        scheme.set_font(TextStyle.FOOTNOTE, SystemFonts.monospace_font(12.0))
-        return scheme
-    
-    @classmethod
-    def accessibility_scheme(cls) -> "FontScheme": 
-        """创建无障碍字体方案（更大字号）"""
-        scheme = cls("Accessibility")
-        # 增大所有字体的尺寸
-        for style in TextStyle:
-            current_font = scheme._fonts[style]
-            current_size = current_font.pointSize()
-            scheme.update_font_size(style, current_size * 1.2)  # 增大20%
-        return scheme
+    def _get_system_font(self, style: TextStyle) -> NSFont:
+        """获取系统默认字体"""
+        system_font_map = {
+            TextStyle.LARGE_TITLE: SystemFonts.large_title,
+            TextStyle.TITLE_1: SystemFonts.title_1,
+            TextStyle.TITLE_2: SystemFonts.title_2,
+            TextStyle.TITLE_3: SystemFonts.title_3,
+            TextStyle.HEADLINE: SystemFonts.headline,
+            TextStyle.SUBHEADLINE: SystemFonts.subheadline,
+            TextStyle.BODY: SystemFonts.body,
+            TextStyle.BODY_EMPHASIZED: SystemFonts.body_emphasized,
+            TextStyle.CALLOUT: SystemFonts.callout,
+            TextStyle.FOOTNOTE: SystemFonts.footnote,
+            TextStyle.CAPTION_1: SystemFonts.caption_1,
+            TextStyle.CAPTION_2: SystemFonts.caption_2,
+            TextStyle.MONOSPACE: SystemFonts.monospace,
+            TextStyle.CODE: SystemFonts.code,
+        }
+        
+        font_func = system_font_map.get(style)
+        return font_func() if font_func else SystemFonts.body()
 
 
-# 预设字体方案
 class PresetFontSchemes:
-    """预设字体方案集合"""
+    """预设字体方案"""
     
     @classmethod
     def system(cls) -> FontScheme:
-        """系统默认方案"""
-        return FontScheme.system_scheme()
+        """系统默认字体方案"""
+        return FontScheme("System")
     
     @classmethod
     def developer(cls) -> FontScheme:
-        """开发者方案"""
-        return FontScheme.developer_scheme()
+        """开发者字体方案 - 更多等宽字体"""
+        fonts = {
+            TextStyle.CODE: NSFont.monospacedSystemFontOfSize_weight_(13.0, 0.0),
+            TextStyle.MONOSPACE: NSFont.monospacedSystemFontOfSize_weight_(12.0, 0.0),
+            TextStyle.BODY: NSFont.systemFontOfSize_(16.0),
+            TextStyle.FOOTNOTE: NSFont.monospacedSystemFontOfSize_weight_(11.0, 0.0),
+        }
+        return FontScheme("Developer", fonts)
     
-    @classmethod  
+    @classmethod
     def accessibility(cls) -> FontScheme:
-        """无障碍方案"""
-        return FontScheme.accessibility_scheme()
+        """无障碍字体方案 - 更大字号"""
+        fonts = {
+            TextStyle.LARGE_TITLE: NSFont.systemFontOfSize_weight_(40.0, -0.8),
+            TextStyle.TITLE_1: NSFont.systemFontOfSize_weight_(32.0, 0.0),
+            TextStyle.TITLE_2: NSFont.systemFontOfSize_weight_(26.0, 0.0),
+            TextStyle.HEADLINE: NSFont.systemFontOfSize_weight_(20.0, 0.23),
+            TextStyle.BODY: NSFont.systemFontOfSize_(19.0),
+            TextStyle.FOOTNOTE: NSFont.systemFontOfSize_(15.0),
+        }
+        return FontScheme("Accessibility", fonts)

@@ -14,8 +14,8 @@
 import sys
 import os
 
-# 添加macui_v4路径
-sys.path.append(os.path.join(os.path.dirname(__file__), "macui_v4"))
+# 添加macui路径
+sys.path.append(os.path.join(os.path.dirname(__file__), "macui"))
 
 # 导入v4核心
 from core.managers import ManagerFactory

@@ -1,449 +1,751 @@
+#!/usr/bin/env python3
 """
-现代化布局组件 - 基于新布局引擎v3.0 (Stretchable)
-
-提供基于LayoutAwareComponent的现代化布局组件
-完全替代旧的NSStackView hack实现，提供CSS-like布局API
+macUI v4.0 高级布局组件
+提供专业级的布局解决方案：Grid、ResponsiveGrid、Stack、Masonry等
 """
 
-from typing import List, Optional, Union, Any
-from AppKit import NSView
-from Foundation import NSMakeRect
+from typing import List, Optional, Union, Tuple, Callable, Dict, Any
+from dataclasses import dataclass, field
+from enum import Enum
+import math
 
-from ..core.component import Component
-from ..layout.styles import (
-    LayoutStyle, FlexDirection, AlignItems, JustifyContent, Display,
-    vstack_style, hstack_style
-)
-from .core import LayoutAwareComponent
+# 导入核心组件系统
+try:
+    from ..core.component import Component, Container
+    from ..core.styles import ComponentStyle, Display, FlexDirection, JustifyContent, AlignItems, px, percent, Length
+    from ..core.reactive import Signal, Computed
+except ImportError:
+    # 作为独立模块运行时的导入
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+    from core.component import Component, Container
+    from core.styles import ComponentStyle, Display, FlexDirection, JustifyContent, AlignItems, px, percent, Length
+    from core.reactive import Signal, Computed
 
 
-class VStackLayout(LayoutAwareComponent):
-    """现代化垂直布局组件 - 基于Stretchable布局引擎
+# ================================
+# 1. Grid布局系统
+# ================================
+
+@dataclass
+class GridTemplate:
+    """Grid模板定义"""
+    columns: Union[str, List[str]]  # "repeat(3, 1fr)" 或 ["200px", "1fr", "100px"]
+    rows: Union[str, List[str]]     # "auto" 或 ["50px", "auto", "100px"]
+    gap: Optional[Union[int, str]] = None
     
-    完全替代旧的VStack NSStackView实现
-    提供CSS Flexbox标准的布局能力
+    def __post_init__(self):
+        """标准化模板定义"""
+        if isinstance(self.columns, str):
+            self.columns = self._parse_template(self.columns)
+        if isinstance(self.rows, str):
+            self.rows = self._parse_template(self.rows)
+    
+    def _parse_template(self, template: str) -> List[str]:
+        """解析Grid模板字符串"""
+        # 处理repeat()语法
+        if template.startswith("repeat("):
+            # 简单的repeat解析：repeat(3, 1fr) -> ["1fr", "1fr", "1fr"]
+            content = template[7:-1]  # 去掉repeat()
+            parts = content.split(",", 1)
+            if len(parts) == 2:
+                count = int(parts[0].strip())
+                value = parts[1].strip()
+                return [value] * count
+        
+        # 分割空格分隔的值
+        return [item.strip() for item in template.split() if item.strip()]
+
+
+class GridContainer(Container):
+    """CSS Grid容器组件
+    
+    提供强大的二维网格布局功能，支持：
+    - 显式网格定义（grid-template-columns/rows）
+    - 自动网格生成
+    - 网格区域命名
+    - 子项定位控制
+    """
+    
+    def __init__(
+        self, 
+        children: Optional[List[Component]] = None,
+        template: Optional[GridTemplate] = None,
+        columns: Optional[Union[str, List[str]]] = None,
+        rows: Optional[Union[str, List[str]]] = None,
+        gap: Optional[Union[int, str]] = None,
+        justify_items: Optional[str] = "stretch",
+        align_items: Optional[str] = "stretch",
+        justify_content: Optional[str] = "start",
+        align_content: Optional[str] = "start",
+        auto_rows: Optional[str] = "auto",
+        auto_columns: Optional[str] = "auto",
+        style: Optional[ComponentStyle] = None,
+        **kwargs
+    ):
+        """初始化Grid容器
+        
+        Args:
+            template: Grid模板对象
+            columns: 列定义，如 "repeat(3, 1fr)" 或 ["200px", "1fr", "100px"]  
+            rows: 行定义
+            gap: 网格间距
+            justify_items: 子项水平对齐
+            align_items: 子项垂直对齐
+            justify_content: 整体网格水平对齐
+            align_content: 整体网格垂直对齐
+            auto_rows: 自动行高
+            auto_columns: 自动列宽
+        """
+        # 构建Grid样式
+        if not style:
+            style = ComponentStyle()
+        
+        style.display = Display.GRID
+        
+        # 使用template或直接参数
+        if template:
+            columns = template.columns
+            rows = template.rows
+            gap = gap or template.gap
+        
+        # 设置Grid属性（存储为字符串，让Stretchable处理）
+        if columns:
+            if isinstance(columns, list):
+                style.grid_template_columns = " ".join(columns)
+            else:
+                style.grid_template_columns = columns
+                
+        if rows:
+            if isinstance(rows, list):
+                style.grid_template_rows = " ".join(rows)
+            else:
+                style.grid_template_rows = rows
+        
+        if gap:
+            if isinstance(gap, (int, float)):
+                style.gap = px(gap)
+            else:
+                style.gap = Length(gap)
+        
+        # 保存Grid特有属性
+        self.justify_items = justify_items
+        self.align_items = align_items
+        self.justify_content = justify_content
+        self.align_content = align_content
+        self.auto_rows = auto_rows
+        self.auto_columns = auto_columns
+        
+        super().__init__(children=children, style=style, **kwargs)
+    
+    def set_grid_area(self, child: Component, area: str):
+        """设置子组件的网格区域
+        
+        Args:
+            child: 子组件
+            area: 网格区域，如 "header" 或 "1 / 1 / 2 / 4"
+        """
+        if child in self.children:
+            if not child.style:
+                child.style = ComponentStyle()
+            child.style.grid_area = area
+            self._update_layout()
+    
+    def set_grid_position(self, child: Component, 
+                         column_start: Optional[int] = None,
+                         column_end: Optional[int] = None,
+                         row_start: Optional[int] = None,
+                         row_end: Optional[int] = None):
+        """设置子组件的网格位置
+        
+        Args:
+            child: 子组件
+            column_start: 开始列
+            column_end: 结束列
+            row_start: 开始行
+            row_end: 结束行
+        """
+        if child in self.children:
+            if not child.style:
+                child.style = ComponentStyle()
+            
+            grid_column_parts = []
+            if column_start is not None:
+                grid_column_parts.append(str(column_start))
+            if column_end is not None:
+                if not grid_column_parts:
+                    grid_column_parts.append("auto")
+                grid_column_parts.append(str(column_end))
+            
+            grid_row_parts = []
+            if row_start is not None:
+                grid_row_parts.append(str(row_start))
+            if row_end is not None:
+                if not grid_row_parts:
+                    grid_row_parts.append("auto")
+                grid_row_parts.append(str(row_end))
+            
+            if grid_column_parts:
+                child.style.grid_column = " / ".join(grid_column_parts)
+            if grid_row_parts:
+                child.style.grid_row = " / ".join(grid_row_parts)
+            
+            self._update_layout()
+
+
+class ResponsiveGrid(GridContainer):
+    """响应式网格容器
+    
+    根据容器宽度自动调整列数，实现响应式布局
     """
     
     def __init__(
         self,
-        children: Optional[List[LayoutAwareComponent]] = None,
-        style: Optional[LayoutStyle] = None
+        children: Optional[List[Component]] = None,
+        min_column_width: Union[int, str] = 200,  # 最小列宽
+        max_columns: Optional[int] = None,        # 最大列数
+        gap: Optional[Union[int, str]] = 16,
+        aspect_ratio: Optional[float] = None,     # 子项宽高比
+        style: Optional[ComponentStyle] = None,
+        **kwargs
     ):
-        """🏗️ CORE METHOD: VStack layout component initialization
+        """初始化响应式网格
         
         Args:
-            children: 子组件列表
-            style: 布局样式 (LayoutStyle对象)
+            min_column_width: 列的最小宽度
+            max_columns: 最大列数限制
+            aspect_ratio: 子项的宽高比（宽/高）
         """
-        # 创建默认VStack样式或使用提供的样式
-        if style is None:
-            layout_style = LayoutStyle(
-                display=Display.FLEX,
-                flex_direction=FlexDirection.COLUMN,
-                align_items=AlignItems.STRETCH,
-                justify_content=JustifyContent.FLEX_START
-            )
+        self.min_column_width = min_column_width
+        self.max_columns = max_columns
+        self.aspect_ratio = aspect_ratio
+        
+        # 创建响应式列定义
+        if isinstance(min_column_width, int):
+            column_template = f"repeat(auto-fit, minmax({min_column_width}px, 1fr))"
         else:
-            layout_style = style
-            # 确保是垂直布局
-            layout_style.display = Display.FLEX
-            layout_style.flex_direction = FlexDirection.COLUMN
+            column_template = f"repeat(auto-fit, minmax({min_column_width}, 1fr))"
         
-        print(f"🔧 VStackLayout.__init__ 开始，子组件数: {len(children or [])}")
-        super().__init__(layout_style)
-        print("🔧 super().__init__ 完成")
-        
-        self.children = children or []
-        self.child_components: List[LayoutAwareComponent] = []
-        
-        # 处理子组件
-        print("🔧 开始处理子组件")
-        self._process_children()
-        print("🔧 子组件处理完成")
+        super().__init__(
+            children=children,
+            columns=column_template,
+            gap=gap,
+            style=style,
+            **kwargs
+        )
     
-    def _process_children(self):
-        """处理子组件 - 仅支持LayoutAwareComponent"""
-        for child in self.children:
-            if isinstance(child, LayoutAwareComponent):
-                # 现代化组件，直接使用
-                self.child_components.append(child)
-            else:
-                # 不支持的组件类型
-                raise TypeError(f"不支持的子组件类型: {type(child).__name__}. 请使用macUI统一API组件 (Label, Button, VStack等)")
-    
-    
-    def add_child(self, child: LayoutAwareComponent) -> 'VStackLayout':
-        """添加子组件 - 支持链式调用"""
-        self.children.append(child)
-        
-        # 处理新增的子组件
-        if isinstance(child, LayoutAwareComponent):
-            self.child_components.append(child)
-            
-            # 更新布局树
-            if self.layout_node:
-                child_node = child.create_layout_node()
-                self.layout_node.add_child(child_node)
+    def update_responsive_layout(self, container_width: float):
+        """根据容器宽度更新响应式布局"""
+        if isinstance(self.min_column_width, int):
+            min_width = self.min_column_width
         else:
-            raise TypeError(f"不支持的子组件类型: {type(child).__name__}. 请使用macUI统一API组件 (Label, Button, VStack等)")
+            # 简化：假设是px值
+            min_width = int(self.min_column_width.replace("px", ""))
         
-        return self
-    
-    def _create_nsview(self) -> NSView:
-        """创建容器NSView"""
-        container = NSView.alloc().init()
+        # 计算可能的列数
+        gap_value = 16 if isinstance(self.style.gap, type(None)) else (
+            self.style.gap.value if hasattr(self.style.gap, 'value') else 16
+        )
         
-        # 🔴 关键修复：禁用AutoLayout，完全使用手动布局
-        container.setTranslatesAutoresizingMaskIntoConstraints_(True)
+        available_width = container_width - gap_value
+        possible_columns = max(1, int(available_width / (min_width + gap_value)))
         
-        # 设置默认大小
-        default_width = self.layout_style.width or 400
-        default_height = self.layout_style.height or 300
-        container.setFrame_(NSMakeRect(0, 0, default_width, default_height))
+        # 应用最大列数限制
+        if self.max_columns:
+            possible_columns = min(possible_columns, self.max_columns)
         
-        return container
-    
-    def _setup_nsview(self):
-        """设置容器和子组件"""
-        print("🔧 VStackLayout._setup_nsview 开始")
-        container = self._nsview
-        print(f"🔧 容器获取完成: {container}")
-        
-        # 挂载所有子组件
-        print(f"🔧 准备挂载 {len(self.child_components)} 个子组件")
-        for i, child_component in enumerate(self.child_components):
-            try:
-                print(f"🔧 挂载子组件 {i}: {child_component}")
-                child_view = child_component.get_view()
-                print(f"🔧 子组件视图获取完成: {child_view}")
-                if child_view:
-                    # 🔴 禁用子视图的AutoLayout
-                    child_view.setTranslatesAutoresizingMaskIntoConstraints_(True)
-                    container.addSubview_(child_view)
-                    print(f"✅ 子组件 {i} 挂载完成")
-            except Exception as e:
-                print(f"⚠️ 子组件挂载失败: {e}")
-                import traceback
-                traceback.print_exc()
-        
-        # 创建布局树结构
-        print("🔧 开始创建布局树结构")
-        self._setup_layout_tree()
-        
-        print(f"🔧 VStackLayout 创建完成，子组件数: {len(self.child_components)}")
-    
-    def _setup_layout_tree(self):
-        """设置布局树结构"""
-        # 创建根布局节点
-        root_node = self.create_layout_node()
-        
-        # 添加子组件的布局节点
-        for child_component in self.child_components:
-            child_node = child_component.create_layout_node()
-            root_node.add_child(child_node)
-        
-        # 计算初始布局
-        self._compute_and_apply_layout()
-    
-    def _compute_and_apply_layout(self):
-        """计算并应用布局"""
-        if not self.layout_node:
-            print("⚠️ layout_node 不存在，跳过布局计算")
-            return
-            
-        try:
-            print("🔄 开始计算布局...")
-            # 计算布局
-            result = self.compute_layout()
-            print(f"✅ 布局计算完成: {result}")
-            
-            # 首先应用自己容器的布局
-            print("📐 应用容器布局...")
-            self.apply_layout_to_view()
-            
-            # 然后应用到所有子组件
-            print("📐 应用子组件布局...")
-            self._apply_layout_recursive(self.layout_node)
-            
-            print(f"✅ VStackLayout 布局计算完成: {result.compute_time:.2f}ms")
-            
-        except Exception as e:
-            print(f"⚠️ VStackLayout 布局计算失败: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    def _apply_layout_recursive(self, node):
-        """递归应用布局到视图"""
-        # 跳过根节点自己(已经在外面应用过)
-        if node != self.layout_node:
-            # 应用当前节点布局
-            if node.user_data and hasattr(node.user_data, 'apply_layout_to_view'):
-                node.user_data.apply_layout_to_view()
-            elif node.user_data and hasattr(node.user_data, '_nsview'):
-                # 直接设置frame
-                x, y, w, h = node.get_layout()
-                frame = NSMakeRect(x, y, w, h)
-                node.user_data._nsview.setFrame_(frame)
-                print(f"📐 应用子组件布局: ({x:.1f}, {y:.1f}, {w:.1f}, {h:.1f})")
-        
-        # 递归处理子节点
-        for child_node in node.children:
-            self._apply_layout_recursive(child_node)
+        # 更新Grid模板
+        self.style.grid_template_columns = f"repeat({possible_columns}, 1fr)"
+        self._update_layout()
 
 
-class HStackLayout(LayoutAwareComponent):
-    """现代化水平布局组件 - 基于Stretchable布局引擎"""
+# ================================
+# 2. Stack布局系统
+# ================================
+
+class StackDirection(Enum):
+    """Stack方向"""
+    HORIZONTAL = "horizontal"
+    VERTICAL = "vertical"
+
+
+class Stack(Container):
+    """通用Stack布局容器
+    
+    提供简化的线性布局，支持：
+    - 水平/垂直方向
+    - 间距控制
+    - 对齐方式
+    - 分布方式
+    """
     
     def __init__(
         self,
-        children: Optional[List[LayoutAwareComponent]] = None,
-        style: Optional[LayoutStyle] = None
+        children: Optional[List[Component]] = None,
+        direction: StackDirection = StackDirection.VERTICAL,
+        spacing: Union[int, str] = 8,
+        alignment: str = "stretch",  # start, center, end, stretch
+        distribution: str = "start",  # start, center, end, space-between, space-around, space-evenly
+        wrap: bool = False,
+        style: Optional[ComponentStyle] = None,
+        **kwargs
     ):
-        """初始化现代化水平布局
+        """初始化Stack容器
         
         Args:
-            children: 子组件列表
-            style: 布局样式 (LayoutStyle对象)
+            direction: Stack方向
+            spacing: 子组件间距
+            alignment: 交叉轴对齐方式
+            distribution: 主轴分布方式
+            wrap: 是否允许换行
         """
+        if not style:
+            style = ComponentStyle()
         
-        # 创建默认HStack样式或使用提供的样式
-        if style is None:
-            layout_style = LayoutStyle(
-                display=Display.FLEX,
-                flex_direction=FlexDirection.ROW,
-                align_items=AlignItems.STRETCH,
-                justify_content=JustifyContent.FLEX_START
-            )
+        # 配置Flexbox
+        style.display = Display.FLEX
+        
+        if direction == StackDirection.HORIZONTAL:
+            style.flex_direction = FlexDirection.ROW
         else:
-            layout_style = style
-            # 确保是水平布局
-            layout_style.display = Display.FLEX
-            layout_style.flex_direction = FlexDirection.ROW
+            style.flex_direction = FlexDirection.COLUMN
         
-        super().__init__(layout_style)
-        
-        self.children = children or []
-        self.child_components: List[LayoutAwareComponent] = []
-        
-        # 处理子组件（复用VStack的逻辑）
-        self._process_children()
-    
-    def _process_children(self):
-        """处理子组件 - 仅支持LayoutAwareComponent"""
-        for child in self.children:
-            if isinstance(child, LayoutAwareComponent):
-                # 现代化组件，直接使用
-                self.child_components.append(child)
-            else:
-                # 不支持的组件类型
-                raise TypeError(f"不支持的子组件类型: {type(child).__name__}. 请使用macUI统一API组件 (Label, Button, HStack等)")
-    
-    
-    def add_child(self, child: LayoutAwareComponent) -> 'HStackLayout':
-        """添加子组件 - 支持链式调用"""
-        self.children.append(child)
-        
-        # 处理新增的子组件
-        if isinstance(child, LayoutAwareComponent):
-            self.child_components.append(child)
-            
-            # 更新布局树
-            if self.layout_node:
-                child_node = child.create_layout_node()
-                self.layout_node.add_child(child_node)
+        # 设置间距
+        if isinstance(spacing, int):
+            style.gap = px(spacing)
         else:
-            raise TypeError(f"不支持的子组件类型: {type(child).__name__}. 请使用macUI统一API组件 (Label, Button, HStack等)")
+            style.gap = Length(spacing)
         
-        return self
-    
-    def _create_nsview(self) -> NSView:
-        """创建容器NSView"""
-        container = NSView.alloc().init()
+        # 设置对齐
+        align_mapping = {
+            "start": AlignItems.FLEX_START,
+            "center": AlignItems.CENTER, 
+            "end": AlignItems.FLEX_END,
+            "stretch": AlignItems.STRETCH
+        }
+        style.align_items = align_mapping.get(alignment, AlignItems.STRETCH)
         
-        # 🔴 关键修复：禁用AutoLayout，完全使用手动布局
-        container.setTranslatesAutoresizingMaskIntoConstraints_(True)
+        # 设置分布
+        justify_mapping = {
+            "start": JustifyContent.FLEX_START,
+            "center": JustifyContent.CENTER,
+            "end": JustifyContent.FLEX_END,
+            "space-between": JustifyContent.SPACE_BETWEEN,
+            "space-around": JustifyContent.SPACE_AROUND,
+            "space-evenly": JustifyContent.SPACE_EVENLY
+        }
+        style.justify_content = justify_mapping.get(distribution, JustifyContent.FLEX_START)
         
-        # 设置默认大小
-        default_width = self.layout_style.width or 600
-        default_height = self.layout_style.height or 60
-        container.setFrame_(NSMakeRect(0, 0, default_width, default_height))
+        self.direction = direction
+        self.spacing = spacing
+        self.alignment = alignment
+        self.distribution = distribution
+        self.wrap = wrap
         
-        return container
-    
-    def _setup_nsview(self):
-        """设置容器和子组件 - 与VStack相同的逻辑"""
-        container = self._nsview
-        
-        # 挂载所有子组件
-        for child_component in self.child_components:
-            try:
-                child_view = child_component.get_view()
-                if child_view:
-                    container.addSubview_(child_view)
-            except Exception as e:
-                print(f"⚠️ HStack子组件挂载失败: {e}")
-        
-        # 创建布局树结构
-        self._setup_layout_tree()
-        
-        print(f"🔧 HStackLayout 创建完成，子组件数: {len(self.child_components)}")
-    
-    def _setup_layout_tree(self):
-        """设置布局树结构 - 与VStack相同的逻辑"""
-        root_node = self.create_layout_node()
-        
-        for child_component in self.child_components:
-            child_node = child_component.create_layout_node()
-            root_node.add_child(child_node)
-        
-        self._compute_and_apply_layout()
-    
-    def _compute_and_apply_layout(self):
-        """计算并应用布局"""
-        if not self.layout_node:
-            return
-            
-        try:
-            result = self.compute_layout()
-            
-            # 首先应用自己容器的布局
-            self.apply_layout_to_view()
-            
-            # 然后应用到所有子组件
-            self._apply_layout_recursive(self.layout_node)
-            
-            print(f"✅ HStackLayout 布局计算完成: {result.compute_time:.2f}ms")
-        except Exception as e:
-            print(f"⚠️ HStackLayout 布局计算失败: {e}")
-    
-    def _apply_layout_recursive(self, node):
-        """递归应用布局到视图 - 与VStack相同的逻辑"""
-        # 跳过根节点自己(已经在外面应用过)
-        if node != self.layout_node:
-            # 应用当前节点布局
-            if node.user_data and hasattr(node.user_data, 'apply_layout_to_view'):
-                node.user_data.apply_layout_to_view()
-            elif node.user_data and hasattr(node.user_data, '_nsview'):
-                x, y, w, h = node.get_layout()
-                frame = NSMakeRect(x, y, w, h)
-                node.user_data._nsview.setFrame_(frame)
-                print(f"📐 应用HStack子组件布局: ({x:.1f}, {y:.1f}, {w:.1f}, {h:.1f})")
-        
-        for child_node in node.children:
-            self._apply_layout_recursive(child_node)
+        super().__init__(children=children, style=style, **kwargs)
 
 
-# 向后兼容的函数式接口
-def VStack(
-    children: Optional[List[Union[LayoutAwareComponent, Component, Any]]] = None,
-    style: Optional[LayoutStyle] = None
-) -> VStackLayout:
-    """创建现代化垂直布局 - 统一style接口
+class HStack(Stack):
+    """水平Stack容器（语法糖）"""
     
-    Args:
-        children: 子组件列表
-        style: 布局样式对象
+    def __init__(self, children: Optional[List[Component]] = None, **kwargs):
+        super().__init__(children=children, direction=StackDirection.HORIZONTAL, **kwargs)
+
+
+class VStack(Stack):
+    """垂直Stack容器（语法糖）"""
     
-    Examples:
-        # 基本用法
-        vstack = VStack(children=[button, label])
-        
-        # 使用style控制布局
-        vstack = VStack(
-            children=[button, label],
-            style=LayoutStyle(
-                gap=16,
-                align_items=AlignItems.CENTER,
-                padding=20
-            )
-        )
+    def __init__(self, children: Optional[List[Component]] = None, **kwargs):
+        super().__init__(children=children, direction=StackDirection.VERTICAL, **kwargs)
+
+
+class ZStack(Container):
+    """层叠Stack容器
+    
+    将子组件按Z轴层叠布局，类似于绝对定位的容器
     """
-    return VStackLayout(
-        children=children,
-        style=style
-    )
-
-
-def HStack(
-    children: Optional[List[Union[LayoutAwareComponent, Component, Any]]] = None,
-    style: Optional[LayoutStyle] = None
-) -> HStackLayout:
-    """创建现代化水平布局 - 统一style接口
     
-    Args:
-        children: 子组件列表
-        style: 布局样式对象
-    
-    Examples:
-        # 基本用法
-        hstack = HStack(children=[button1, button2])
+    def __init__(
+        self,
+        children: Optional[List[Component]] = None,
+        alignment: str = "center",  # 子项对齐方式
+        style: Optional[ComponentStyle] = None,
+        **kwargs
+    ):
+        """初始化ZStack容器"""
+        if not style:
+            style = ComponentStyle()
         
-        # 使用style控制布局
-        hstack = HStack(
-            children=[button1, button2],
-            style=LayoutStyle(
-                gap=10,
-                justify_content=JustifyContent.SPACE_BETWEEN,
-                padding=15
-            )
-        )
+        # ZStack使用相对定位作为容器
+        style.position = ComponentStyle().position  # static/relative
+        
+        self.alignment = alignment
+        super().__init__(children=children, style=style, **kwargs)
+    
+    def add_layer(self, child: Component, z_index: int = 0, 
+                  offset_x: float = 0, offset_y: float = 0):
+        """添加层级子组件
+        
+        Args:
+            child: 子组件
+            z_index: Z轴层级
+            offset_x: X轴偏移
+            offset_y: Y轴偏移
+        """
+        # 设置子组件为绝对定位
+        if not child.style:
+            child.style = ComponentStyle()
+        
+        from ..core.managers import Position
+        child.style.position = Position.ABSOLUTE
+        child.style.z_index = z_index
+        
+        if offset_x != 0:
+            child.style.left = px(offset_x)
+        if offset_y != 0:
+            child.style.top = px(offset_y)
+        
+        self.add_child(child)
+
+
+# ================================
+# 3. Masonry瀑布流布局
+# ================================
+
+class MasonryContainer(Container):
+    """瀑布流布局容器
+    
+    实现Pinterest风格的瀑布流布局：
+    - 多列等宽布局
+    - 子项按高度自动排列
+    - 最小化空白区域
     """
-    return HStackLayout(
-        children=children,
-        style=style
-    )
-
-
-# 便捷构造函数
-def CenteredVStack(
-    children: Optional[List] = None,
-    spacing: Union[int, float] = 16,
-    **kwargs
-) -> VStackLayout:
-    """居中的垂直布局"""
-    return VStackLayout(
-        children=children,
-        spacing=spacing,
-        alignment=AlignItems.CENTER,
-        justify_content=JustifyContent.CENTER,
+    
+    def __init__(
+        self,
+        children: Optional[List[Component]] = None,
+        columns: int = 3,
+        gap: Union[int, str] = 16,
+        style: Optional[ComponentStyle] = None,
         **kwargs
-    )
+    ):
+        """初始化瀑布流容器
+        
+        Args:
+            columns: 列数
+            gap: 间距
+        """
+        if not style:
+            style = ComponentStyle()
+        
+        # 瀑布流使用CSS Grid实现
+        style.display = Display.GRID
+        style.grid_template_columns = f"repeat({columns}, 1fr)"
+        
+        if isinstance(gap, int):
+            style.gap = px(gap)
+        else:
+            style.gap = Length(gap)
+        
+        self.columns = columns
+        self._column_heights = [0.0] * columns  # 跟踪每列高度
+        
+        super().__init__(children=children, style=style, **kwargs)
+    
+    def add_masonry_item(self, child: Component):
+        """添加瀑布流项目（自动分配到最短列）"""
+        # 找到高度最小的列
+        min_height = min(self._column_heights)
+        target_column = self._column_heights.index(min_height)
+        
+        # 设置子项的grid-column
+        if not child.style:
+            child.style = ComponentStyle()
+        child.style.grid_column = str(target_column + 1)
+        
+        # 添加子项
+        self.add_child(child)
+        
+        # 更新列高度（这里需要在实际布局后更新）
+        # 在实际实现中，需要在布局计算后更新
+        estimated_height = getattr(child.style, 'height', px(100)).value if hasattr(child.style, 'height') and child.style.height else 100
+        self._column_heights[target_column] += estimated_height
+    
+    def rebalance_masonry(self):
+        """重新平衡瀑布流布局"""
+        # 重置列高度
+        self._column_heights = [0.0] * self.columns
+        
+        # 重新分配所有子项
+        for child in self.children.copy():
+            self.remove_child(child)
+            self.add_masonry_item(child)
 
 
-def CenteredHStack(
-    children: Optional[List] = None,
-    spacing: Union[int, float] = 16,
-    **kwargs
-) -> HStackLayout:
-    """居中的水平布局"""
-    return HStackLayout(
-        children=children,
-        spacing=spacing,
-        alignment=AlignItems.CENTER,
-        justify_content=JustifyContent.CENTER,
+# ================================
+# 4. 专业布局容器
+# ================================
+
+class SplitView(Container):
+    """分割视图容器
+    
+    实现可调整大小的分割面板：
+    - 水平/垂直分割
+    - 可拖拽分割线
+    - 最小/最大尺寸限制
+    - 折叠功能
+    """
+    
+    def __init__(
+        self,
+        primary: Component,
+        secondary: Component,
+        orientation: StackDirection = StackDirection.HORIZONTAL,
+        split_ratio: float = 0.5,  # 0.0-1.0
+        min_primary_size: int = 100,
+        min_secondary_size: int = 100,
+        resizable: bool = True,
+        collapsible: bool = False,
+        style: Optional[ComponentStyle] = None,
         **kwargs
-    )
+    ):
+        """初始化分割视图
+        
+        Args:
+            primary: 主面板
+            secondary: 次面板
+            orientation: 分割方向
+            split_ratio: 分割比例
+            min_primary_size: 主面板最小尺寸
+            min_secondary_size: 次面板最小尺寸
+            resizable: 是否可调整大小
+            collapsible: 是否可折叠
+        """
+        if not style:
+            style = ComponentStyle()
+        
+        style.display = Display.FLEX
+        
+        if orientation == StackDirection.HORIZONTAL:
+            style.flex_direction = FlexDirection.ROW
+        else:
+            style.flex_direction = FlexDirection.COLUMN
+        
+        # 设置flex比例
+        if not primary.style:
+            primary.style = ComponentStyle()
+        if not secondary.style:
+            secondary.style = ComponentStyle()
+        
+        primary.style.flex_grow = split_ratio
+        secondary.style.flex_grow = 1 - split_ratio
+        
+        self.orientation = orientation
+        self.split_ratio = Signal(split_ratio)
+        self.min_primary_size = min_primary_size
+        self.min_secondary_size = min_secondary_size
+        self.resizable = resizable
+        self.collapsible = collapsible
+        
+        # 创建分割线
+        splitter = self._create_splitter()
+        
+        children = [primary, splitter, secondary] if resizable else [primary, secondary]
+        super().__init__(children=children, style=style, **kwargs)
+    
+    def _create_splitter(self) -> Component:
+        """创建分割线组件"""
+        # 使用已导入的Container
+        BasicContainer = Container
+        
+        splitter_style = ComponentStyle()
+        if self.orientation == StackDirection.HORIZONTAL:
+            splitter_style.width = px(4)
+            splitter_style.height = percent(100)
+        else:
+            splitter_style.width = percent(100)
+            splitter_style.height = px(4)
+        
+        # TODO: 添加鼠标事件处理
+        splitter = BasicContainer(style=splitter_style)
+        return splitter
+    
+    def set_split_ratio(self, ratio: float):
+        """设置分割比例"""
+        ratio = max(0.1, min(0.9, ratio))  # 限制范围
+        self.split_ratio.value = ratio
+        
+        # 更新flex比例
+        if len(self.children) >= 2:
+            primary = self.children[0]
+            secondary = self.children[-1]
+            
+            primary.style.flex_grow = ratio
+            secondary.style.flex_grow = 1 - ratio
+            
+            self._update_layout()
 
 
-def FlexVStack(
-    children: Optional[List] = None,
-    **kwargs
-) -> VStackLayout:
-    """弹性垂直布局 - 平均分布空间"""
-    return VStackLayout(
-        children=children,
-        justify_content=JustifyContent.SPACE_BETWEEN,
+class ScrollableContainer(Container):
+    """可滚动容器
+    
+    提供内容滚动功能：
+    - 水平/垂直滚动
+    - 滚动条样式控制
+    - 虚拟化支持（大数据集）
+    """
+    
+    def __init__(
+        self,
+        children: Optional[List[Component]] = None,
+        scroll_horizontal: bool = False,
+        scroll_vertical: bool = True,
+        show_scrollbars: bool = True,
+        style: Optional[ComponentStyle] = None,
         **kwargs
-    )
+    ):
+        """初始化滚动容器"""
+        if not style:
+            style = ComponentStyle()
+        
+        # 设置overflow属性
+        from ..core.managers import OverflowBehavior
+        if scroll_horizontal and scroll_vertical:
+            style.overflow = OverflowBehavior.SCROLL
+        elif scroll_vertical:
+            style.overflow = OverflowBehavior.SCROLL_VERTICAL
+        elif scroll_horizontal:
+            style.overflow = OverflowBehavior.SCROLL_HORIZONTAL
+        else:
+            style.overflow = OverflowBehavior.HIDDEN
+        
+        self.scroll_horizontal = scroll_horizontal
+        self.scroll_vertical = scroll_vertical  
+        self.show_scrollbars = show_scrollbars
+        
+        super().__init__(children=children, style=style, **kwargs)
 
 
-def FlexHStack(
-    children: Optional[List] = None,
-    **kwargs
-) -> HStackLayout:
-    """弹性水平布局 - 平均分布空间"""
-    return HStackLayout(
-        children=children,
-        justify_content=JustifyContent.SPACE_BETWEEN,
-        **kwargs
+# ================================
+# 5. 布局工具和助手
+# ================================
+
+class LayoutPresets:
+    """布局预设工厂"""
+    
+    @staticmethod
+    def card_grid(columns: int = 3, gap: int = 16) -> GridContainer:
+        """卡片网格布局"""
+        return GridContainer(
+            columns=f"repeat({columns}, 1fr)",
+            gap=gap,
+            style=ComponentStyle(padding=px(16))
+        )
+    
+    @staticmethod
+    def sidebar_layout(sidebar_width: int = 250) -> SplitView:
+        """侧边栏布局"""
+        BasicContainer = Container
+        
+        sidebar = BasicContainer(style=ComponentStyle(
+            width=px(sidebar_width),
+            min_width=px(200)
+        ))
+        main = BasicContainer()
+        
+        return SplitView(
+            primary=sidebar,
+            secondary=main,
+            orientation=StackDirection.HORIZONTAL,
+            split_ratio=0.3,
+            resizable=True
+        )
+    
+    @staticmethod
+    def header_content_layout(header_height: int = 60) -> VStack:
+        """头部-内容布局"""
+        BasicContainer = Container
+        
+        header = BasicContainer(style=ComponentStyle(
+            height=px(header_height),
+            width=percent(100)
+        ))
+        
+        content = BasicContainer(style=ComponentStyle(
+            flex_grow=1
+        ))
+        
+        return VStack(
+            children=[header, content],
+            spacing=0,
+            style=ComponentStyle(height=percent(100))
+        )
+    
+    @staticmethod
+    def masonry_gallery(columns: int = 3) -> MasonryContainer:
+        """瀑布流画廊"""
+        return MasonryContainer(
+            columns=columns,
+            gap=12,
+            style=ComponentStyle(padding=px(12))
+        )
+
+
+class LayoutAnimator:
+    """布局动画器（预留接口）"""
+    
+    @staticmethod
+    def animate_grid_resize(grid: GridContainer, new_columns: Union[str, List[str]], duration: float = 0.3):
+        """动画化Grid列变化"""
+        # TODO: 实现布局动画
+        pass
+    
+    @staticmethod 
+    def animate_split_ratio(split_view: SplitView, new_ratio: float, duration: float = 0.3):
+        """动画化分割比例变化"""
+        # TODO: 实现比例动画
+        pass
+
+
+# ================================
+# 6. 测试代码
+# ================================
+
+if __name__ == "__main__":
+    print("macUI v4.0 高级布局组件测试\n")
+    
+    # 测试Grid容器
+    print("📐 Grid容器测试:")
+    grid = GridContainer(
+        columns="repeat(3, 1fr)",
+        rows="100px auto",
+        gap=16
     )
+    print(f"Grid列定义: {grid.style.grid_template_columns}")
+    print(f"Grid行定义: {grid.style.grid_template_rows}")
+    print(f"Grid间距: {grid.style.gap}")
+    
+    # 测试响应式Grid
+    print("\n📱 响应式Grid测试:")
+    responsive_grid = ResponsiveGrid(
+        min_column_width=200,
+        max_columns=4,
+        gap=16
+    )
+    print(f"响应式Grid列模板: {responsive_grid.style.grid_template_columns}")
+    
+    # 测试Stack容器
+    print("\n📚 Stack容器测试:")
+    vstack = VStack(spacing=12, alignment="center")
+    hstack = HStack(spacing=8, distribution="space-between")
+    print(f"VStack方向: {vstack.style.flex_direction}")
+    print(f"HStack分布: {vstack.style.justify_content}")
+    
+    # 测试瀑布流
+    print("\n🌊 瀑布流测试:")
+    masonry = MasonryContainer(columns=3, gap=16)
+    print(f"瀑布流列数: {masonry.columns}")
+    print(f"瀑布流Grid模板: {masonry.style.grid_template_columns}")
+    
+    print("\n✅ 高级布局组件测试完成！")

@@ -34,7 +34,8 @@
       "Bash(git log:*)",
       "Bash(timeout 30 uv run:*)",
       "Bash(git add:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(mv:*)"
     ],
     "deny": [],
     "ask": [],
