@@ -4,8 +4,14 @@ macUI v4.0 基础组件
 Label, Button等基本UI组件的新架构实现
 """
 
-from typing import Optional, Union, Callable, Any
-from AppKit import NSView, NSTextField, NSButton, NSButtonTypeMomentaryPushIn
+from typing import Optional, Union, Callable, Any, List
+from AppKit import (
+    NSView, NSTextField, NSButton, NSButtonTypeMomentaryPushIn,
+    NSSlider, NSButtonTypeSwitch, NSButtonTypeRadio,
+    NSScrollView, NSTextView, NSProgressIndicator, NSProgressIndicatorStyleBar, NSProgressIndicatorStyleSpinning,
+    NSImageView, NSImage, NSImageScaleProportionallyUpOrDown, NSImageScaleAxesIndependently, NSImageScaleNone,
+    NSPopUpButton, NSComboBox, NSRect, NSMakeRect
+)
 from Foundation import NSObject
 
 # 导入核心架构
@@ -733,39 +739,1209 @@ class Switch(UIComponent):
 
 # 全局开关委托类
 class SwitchDelegate(NSObject):
-    """Switch状态变化事件委托类"""
+    """Switch事件委托类"""
     
     def init(self):
         self = objc.super(SwitchDelegate, self).init()
         if self is None:
             return None
         self.callback = None
-        self.switch_component = None
         return self
     
-    def switchChanged_(self, sender):
-        """开关状态变化事件处理"""
+    def switchToggled_(self, sender):
+        """开关切换事件处理"""
         if hasattr(self, 'callback') and self.callback:
             try:
-                # 获取当前开关状态
-                current_state = bool(sender.state())
-                
-                # 更新组件的值
-                if hasattr(self, 'switch_component') and self.switch_component:
-                    if self.switch_component._is_reactive_value and hasattr(self.switch_component.value, 'value'):
-                        self.switch_component.value.value = current_state
-                    else:
-                        self.switch_component.value = current_state
-                
-                # 调用回调函数
-                self.callback(current_state)
-                print(f"🔘 Switch状态变化: {current_state}")
-                
+                is_on = sender.state() == 1  # NSOnState = 1
+                self.callback(is_on)
             except Exception as e:
-                print(f"⚠️ Switch状态变化回调错误: {e}")
+                print(f"⚠️ Switch切换回调错误: {e}")
+
 
 # ================================
-# 6. 使用示例和测试
+# 6. TextArea - 多行文本编辑器组件
+# ================================
+
+class TextArea(UIComponent):
+    """多行文本编辑器组件
+    
+    基于macUI v4.0架构的多行文本输入组件。
+    支持滚动、文本换行、响应式绑定等功能。
+    
+    Features:
+    - 多行文本编辑
+    - 自动滚动支持
+    - 响应式内容绑定
+    - 占位符文本
+    - 可配置的编辑模式
+    - 完整的布局支持
+    """
+    
+    def __init__(self,
+                 text: Union[str, Any] = "",
+                 placeholder: str = "",
+                 style: Optional[ComponentStyle] = None,
+                 editable: bool = True,
+                 on_text_change: Optional[Callable[[str], None]] = None,
+                 **style_kwargs):
+        """初始化TextArea组件
+        
+        Args:
+            text: 初始文本内容，支持Signal绑定
+            placeholder: 占位符文本
+            style: 组件样式对象
+            editable: 是否可编辑
+            on_text_change: 文本变化回调函数
+            **style_kwargs: 样式快捷参数
+        """
+        # 确保有合适的默认尺寸
+        if style is None:
+            from ..core.styles import px
+            style = ComponentStyle(width=px(300), height=px(150))
+        
+        super().__init__(style, **style_kwargs)
+        self.text = text
+        self.placeholder = placeholder
+        self.editable = editable
+        self.on_text_change = on_text_change
+        
+        # 检查是否为响应式文本
+        from ..core.reactive import Signal, Computed
+        self._is_reactive_text = isinstance(text, (Signal, Computed))
+        self._bindings = []  # 存储绑定清理函数
+        self._text_delegate = None
+        
+        print(f"📝 TextArea创建: text_length={len(str(text))}, editable={editable}")
+    
+    def _create_nsview(self) -> NSView:
+        """创建多行文本编辑器NSView"""
+        # 导入必要的类
+        from AppKit import NSScrollView, NSTextView, NSMakeRect
+        
+        # 创建滚动视图容器
+        scroll_view = NSScrollView.alloc().initWithFrame_(NSMakeRect(0, 0, 300, 150))
+        scroll_view.setHasVerticalScroller_(True)
+        scroll_view.setHasHorizontalScroller_(False)
+        scroll_view.setAutohidesScrollers_(False)
+        scroll_view.setBorderType_(1)  # NSBezelBorder
+        
+        # 创建文本视图
+        text_view = NSTextView.alloc().init()
+        text_view.setVerticallyResizable_(True)
+        text_view.setHorizontallyResizable_(False)
+        text_view.setAutoresizingMask_(2)  # NSViewWidthSizable
+        
+        # 设置文本内容
+        initial_text = ""
+        if self._is_reactive_text:
+            initial_text = str(getattr(self.text, 'value', ''))
+        else:
+            initial_text = str(self.text)
+        
+        text_view.setString_(initial_text)
+        
+        # 设置编辑模式
+        text_view.setEditable_(self.editable)
+        text_view.setSelectable_(True)
+        
+        # 设置占位符（如果为空）
+        if not initial_text and self.placeholder:
+            # 注意：NSTextView没有直接的placeholder支持
+            # 这里可以通过其他方式实现占位符效果
+            pass
+        
+        # 将文本视图添加到滚动视图
+        scroll_view.setDocumentView_(text_view)
+        
+        # 设置文本变化事件
+        if self.on_text_change:
+            self._bind_text_change_event(text_view)
+        
+        # 响应式绑定
+        if self._is_reactive_text:
+            from ..core.binding import ReactiveBinding
+            binding_cleanup = ReactiveBinding.bind(text_view, "string", self.text)
+            self._bindings.append(binding_cleanup)
+            print(f"🔗 TextArea响应式绑定已创建")
+        
+        # 保存文本视图引用以便后续操作
+        self._text_view = text_view
+        
+        return scroll_view
+    
+    def _bind_text_change_event(self, text_view):
+        """绑定文本变化事件"""
+        # 创建委托对象
+        delegate = TextAreaDelegate.alloc().init()
+        delegate.callback = self.on_text_change
+        delegate.text_area = self  # 保持对TextArea的引用
+        
+        text_view.setDelegate_(delegate)
+        self._text_delegate = delegate  # 保持引用防止被垃圾回收
+        print("🔗 TextArea文本变化事件已绑定")
+    
+    def get_text(self) -> str:
+        """获取当前文本内容"""
+        if hasattr(self, '_text_view') and self._text_view:
+            return self._text_view.string()
+        if self._is_reactive_text:
+            return str(getattr(self.text, 'value', ''))
+        return str(self.text)
+    
+    def set_text(self, text: Union[str, Any]) -> 'TextArea':
+        """动态设置文本内容"""
+        self.text = text
+        from ..core.reactive import Signal, Computed
+        self._is_reactive_text = isinstance(text, (Signal, Computed))
+        
+        if hasattr(self, '_text_view') and self._text_view:
+            if self._is_reactive_text:
+                content = str(getattr(text, 'value', ''))
+            else:
+                content = str(text)
+            self._text_view.setString_(content)
+            print(f"📝 TextArea文本更新: length={len(content)}")
+        
+        return self
+    
+    def set_editable(self, editable: bool) -> 'TextArea':
+        """设置是否可编辑"""
+        self.editable = editable
+        if hasattr(self, '_text_view') and self._text_view:
+            self._text_view.setEditable_(editable)
+        return self
+    
+    def scroll_to_bottom(self):
+        """滚动到底部"""
+        if hasattr(self, '_text_view') and self._text_view:
+            text_length = len(self._text_view.string())
+            self._text_view.scrollRangeToVisible_((text_length, 0))
+
+
+class TextAreaDelegate(NSObject):
+    """TextArea委托类，处理文本变化事件"""
+    
+    def init(self):
+        self = objc.super(TextAreaDelegate, self).init()
+        if self is None:
+            return None
+        self.callback = None
+        self.text_area = None
+        return self
+    
+    def textDidChange_(self, notification):
+        """文本内容变化时调用"""
+        if hasattr(self, 'callback') and self.callback:
+            try:
+                text_view = notification.object()
+                new_text = text_view.string()
+                self.callback(new_text)
+            except Exception as e:
+                print(f"⚠️ TextArea文本变化回调错误: {e}")
+
+
+# ================================
+# 7. Checkbox - 复选框组件
+# ================================
+
+class Checkbox(UIComponent):
+    """复选框组件
+    
+    基于macUI v4.0架构的复选框组件。
+    支持选中状态管理和响应式绑定。
+    
+    Features:
+    - 选中/未选中状态管理
+    - 响应式状态绑定
+    - 自定义标题文本
+    - 状态变化回调
+    - 完整的布局支持
+    """
+    
+    def __init__(self,
+                 title: str = "",
+                 checked: Union[bool, Any] = False,
+                 style: Optional[ComponentStyle] = None,
+                 on_change: Optional[Callable[[bool], None]] = None,
+                 **style_kwargs):
+        """初始化Checkbox组件
+        
+        Args:
+            title: 复选框标题文本
+            checked: 初始选中状态，支持Signal绑定
+            style: 组件样式对象
+            on_change: 状态变化回调函数
+            **style_kwargs: 样式快捷参数
+        """
+        super().__init__(style, **style_kwargs)
+        self.title = title
+        self.checked = checked
+        self.on_change = on_change
+        
+        # 检查是否为响应式状态
+        from ..core.reactive import Signal, Computed
+        self._is_reactive_checked = isinstance(checked, (Signal, Computed))
+        self._bindings = []
+        self._checkbox_delegate = None
+        
+        print(f"☑️ Checkbox创建: title='{title}', checked={checked}")
+    
+    def _create_nsview(self) -> NSView:
+        """创建复选框NSView"""
+        from AppKit import NSButton, NSButtonTypeSwitch
+        
+        checkbox = NSButton.alloc().init()
+        checkbox.setButtonType_(NSButtonTypeSwitch)
+        checkbox.setTitle_(self.title)
+        
+        # 设置初始状态
+        initial_checked = False
+        if self._is_reactive_checked:
+            initial_checked = bool(getattr(self.checked, 'value', False))
+        else:
+            initial_checked = bool(self.checked)
+        
+        checkbox.setState_(1 if initial_checked else 0)
+        
+        # 自动调整尺寸
+        checkbox.sizeToFit()
+        
+        # 绑定状态变化事件
+        if self.on_change:
+            self._bind_change_event(checkbox)
+        
+        # 响应式绑定
+        if self._is_reactive_checked:
+            from ..core.binding import ReactiveBinding
+            
+            # 自定义绑定函数，因为checkbox需要特殊的状态处理
+            def update_checkbox_state():
+                new_checked = bool(getattr(self.checked, 'value', False))
+                checkbox.setState_(1 if new_checked else 0)
+            
+            from ..core.reactive import Effect
+            effect = Effect(update_checkbox_state)
+            self._bindings.append(effect)
+            print(f"🔗 Checkbox响应式绑定已创建")
+        
+        return checkbox
+    
+    def _bind_change_event(self, checkbox):
+        """绑定状态变化事件"""
+        delegate = CheckboxDelegate.alloc().init()
+        delegate.callback = self.on_change
+        delegate.checkbox = self
+        
+        checkbox.setTarget_(delegate)
+        checkbox.setAction_("checkboxToggled:")
+        self._checkbox_delegate = delegate
+        print("🔗 Checkbox状态变化事件已绑定")
+    
+    def get_checked(self) -> bool:
+        """获取当前选中状态"""
+        if self._nsview:
+            return self._nsview.state() == 1
+        if self._is_reactive_checked:
+            return bool(getattr(self.checked, 'value', False))
+        return bool(self.checked)
+    
+    def set_checked(self, checked: Union[bool, Any]) -> 'Checkbox':
+        """设置选中状态"""
+        self.checked = checked
+        from ..core.reactive import Signal, Computed
+        self._is_reactive_checked = isinstance(checked, (Signal, Computed))
+        
+        if self._nsview:
+            new_state = bool(getattr(checked, 'value', checked))
+            self._nsview.setState_(1 if new_state else 0)
+        
+        return self
+
+
+class CheckboxDelegate(NSObject):
+    """Checkbox事件委托类"""
+    
+    def init(self):
+        self = objc.super(CheckboxDelegate, self).init()
+        if self is None:
+            return None
+        self.callback = None
+        self.checkbox = None
+        return self
+    
+    def checkboxToggled_(self, sender):
+        """复选框状态切换事件处理"""
+        if hasattr(self, 'callback') and self.callback:
+            try:
+                is_checked = sender.state() == 1
+                self.callback(is_checked)
+            except Exception as e:
+                print(f"⚠️ Checkbox状态变化回调错误: {e}")
+
+
+# ================================
+# 8. RadioButton - 单选按钮组件
+# ================================
+
+class RadioButton(UIComponent):
+    """单选按钮组件
+    
+    基于macUI v4.0架构的单选按钮组件。
+    支持分组选择和响应式绑定。
+    
+    Features:
+    - 分组单选功能
+    - 响应式状态绑定
+    - 自定义标题文本
+    - 选择变化回调
+    - 完整的布局支持
+    """
+    
+    def __init__(self,
+                 title: str = "",
+                 value: Any = None,
+                 selected: Union[bool, Any] = False,
+                 group: Optional[str] = None,
+                 style: Optional[ComponentStyle] = None,
+                 on_select: Optional[Callable[[Any], None]] = None,
+                 **style_kwargs):
+        """初始化RadioButton组件
+        
+        Args:
+            title: 单选按钮标题文本
+            value: 按钮的值（选中时返回的值）
+            selected: 初始选中状态，支持Signal绑定
+            group: 单选组名称
+            style: 组件样式对象
+            on_select: 选中回调函数，参数为value
+            **style_kwargs: 样式快捷参数
+        """
+        super().__init__(style, **style_kwargs)
+        self.title = title
+        self.value = value if value is not None else title
+        self.selected = selected
+        self.group = group
+        self.on_select = on_select
+        
+        # 检查是否为响应式状态
+        from ..core.reactive import Signal, Computed
+        self._is_reactive_selected = isinstance(selected, (Signal, Computed))
+        self._bindings = []
+        self._radio_delegate = None
+        
+        print(f"🔘 RadioButton创建: title='{title}', value={self.value}, selected={selected}")
+    
+    def _create_nsview(self) -> NSView:
+        """创建单选按钮NSView"""
+        from AppKit import NSButton, NSButtonTypeRadio
+        
+        radio = NSButton.alloc().init()
+        radio.setButtonType_(NSButtonTypeRadio)
+        radio.setTitle_(self.title)
+        
+        # 设置初始状态
+        initial_selected = False
+        if self._is_reactive_selected:
+            initial_selected = bool(getattr(self.selected, 'value', False))
+        else:
+            initial_selected = bool(self.selected)
+        
+        radio.setState_(1 if initial_selected else 0)
+        
+        # 自动调整尺寸
+        radio.sizeToFit()
+        
+        # 绑定选择事件
+        if self.on_select:
+            self._bind_select_event(radio)
+        
+        # 响应式绑定
+        if self._is_reactive_selected:
+            from ..core.binding import ReactiveBinding
+            
+            # 自定义绑定函数
+            def update_radio_state():
+                new_selected = bool(getattr(self.selected, 'value', False))
+                radio.setState_(1 if new_selected else 0)
+            
+            from ..core.reactive import Effect
+            effect = Effect(update_radio_state)
+            self._bindings.append(effect)
+            print(f"🔗 RadioButton响应式绑定已创建")
+        
+        return radio
+    
+    def _bind_select_event(self, radio):
+        """绑定选择事件"""
+        delegate = RadioButtonDelegate.alloc().init()
+        delegate.callback = self.on_select
+        delegate.value = self.value
+        delegate.radio_button = self
+        
+        radio.setTarget_(delegate)
+        radio.setAction_("radioSelected:")
+        self._radio_delegate = delegate
+        print("🔗 RadioButton选择事件已绑定")
+    
+    def get_selected(self) -> bool:
+        """获取当前选中状态"""
+        if self._nsview:
+            return self._nsview.state() == 1
+        if self._is_reactive_selected:
+            return bool(getattr(self.selected, 'value', False))
+        return bool(self.selected)
+    
+    def set_selected(self, selected: Union[bool, Any]) -> 'RadioButton':
+        """设置选中状态"""
+        self.selected = selected
+        from ..core.reactive import Signal, Computed
+        self._is_reactive_selected = isinstance(selected, (Signal, Computed))
+        
+        if self._nsview:
+            new_state = bool(getattr(selected, 'value', selected))
+            self._nsview.setState_(1 if new_state else 0)
+        
+        return self
+
+
+class RadioButtonDelegate(NSObject):
+    """RadioButton事件委托类"""
+    
+    def init(self):
+        self = objc.super(RadioButtonDelegate, self).init()
+        if self is None:
+            return None
+        self.callback = None
+        self.value = None
+        self.radio_button = None
+        return self
+    
+    def radioSelected_(self, sender):
+        """单选按钮选中事件处理"""
+        if hasattr(self, 'callback') and self.callback:
+            try:
+                if sender.state() == 1:  # 只在选中时触发回调
+                    self.callback(self.value)
+            except Exception as e:
+                print(f"⚠️ RadioButton选择回调错误: {e}")
+
+# ================================
+# 6. 显示组件 (Display Components)
+# ================================
+
+class ProgressBar(UIComponent):
+    """进度条组件 - 基于NSProgressIndicator"""
+    
+    def __init__(self, 
+                 initial_value: Union[float, 'Signal'] = 0.0, 
+                 maximum: Union[float, 'Signal'] = 100.0,
+                 style: Optional[ComponentStyle] = None,
+                 indeterminate: bool = False):
+        """初始化进度条组件
+        
+        Args:
+            initial_value: 进度值（0-maximum之间）
+            maximum: 最大值
+            style: 组件样式
+            indeterminate: 是否为不确定进度条
+        """
+        # 处理响应式值
+        if hasattr(initial_value, 'value'):
+            self._is_reactive_value = True
+            self.value = initial_value
+        else:
+            self._is_reactive_value = False
+            self.value = initial_value
+            
+        if hasattr(maximum, 'value'):
+            self._is_reactive_maximum = True
+            self.maximum = maximum
+        else:
+            self._is_reactive_maximum = False
+            self.maximum = maximum
+            
+        self.indeterminate = indeterminate
+        self._progress_indicator = None
+        
+        # 初始化基础组件
+        super().__init__(style=style)
+        
+        print(f"🔧 ProgressBar组件创建: value={self._get_value()}, max={self._get_maximum()}")
+        
+    def _get_value(self) -> float:
+        """获取当前进度值"""
+        if self._is_reactive_value:
+            return self.value.value if hasattr(self.value, 'value') else 0.0
+        return self.value
+        
+    def _get_maximum(self) -> float:
+        """获取最大值"""
+        if self._is_reactive_maximum:
+            return self.maximum.value if hasattr(self.maximum, 'value') else 100.0
+        return self.maximum
+    
+    def _create_nsview(self) -> NSView:
+        """创建NSProgressIndicator"""
+        # 创建进度指示器
+        progress = NSProgressIndicator.alloc().initWithFrame_(NSMakeRect(0, 0, 200, 20))
+        
+        if self.indeterminate:
+            progress.setStyle_(NSProgressIndicatorStyleSpinning)
+            progress.setIndeterminate_(True)
+            progress.startAnimation_(None)
+        else:
+            progress.setStyle_(NSProgressIndicatorStyleBar)
+            progress.setIndeterminate_(False)
+            
+            # 设置进度值
+            progress.setMaxValue_(self._get_maximum())
+            progress.setDoubleValue_(self._get_value())
+        
+        self._progress_indicator = progress
+        
+        # 建立响应式绑定
+        if self._is_reactive_value:
+            self._bind_reactive_value()
+        if self._is_reactive_maximum:
+            self._bind_reactive_maximum()
+            
+        print(f"📊 ProgressBar NSProgressIndicator创建完成")
+        return progress
+    
+    def _bind_reactive_value(self):
+        """建立进度值的响应式绑定"""
+        if not hasattr(self.value, 'value'):
+            return
+            
+        def update_progress():
+            if self._progress_indicator and not self.indeterminate:
+                new_value = self.value.value
+                self._progress_indicator.setDoubleValue_(float(new_value))
+                print(f"📊 ProgressBar值更新: {new_value}")
+        
+        # 使用Effect建立响应式绑定
+        from ..core.reactive import Effect
+        self._value_effect = Effect(update_progress)
+        
+    def _bind_reactive_maximum(self):
+        """建立最大值的响应式绑定"""
+        if not hasattr(self.maximum, 'value'):
+            return
+            
+        def update_maximum():
+            if self._progress_indicator and not self.indeterminate:
+                new_maximum = self.maximum.value
+                self._progress_indicator.setMaxValue_(float(new_maximum))
+                print(f"📊 ProgressBar最大值更新: {new_maximum}")
+        
+        # 使用Effect建立响应式绑定
+        from ..core.reactive import Effect
+        self._maximum_effect = Effect(update_maximum)
+    
+    def set_value(self, value: float) -> 'ProgressBar':
+        """设置进度值
+        
+        Args:
+            value: 新的进度值
+        """
+        if self._is_reactive_value:
+            self.value.value = value
+        else:
+            self.value = value
+            if self._progress_indicator and not self.indeterminate:
+                self._progress_indicator.setDoubleValue_(float(value))
+                
+        print(f"📊 ProgressBar进度更新: {value}")
+        return self
+    
+    def set_maximum(self, maximum: float) -> 'ProgressBar':
+        """设置最大值
+        
+        Args:
+            maximum: 新的最大值
+        """
+        if self._is_reactive_maximum:
+            self.maximum.value = maximum
+        else:
+            self.maximum = maximum
+            if self._progress_indicator and not self.indeterminate:
+                self._progress_indicator.setMaxValue_(float(maximum))
+                
+        print(f"📊 ProgressBar最大值更新: {maximum}")
+        return self
+        
+    def start_animation(self) -> 'ProgressBar':
+        """开始动画（仅适用于不确定进度条）"""
+        if self._progress_indicator and self.indeterminate:
+            self._progress_indicator.startAnimation_(None)
+            print(f"🎬 ProgressBar动画开始")
+        return self
+        
+    def stop_animation(self) -> 'ProgressBar':
+        """停止动画（仅适用于不确定进度条）"""
+        if self._progress_indicator and self.indeterminate:
+            self._progress_indicator.stopAnimation_(None)
+            print(f"⏹️ ProgressBar动画停止")
+        return self
+    
+    def cleanup(self):
+        """组件清理"""
+        if hasattr(self, '_value_effect'):
+            self._value_effect.cleanup()
+        if hasattr(self, '_maximum_effect'):
+            self._maximum_effect.cleanup()
+        super().cleanup()
+
+
+class ImageView(UIComponent):
+    """图像显示组件 - 基于NSImageView"""
+    
+    def __init__(self, 
+                 image_path: Optional[str] = None,
+                 image_name: Optional[str] = None,
+                 style: Optional[ComponentStyle] = None,
+                 scaling: str = "proportionally"):
+        """初始化图像视图组件
+        
+        Args:
+            image_path: 图像文件路径
+            image_name: 图像资源名称（从应用包中加载）
+            style: 组件样式
+            scaling: 图像缩放模式 ("proportionally", "axesIndependently", "none")
+        """
+        self.image_path = image_path
+        self.image_name = image_name
+        self.scaling = scaling
+        self._image_view = None
+        
+        # 初始化基础组件
+        super().__init__(style=style)
+        
+        print(f"🖼️ ImageView组件创建: path={image_path}, name={image_name}")
+    
+    def _create_nsview(self) -> NSView:
+        """创建NSImageView"""
+        # 创建图像视图
+        image_view = NSImageView.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 100))
+        
+        # 设置缩放模式
+        if self.scaling == "proportionally":
+            image_view.setImageScaling_(NSImageScaleProportionallyUpOrDown)
+        elif self.scaling == "axesIndependently":
+            image_view.setImageScaling_(NSImageScaleAxesIndependently)
+        else:  # "none"
+            image_view.setImageScaling_(NSImageScaleNone)
+        
+        # 加载图像
+        if self.image_path:
+            self._load_image_from_path(image_view, self.image_path)
+        elif self.image_name:
+            self._load_image_from_name(image_view, self.image_name)
+            
+        self._image_view = image_view
+        
+        print(f"🖼️ ImageView NSImageView创建完成")
+        return image_view
+    
+    def _load_image_from_path(self, image_view: NSImageView, path: str):
+        """从文件路径加载图像"""
+        try:
+            image = NSImage.alloc().initWithContentsOfFile_(path)
+            if image:
+                image_view.setImage_(image)
+                print(f"📁 图像加载成功: {path}")
+            else:
+                print(f"⚠️ 图像加载失败: {path}")
+        except Exception as e:
+            print(f"❌ 图像加载异常: {e}")
+    
+    def _load_image_from_name(self, image_view: NSImageView, name: str):
+        """从应用包资源加载图像"""
+        try:
+            image = NSImage.imageNamed_(name)
+            if image:
+                image_view.setImage_(image)
+                print(f"📦 系统图像加载成功: {name}")
+            else:
+                print(f"⚠️ 系统图像加载失败: {name}")
+        except Exception as e:
+            print(f"❌ 系统图像加载异常: {e}")
+    
+    def set_image_path(self, path: str) -> 'ImageView':
+        """设置图像文件路径
+        
+        Args:
+            path: 图像文件路径
+        """
+        self.image_path = path
+        
+        if self._image_view:
+            self._load_image_from_path(self._image_view, path)
+            
+        print(f"🖼️ ImageView图像路径更新: {path}")
+        return self
+    
+    def set_image_name(self, name: str) -> 'ImageView':
+        """设置系统图像名称
+        
+        Args:
+            name: 系统图像名称
+        """
+        self.image_name = name
+        
+        if self._image_view:
+            self._load_image_from_name(self._image_view, name)
+            
+        print(f"🖼️ ImageView图像名称更新: {name}")
+        return self
+    
+    def set_scaling(self, scaling: str) -> 'ImageView':
+        """设置图像缩放模式
+        
+        Args:
+            scaling: 缩放模式 ("proportionally", "axesIndependently", "none")
+        """
+        self.scaling = scaling
+        
+        if self._image_view:
+            if scaling == "proportionally":
+                self._image_view.setImageScaling_(NSImageScaleProportionallyUpOrDown)
+            elif scaling == "axesIndependently":
+                self._image_view.setImageScaling_(NSImageScaleAxesIndependently)
+            else:  # "none"
+                self._image_view.setImageScaling_(NSImageScaleNone)
+                
+        print(f"🖼️ ImageView缩放模式更新: {scaling}")
+        return self
+
+
+# ================================
+# 7. 选择组件 (Selection Components)
+# ================================
+
+class PopUpButtonDelegate(NSObject):
+    """PopUpButton选择事件委托类"""
+    
+    def init(self):
+        self = objc.super(PopUpButtonDelegate, self).init()
+        if self is None:
+            return None
+        self.callback = None
+        self.popup_component = None
+        return self
+    
+    def itemSelected_(self, sender):
+        """下拉选择项被选中事件处理"""
+        if hasattr(self, 'callback') and self.callback:
+            try:
+                # 获取选中的索引和标题
+                selected_index = sender.indexOfSelectedItem()
+                selected_title = sender.titleOfSelectedItem()
+                
+                # 更新组件的选中值
+                if hasattr(self, 'popup_component') and self.popup_component:
+                    if self.popup_component._is_reactive_selected:
+                        if hasattr(self.popup_component.selected_index, 'value'):
+                            self.popup_component.selected_index.value = selected_index
+                    else:
+                        self.popup_component.selected_index = selected_index
+                
+                # 调用回调函数
+                self.callback(selected_index, selected_title)
+                print(f"🔽 PopUpButton选择: index={selected_index}, title='{selected_title}'")
+                
+            except Exception as e:
+                print(f"⚠️ PopUpButton选择回调错误: {e}")
+
+
+class PopUpButton(UIComponent):
+    """下拉按钮组件 - 基于NSPopUpButton"""
+    
+    def __init__(self, 
+                 items: List[str] = None,
+                 selected_index: Union[int, 'Signal'] = 0,
+                 on_selection: Optional[Callable[[int, str], None]] = None,
+                 style: Optional[ComponentStyle] = None):
+        """
+        初始化下拉按钮组件
+        
+        Args:
+            items: 下拉选项列表
+            selected_index: 默认选中的索引
+            on_selection: 选择回调函数 (index, title) -> None
+            style: 组件样式
+        """
+        self.items = items or ["选项1", "选项2", "选项3"]
+        
+        # 处理响应式选中索引
+        if hasattr(selected_index, 'value'):
+            self._is_reactive_selected = True
+            self.selected_index = selected_index
+        else:
+            self._is_reactive_selected = False
+            self.selected_index = selected_index
+            
+        self.on_selection = on_selection
+        self._popup_button = None
+        self._target_delegate = None
+        
+        # 初始化基础组件
+        super().__init__(style=style)
+        
+        print(f"🔽 PopUpButton组件创建: items={len(self.items)}, selected={self._get_selected_index()}")
+    
+    def _get_selected_index(self) -> int:
+        """获取当前选中索引"""
+        if self._is_reactive_selected:
+            return self.selected_index.value if hasattr(self.selected_index, 'value') else 0
+        return self.selected_index
+    
+    def _create_nsview(self) -> NSView:
+        """创建NSPopUpButton"""
+        # 创建下拉按钮
+        popup_button = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(0, 0, 150, 26), False)
+        
+        # 添加选项
+        for item in self.items:
+            popup_button.addItemWithTitle_(item)
+        
+        # 设置默认选中项
+        selected = self._get_selected_index()
+        if 0 <= selected < len(self.items):
+            popup_button.selectItemAtIndex_(selected)
+        
+        self._popup_button = popup_button
+        
+        # 绑定选择事件
+        if self.on_selection:
+            self._bind_selection_event(popup_button)
+        
+        # 建立响应式绑定
+        if self._is_reactive_selected:
+            self._bind_reactive_selection()
+            
+        print(f"🔽 PopUpButton NSPopUpButton创建完成")
+        return popup_button
+    
+    def _bind_selection_event(self, popup_button: NSPopUpButton):
+        """绑定选择事件"""
+        try:
+            # 创建委托
+            self._target_delegate = PopUpButtonDelegate.alloc().init()
+            if self._target_delegate is None:
+                print("⚠️ 无法创建PopUpButtonDelegate")
+                return
+                
+            self._target_delegate.callback = self.on_selection
+            self._target_delegate.popup_component = self
+            
+            popup_button.setTarget_(self._target_delegate)
+            popup_button.setAction_("itemSelected:")
+            
+            print(f"🔗 PopUpButton选择事件已绑定")
+            
+        except Exception as e:
+            print(f"⚠️ PopUpButton事件绑定失败: {e}")
+    
+    def _bind_reactive_selection(self):
+        """建立选中索引的响应式绑定"""
+        if not hasattr(self.selected_index, 'value'):
+            return
+            
+        def update_selection():
+            if self._popup_button:
+                new_index = self.selected_index.value
+                if 0 <= new_index < len(self.items):
+                    self._popup_button.selectItemAtIndex_(new_index)
+                    print(f"🔽 PopUpButton选中更新: index={new_index}")
+        
+        # 使用Effect建立响应式绑定
+        from ..core.reactive import Effect
+        self._selection_effect = Effect(update_selection)
+    
+    def add_item(self, item: str, at_index: int = -1) -> 'PopUpButton':
+        """添加选项
+        
+        Args:
+            item: 选项文本
+            at_index: 插入位置，-1表示末尾
+        """
+        if at_index == -1:
+            self.items.append(item)
+        else:
+            self.items.insert(at_index, item)
+        
+        if self._popup_button:
+            if at_index == -1:
+                self._popup_button.addItemWithTitle_(item)
+            else:
+                self._popup_button.insertItemWithTitle_atIndex_(item, at_index)
+        
+        print(f"🔽 PopUpButton添加选项: '{item}' at {at_index if at_index != -1 else len(self.items)-1}")
+        return self
+    
+    def remove_item(self, index: int) -> 'PopUpButton':
+        """移除选项
+        
+        Args:
+            index: 要移除的索引
+        """
+        if 0 <= index < len(self.items):
+            removed_item = self.items.pop(index)
+            
+            if self._popup_button:
+                self._popup_button.removeItemAtIndex_(index)
+            
+            print(f"🔽 PopUpButton移除选项: '{removed_item}' at {index}")
+        
+        return self
+    
+    def set_selected_index(self, index: int) -> 'PopUpButton':
+        """设置选中索引
+        
+        Args:
+            index: 要选中的索引
+        """
+        if self._is_reactive_selected:
+            self.selected_index.value = index
+        else:
+            self.selected_index = index
+            if self._popup_button and 0 <= index < len(self.items):
+                self._popup_button.selectItemAtIndex_(index)
+                
+        print(f"🔽 PopUpButton选中设置: index={index}")
+        return self
+    
+    def cleanup(self):
+        """组件清理"""
+        if hasattr(self, '_selection_effect'):
+            self._selection_effect.cleanup()
+        super().cleanup()
+
+
+class ComboBoxDelegate(NSObject):
+    """ComboBox文本变化和选择事件委托类"""
+    
+    def init(self):
+        self = objc.super(ComboBoxDelegate, self).init()
+        if self is None:
+            return None
+        self.text_callback = None
+        self.selection_callback = None
+        self.combo_component = None
+        return self
+    
+    def comboBoxSelectionDidChange_(self, notification):
+        """下拉选择变化事件处理"""
+        if hasattr(self, 'selection_callback') and self.selection_callback:
+            try:
+                combo_box = notification.object()
+                selected_index = combo_box.indexOfSelectedItem()
+                selected_value = combo_box.stringValue()
+                
+                # 更新组件的选中值
+                if hasattr(self, 'combo_component') and self.combo_component:
+                    if self.combo_component._is_reactive_text:
+                        if hasattr(self.combo_component.text, 'value'):
+                            self.combo_component.text.value = selected_value
+                    else:
+                        self.combo_component.text = selected_value
+                
+                self.selection_callback(selected_index, selected_value)
+                print(f"📝 ComboBox选择: index={selected_index}, value='{selected_value}'")
+                
+            except Exception as e:
+                print(f"⚠️ ComboBox选择回调错误: {e}")
+    
+    def controlTextDidChange_(self, notification):
+        """文本输入变化事件处理"""
+        if hasattr(self, 'text_callback') and self.text_callback:
+            try:
+                combo_box = notification.object()
+                current_text = combo_box.stringValue()
+                
+                # 更新组件的文本值
+                if hasattr(self, 'combo_component') and self.combo_component:
+                    if self.combo_component._is_reactive_text:
+                        if hasattr(self.combo_component.text, 'value'):
+                            self.combo_component.text.value = current_text
+                    else:
+                        self.combo_component.text = current_text
+                
+                self.text_callback(current_text)
+                print(f"📝 ComboBox文本变化: '{current_text}'")
+                
+            except Exception as e:
+                print(f"⚠️ ComboBox文本变化回调错误: {e}")
+
+
+class ComboBox(UIComponent):
+    """组合框组件 - 基于NSComboBox"""
+    
+    def __init__(self, 
+                 items: List[str] = None,
+                 text: Union[str, 'Signal'] = "",
+                 editable: bool = True,
+                 on_text_change: Optional[Callable[[str], None]] = None,
+                 on_selection: Optional[Callable[[int, str], None]] = None,
+                 style: Optional[ComponentStyle] = None):
+        """
+        初始化组合框组件
+        
+        Args:
+            items: 下拉选项列表
+            text: 当前文本内容
+            editable: 是否可编辑
+            on_text_change: 文本变化回调函数
+            on_selection: 选择回调函数
+            style: 组件样式
+        """
+        self.items = items or ["选项A", "选项B", "选项C"]
+        
+        # 处理响应式文本
+        if hasattr(text, 'value'):
+            self._is_reactive_text = True
+            self.text = text
+        else:
+            self._is_reactive_text = False
+            self.text = text
+            
+        self.editable = editable
+        self.on_text_change = on_text_change
+        self.on_selection = on_selection
+        self._combo_box = None
+        self._target_delegate = None
+        
+        # 初始化基础组件
+        super().__init__(style=style)
+        
+        print(f"📝 ComboBox组件创建: items={len(self.items)}, text='{self._get_text()}'")
+    
+    def _get_text(self) -> str:
+        """获取当前文本"""
+        if self._is_reactive_text:
+            return self.text.value if hasattr(self.text, 'value') else ""
+        return self.text
+    
+    def _create_nsview(self) -> NSView:
+        """创建NSComboBox"""
+        # 创建组合框
+        combo_box = NSComboBox.alloc().initWithFrame_(NSMakeRect(0, 0, 150, 26))
+        
+        # 添加选项
+        for item in self.items:
+            combo_box.addItemWithObjectValue_(item)
+        
+        # 设置初始文本
+        combo_box.setStringValue_(self._get_text())
+        
+        # 设置是否可编辑
+        combo_box.setEditable_(self.editable)
+        
+        self._combo_box = combo_box
+        
+        # 绑定事件
+        if self.on_text_change or self.on_selection:
+            self._bind_events(combo_box)
+        
+        # 建立响应式绑定
+        if self._is_reactive_text:
+            self._bind_reactive_text()
+            
+        print(f"📝 ComboBox NSComboBox创建完成")
+        return combo_box
+    
+    def _bind_events(self, combo_box: NSComboBox):
+        """绑定事件"""
+        try:
+            # 创建委托
+            self._target_delegate = ComboBoxDelegate.alloc().init()
+            if self._target_delegate is None:
+                print("⚠️ 无法创建ComboBoxDelegate")
+                return
+                
+            self._target_delegate.text_callback = self.on_text_change
+            self._target_delegate.selection_callback = self.on_selection
+            self._target_delegate.combo_component = self
+            
+            # 设置委托
+            combo_box.setDelegate_(self._target_delegate)
+            
+            print(f"🔗 ComboBox事件已绑定")
+            
+        except Exception as e:
+            print(f"⚠️ ComboBox事件绑定失败: {e}")
+    
+    def _bind_reactive_text(self):
+        """建立文本的响应式绑定"""
+        if not hasattr(self.text, 'value'):
+            return
+            
+        def update_text():
+            if self._combo_box:
+                new_text = self.text.value
+                self._combo_box.setStringValue_(new_text)
+                print(f"📝 ComboBox文本更新: '{new_text}'")
+        
+        # 使用Effect建立响应式绑定
+        from ..core.reactive import Effect
+        self._text_effect = Effect(update_text)
+    
+    def add_item(self, item: str) -> 'ComboBox':
+        """添加选项
+        
+        Args:
+            item: 选项文本
+        """
+        self.items.append(item)
+        
+        if self._combo_box:
+            self._combo_box.addItemWithObjectValue_(item)
+        
+        print(f"📝 ComboBox添加选项: '{item}'")
+        return self
+    
+    def remove_item(self, item: str) -> 'ComboBox':
+        """移除选项
+        
+        Args:
+            item: 要移除的选项文本
+        """
+        if item in self.items:
+            self.items.remove(item)
+            
+            if self._combo_box:
+                self._combo_box.removeItemWithObjectValue_(item)
+            
+            print(f"📝 ComboBox移除选项: '{item}'")
+        
+        return self
+    
+    def set_text(self, text: str) -> 'ComboBox':
+        """设置文本内容
+        
+        Args:
+            text: 新的文本内容
+        """
+        if self._is_reactive_text:
+            self.text.value = text
+        else:
+            self.text = text
+            if self._combo_box:
+                self._combo_box.setStringValue_(text)
+                
+        print(f"📝 ComboBox文本设置: '{text}'")
+        return self
+    
+    def cleanup(self):
+        """组件清理"""
+        if hasattr(self, '_text_effect'):
+            self._text_effect.cleanup()
+        super().cleanup()
+
+
+# ================================
+# 8. 使用示例和测试
 # ================================
 
 if __name__ == "__main__":

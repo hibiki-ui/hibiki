@@ -26,6 +26,12 @@ from .core import (
 from .components import (
     # 基础组件
     Label, Button, TextField, Slider, Switch,
+    # 扩展输入组件
+    TextArea, Checkbox, RadioButton,
+    # 显示组件
+    ProgressBar, ImageView,
+    # 选择组件
+    PopUpButton, ComboBox,
     # 自定义组件
     CustomView, DrawingUtils
 )
@@ -54,6 +60,9 @@ __all__ = [
     
     # 组件系统
     'Label', 'Button', 'TextField', 'Slider', 'Switch',
+    'TextArea', 'Checkbox', 'RadioButton',
+    'ProgressBar', 'ImageView',
+    'PopUpButton', 'ComboBox',
     'CustomView', 'DrawingUtils',
     
     # 主题系统

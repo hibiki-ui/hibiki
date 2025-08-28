@@ -21,7 +21,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "macui_v4"))
 from core.managers import ManagerFactory
 from core.styles import ComponentStyle, Display, FlexDirection, AlignItems, JustifyContent, px, percent
 from core.reactive import Signal, Computed, Effect
-from components.basic import Label, Button, TextField, Slider, Switch
+from components.basic import (
+    Label, Button, TextField, Slider, Switch,
+    TextArea, Checkbox, RadioButton, 
+    ProgressBar, ImageView, PopUpButton, ComboBox
+)
 from core.component import Container
 
 # 导入表单系统
@@ -121,6 +125,41 @@ class ShowcaseData:
         self.form_summary = Computed(
             lambda: f"📝 姓名: {self.form_data.value.get('name', '未填写')} | "
                    f"📧 邮箱: {self.form_data.value.get('email', '未填写')}"
+        )
+        
+        # 扩展组件状态
+        self.textarea_content = Signal("这是一个多行文本编辑器\n支持响应式绑定和自动更新\n可以输入多行内容")
+        self.checkbox_enabled = Signal(True)
+        self.feature_notifications = Signal(False)
+        self.privacy_mode = Signal(True)
+        self.radio_option = Signal("option1")
+        self.progress_value = Signal(65.0)
+        self.loading_progress = Signal(30.0)
+        self.selected_fruit = Signal(0)  # PopUpButton选中的水果索引
+        self.combo_input = Signal("请选择或输入内容")
+        
+        # 扩展组件的计算属性
+        self.textarea_info = Computed(
+            lambda: f"文本长度: {len(self.textarea_content.value)} 字符 | "
+                   f"行数: {self.textarea_content.value.count(chr(10)) + 1}"
+        )
+        self.checkbox_status = Computed(
+            lambda: f"功能状态: {'✅启用' if self.checkbox_enabled.value else '❌禁用'} | "
+                   f"通知: {'🔔开' if self.feature_notifications.value else '🔕关'} | "
+                   f"隐私: {'🔒开' if self.privacy_mode.value else '🔓关'}"
+        )
+        self.radio_status = Computed(
+            lambda: f"当前选择: {self.radio_option.value} | "
+                   f"选项: {'选项1' if self.radio_option.value == 'option1' else '选项2' if self.radio_option.value == 'option2' else '选项3'}"
+        )
+        self.progress_status = Computed(
+            lambda: f"任务进度: {self.progress_value.value:.0f}% | "
+                   f"加载进度: {self.loading_progress.value:.0f}%"
+        )
+        self.fruit_names = ["🍎苹果", "🍊橙子", "🍌香蕉", "🍇葡萄", "🥝猕猴桃"]
+        self.selection_status = Computed(
+            lambda: f"选择的水果: {self.fruit_names[int(self.selected_fruit.value)] if 0 <= self.selected_fruit.value < len(self.fruit_names) else '未知'} | "
+                   f"输入内容: {self.combo_input.value}"
         )
         
         # 统计信息
@@ -479,7 +518,7 @@ class InteractionDemo:
 # ================================
 
 class ComponentsDemo:
-    """五大组件完整演示"""
+    """完整组件库演示 - 展示所有可用的UI组件"""
     
     def __init__(self):
         print("🧩 ComponentsDemo初始化完成")
@@ -519,12 +558,64 @@ class ComponentsDemo:
         showcase_data.text_input.value = text
         print(f"📝 文本输入: {text}")
     
+    # === 扩展组件回调函数 ===
+    
+    def on_textarea_change(self, text):
+        """多行文本变化回调"""
+        showcase_data.textarea_content.value = text
+        print(f"📄 多行文本变化: {len(text)} 字符")
+    
+    def on_checkbox_change(self, checked):
+        """复选框状态变化回调"""
+        showcase_data.checkbox_enabled.value = checked
+        print(f"☑️ 功能启用状态: {checked}")
+    
+    def on_notifications_checkbox_change(self, checked):
+        """通知复选框状态变化回调"""
+        showcase_data.feature_notifications.value = checked
+        print(f"🔔 通知状态: {checked}")
+        
+    def on_privacy_checkbox_change(self, checked):
+        """隐私模式复选框状态变化回调"""
+        showcase_data.privacy_mode.value = checked
+        print(f"🔒 隐私模式: {checked}")
+    
+    def on_radio_change(self, value):
+        """单选按钮变化回调"""
+        showcase_data.radio_option.value = value
+        print(f"🔘 单选选择: {value}")
+    
+    def on_progress_change(self, value):
+        """进度条变化回调"""
+        showcase_data.progress_value.value = value
+        print(f"📊 任务进度: {value}%")
+        
+    def on_loading_change(self, value):
+        """加载进度变化回调"""
+        showcase_data.loading_progress.value = value
+        print(f"⏳ 加载进度: {value}%")
+    
+    def on_fruit_selection(self, index, fruit_name):
+        """水果选择回调"""
+        showcase_data.selected_fruit.value = index
+        print(f"🍎 选择水果: [{index}] {fruit_name}")
+    
+    def on_combo_text_change(self, text):
+        """组合框文本变化回调"""
+        showcase_data.combo_input.value = text
+        print(f"📝 组合框输入: {text}")
+    
+    def on_combo_selection(self, index, value):
+        """组合框选择回调"""
+        showcase_data.combo_input.value = value
+        print(f"📝 组合框选择: [{index}] {value}")
+    
     def create_component(self):
         """创建组件演示界面"""
         
         # 标题
-        title = Label("🧩 macUI v4 五大组件演示", 
-                     style=ComponentStyle(width=px(400), height=px(40)))
+        title = Label("🧩 macUI v4 完整组件库演示", 
+                     style=ComponentStyle(width=px(450), height=px(40)))
         
         # === 滑块组件演示 ===
         slider_section = Container(
@@ -730,6 +821,253 @@ class ComponentsDemo:
             )
         )
         
+        # === 扩展输入组件演示 ===
+        extended_input_section = Container(
+            children=[
+                Label("📝 扩展输入组件演示", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+                
+                # TextArea多行文本编辑器
+                Container(
+                    children=[
+                        Label("多行文本:", style=ComponentStyle(width=px(80), height=px(60))),
+                        TextArea(
+                            text=showcase_data.textarea_content,
+                            on_text_change=self.on_textarea_change,
+                            style=ComponentStyle(width=px(300), height=px(60))
+                        ),
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                # Checkbox复选框组
+                Container(
+                    children=[
+                        Label("功能选项:", style=ComponentStyle(width=px(80), height=px(30))),
+                        Checkbox(
+                            title="启用功能",
+                            checked=showcase_data.checkbox_enabled,
+                            on_change=self.on_checkbox_change,
+                            style=ComponentStyle(width=px(100), height=px(30))
+                        ),
+                        Checkbox(
+                            title="通知",
+                            checked=showcase_data.feature_notifications,
+                            on_change=self.on_notifications_checkbox_change,
+                            style=ComponentStyle(width=px(80), height=px(30))
+                        ),
+                        Checkbox(
+                            title="隐私模式",
+                            checked=showcase_data.privacy_mode,
+                            on_change=self.on_privacy_checkbox_change,
+                            style=ComponentStyle(width=px(100), height=px(30))
+                        ),
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                # RadioButton单选按钮组
+                Container(
+                    children=[
+                        Label("单选选项:", style=ComponentStyle(width=px(80), height=px(30))),
+                        RadioButton(
+                            title="选项1",
+                            value="option1",
+                            group="demo_group",
+                            selected=True,
+                            on_change=self.on_radio_change,
+                            style=ComponentStyle(width=px(80), height=px(30))
+                        ),
+                        RadioButton(
+                            title="选项2", 
+                            value="option2",
+                            group="demo_group",
+                            on_change=self.on_radio_change,
+                            style=ComponentStyle(width=px(80), height=px(30))
+                        ),
+                        RadioButton(
+                            title="选项3",
+                            value="option3", 
+                            group="demo_group",
+                            on_change=self.on_radio_change,
+                            style=ComponentStyle(width=px(80), height=px(30))
+                        ),
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                # 输入组件状态显示
+                Label(showcase_data.textarea_info, 
+                     style=ComponentStyle(width=px(500), height=px(25))),
+                Label(showcase_data.checkbox_status, 
+                     style=ComponentStyle(width=px(500), height=px(25))),
+                Label(showcase_data.radio_status, 
+                     style=ComponentStyle(width=px(400), height=px(25))),
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(10)
+            )
+        )
+        
+        # === 显示组件演示 ===
+        display_section = Container(
+            children=[
+                Label("📊 显示组件演示", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+                
+                # ProgressBar进度条组
+                Container(
+                    children=[
+                        Label("任务进度:", style=ComponentStyle(width=px(80), height=px(30))),
+                        ProgressBar(
+                            initial_value=showcase_data.progress_value,
+                            maximum=100.0,
+                            style=ComponentStyle(width=px(200), height=px(20))
+                        ),
+                        Label(Computed(lambda: f"{showcase_data.progress_value.value:.0f}%"), 
+                             style=ComponentStyle(width=px(50), height=px(30)))
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                Container(
+                    children=[
+                        Label("加载进度:", style=ComponentStyle(width=px(80), height=px(30))),
+                        ProgressBar(
+                            initial_value=showcase_data.loading_progress,
+                            maximum=100.0,
+                            style=ComponentStyle(width=px(200), height=px(20))
+                        ),
+                        Label(Computed(lambda: f"{showcase_data.loading_progress.value:.0f}%"), 
+                             style=ComponentStyle(width=px(50), height=px(30)))
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                # ImageView图片显示
+                Container(
+                    children=[
+                        Label("系统图标:", style=ComponentStyle(width=px(80), height=px(30))),
+                        ImageView(
+                            image_name="NSImageNameFolder",
+                            scaling="proportionally",
+                            style=ComponentStyle(width=px(32), height=px(32))
+                        ),
+                        ImageView(
+                            image_name="NSImageNameInfo",
+                            scaling="proportionally", 
+                            style=ComponentStyle(width=px(32), height=px(32))
+                        ),
+                        ImageView(
+                            image_name="NSImageNameCaution",
+                            scaling="proportionally",
+                            style=ComponentStyle(width=px(32), height=px(32))
+                        ),
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                # 显示组件状态
+                Label(showcase_data.progress_status, 
+                     style=ComponentStyle(width=px(400), height=px(25))),
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(10)
+            )
+        )
+        
+        # === 选择组件演示 ===
+        selection_section = Container(
+            children=[
+                Label("🔽 选择组件演示", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+                
+                # PopUpButton下拉选择
+                Container(
+                    children=[
+                        Label("选择水果:", style=ComponentStyle(width=px(80), height=px(30))),
+                        PopUpButton(
+                            items=showcase_data.fruit_names,
+                            selected_index=showcase_data.selected_fruit,
+                            on_selection=self.on_fruit_selection,
+                            style=ComponentStyle(width=px(150), height=px(26))
+                        ),
+                        Label(Computed(lambda: f"已选: {showcase_data.fruit_names[int(showcase_data.selected_fruit.value)] if 0 <= showcase_data.selected_fruit.value < len(showcase_data.fruit_names) else '无'}"), 
+                             style=ComponentStyle(width=px(120), height=px(30)))
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                # ComboBox组合框
+                Container(
+                    children=[
+                        Label("输入或选择:", style=ComponentStyle(width=px(80), height=px(30))),
+                        ComboBox(
+                            items=["编程语言", "Python", "JavaScript", "Swift", "Rust", "Go"],
+                            text=showcase_data.combo_input,
+                            on_text_change=self.on_combo_text_change,
+                            on_selection=self.on_combo_selection,
+                            style=ComponentStyle(width=px(150), height=px(26))
+                        ),
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                # 选择组件状态
+                Label(showcase_data.selection_status, 
+                     style=ComponentStyle(width=px(500), height=px(25))),
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(10)
+            )
+        )
+        
         # 主容器
         return Container(
             children=[
@@ -737,17 +1075,20 @@ class ComponentsDemo:
                 slider_section,
                 switch_section,
                 textfield_section,
+                extended_input_section,
+                display_section,
+                selection_section,
                 settings_summary,
-                Label("✨ 所有组件都支持响应式绑定和事件处理", 
-                     style=ComponentStyle(width=px(400), height=px(25))),
+                Label("✨ macUI v4 完整组件库 - 支持响应式绑定和事件处理", 
+                     style=ComponentStyle(width=px(450), height=px(25))),
             ],
             style=ComponentStyle(
                 display=Display.FLEX,
                 flex_direction=FlexDirection.COLUMN,
                 align_items=AlignItems.CENTER,
                 gap=px(15),
-                width=px(600),
-                height=px(700)
+                width=px(800),
+                height=px(1200)
             )
         )
 
@@ -1969,15 +2310,23 @@ class ShowcaseAppDelegate(NSObject):
         # 初始化管理器
         ManagerFactory.initialize_all()
         
-        # 创建主窗口
+        # 创建主窗口 - 先创建一个小窗口，然后最大化到屏幕尺寸
         self.window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
-            NSMakeRect(100, 100, 800, 650),
-            NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable,
+            NSMakeRect(100, 100, 800, 600),  # 初始尺寸（稍后会被覆盖）
+            NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable,
             2,  # NSBackingStoreBuffered
             False
         )
         
         self.window.setTitle_("macUI v4 Complete Feature Showcase")
+        
+        # 最大化窗口到屏幕的可见区域（相当于最大化）
+        from AppKit import NSScreen
+        main_screen = NSScreen.mainScreen()
+        if main_screen:
+            visible_frame = main_screen.visibleFrame()
+            self.window.setFrame_display_animate_(visible_frame, True, True)
+            print(f"🖥️ 窗口已最大化到屏幕尺寸: {visible_frame.size.width}x{visible_frame.size.height}")
         
         # 创建菜单栏
         self.create_menu()
