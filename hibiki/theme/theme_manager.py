@@ -9,7 +9,7 @@ import weakref
 from .colors import ColorScheme, ColorRole, PresetColorSchemes
 from .fonts import FontScheme, TextStyle, PresetFontSchemes  
 from .appearance import AppearanceManager, AppearanceMode, AppearanceObserver
-from core.reactive import Signal, Effect
+from ..core.reactive import Signal, Effect
 
 from hibiki.core.logging import get_logger
 logger = get_logger('theme.theme_manager')

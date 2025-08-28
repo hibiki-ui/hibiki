@@ -15,11 +15,10 @@ from AppKit import (
 from Foundation import NSObject
 
 # 导入核心架构
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from core.component import UIComponent
-from core.styles import ComponentStyle
+from ..core.component import UIComponent
+from ..core.styles import ComponentStyle
+from ..core.reactive import Signal, Computed, Effect
+from ..core.binding import bind_text, ReactiveBinding
 
 # 导入objc
 import objc
@@ -99,7 +98,7 @@ class Label(UIComponent):
             self.text_props = text_props
         elif any([text_style, font_size, font_weight, font_family, color, text_align]):
             # 从便捷参数创建TextProps
-            from core.text_props import TextProps
+            from ..core.text_props import TextProps
             self.text_props = TextProps(
                 text_style=text_style,
                 font_size=font_size,
@@ -110,15 +109,10 @@ class Label(UIComponent):
             )
         else:
             # 默认文本属性
-            from core.text_props import TextProps
+            from ..core.text_props import TextProps
             self.text_props = TextProps()
         
-        # 导入响应式类型检查
-        try:
-            from core.reactive import Signal, Computed
-        except ImportError:
-            # 兜底导入
-            from core.reactive import Signal, Computed
+        # 检查是否为响应式文本
         self._is_reactive_text = isinstance(text, (Signal, Computed))
         
         logger.info(f"🏷️ Label创建: text='{text}', reactive={self._is_reactive_text}, text_props={bool(self.text_props)}")
@@ -134,10 +128,6 @@ class Label(UIComponent):
         label.setSelectable_(False)      # 不可选择
         
         # 设置文本内容 - 使用响应式绑定系统
-        import sys
-        import os
-        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-        from core.binding import bind_text
         
         # 绑定文本，自动处理响应式和静态文本
         binding_cleanup = bind_text(label, self.text)
@@ -194,7 +184,6 @@ class Label(UIComponent):
             text: 新的文本内容
         """
         self.text = text
-        from core.reactive import Signal, Computed
         self._is_reactive_text = isinstance(text, (Signal, Computed))
         
         if self._nsview:
@@ -352,8 +341,7 @@ class TextField(UIComponent):
         self.value = value
         self.placeholder = placeholder
         self.on_change = on_change
-        # 导入响应式类型检查 - 使用与文件头部一致的导入方式
-        from core.reactive import Signal, Computed
+        # 响应式类型检查
         self._is_reactive_value = isinstance(value, (Signal, Computed))
         self._delegate = None
         
@@ -372,10 +360,6 @@ class TextField(UIComponent):
         textfield.setSelectable_(True)      # 可选择
         
         # 设置初始值 - 使用响应式绑定系统
-        import sys
-        import os
-        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-        from core.binding import bind_text
         
         # 绑定文本值，自动处理响应式和静态值
         binding_cleanup = bind_text(textfield, self.value)
@@ -532,11 +516,7 @@ class Slider(UIComponent):
         self.max_value = max_value
         self.on_change = on_change
         
-        # 导入响应式类型检查
-        try:
-            from core.reactive import Signal, Computed
-        except ImportError:
-            from core.reactive import Signal, Computed
+        # 响应式类型检查
         self._is_reactive_value = isinstance(value, (Signal, Computed))
         
         logger.info(f"🎚️ Slider创建: value={value}, range=[{min_value}, {max_value}], reactive={self._is_reactive_value}")
@@ -552,10 +532,6 @@ class Slider(UIComponent):
         slider.setMaxValue_(self.max_value)
         
         # 设置初始值 - 使用响应式绑定系统
-        import sys
-        import os
-        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-        from core.binding import ReactiveBinding
         
         # 绑定滑块值，自动处理响应式和静态值
         binding_cleanup = ReactiveBinding.bind(slider, "doubleValue", self.value)
@@ -605,7 +581,6 @@ class Slider(UIComponent):
         value = max(self.min_value, min(self.max_value, float(value)))
         self.value = value
         
-        from core.reactive import Signal, Computed
         self._is_reactive_value = isinstance(value, (Signal, Computed))
         
         if self._nsview:
@@ -705,11 +680,7 @@ class Switch(UIComponent):
         self.value = value
         self.on_change = on_change
         
-        # 导入响应式类型检查
-        try:
-            from core.reactive import Signal, Computed
-        except ImportError:
-            from core.reactive import Signal, Computed
+        # 响应式类型检查
         self._is_reactive_value = isinstance(value, (Signal, Computed))
         
         logger.info(f"🔘 Switch创建: value={value}, reactive={self._is_reactive_value}")
@@ -725,10 +696,6 @@ class Switch(UIComponent):
         switch.setTitle_("")  # 不显示标题
         
         # 设置初始状态 - 使用响应式绑定系统
-        import sys
-        import os
-        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-        from core.binding import ReactiveBinding
         
         # 绑定开关状态，自动处理响应式和静态值
         # 使用state属性来绑定NSButton的开关状态
@@ -777,7 +744,6 @@ class Switch(UIComponent):
         """
         self.value = value
         
-        from core.reactive import Signal, Computed
         self._is_reactive_value = isinstance(value, (Signal, Computed))
         
         if self._nsview:
@@ -862,7 +828,6 @@ class TextArea(UIComponent):
         self.on_text_change = on_text_change
         
         # 检查是否为响应式文本
-        from core.reactive import Signal, Computed
         self._is_reactive_text = isinstance(text, (Signal, Computed))
         self._bindings = []  # 存储绑定清理函数
         self._text_delegate = None
@@ -947,7 +912,6 @@ class TextArea(UIComponent):
     def set_text(self, text: Union[str, Any]) -> 'TextArea':
         """动态设置文本内容"""
         self.text = text
-        from core.reactive import Signal, Computed
         self._is_reactive_text = isinstance(text, (Signal, Computed))
         
         if hasattr(self, '_text_view') and self._text_view:
@@ -1035,7 +999,6 @@ class Checkbox(UIComponent):
         self.on_change = on_change
         
         # 检查是否为响应式状态
-        from core.reactive import Signal, Computed
         self._is_reactive_checked = isinstance(checked, (Signal, Computed))
         self._bindings = []
         self._checkbox_delegate = None
@@ -1075,7 +1038,6 @@ class Checkbox(UIComponent):
                 new_checked = bool(getattr(self.checked, 'value', False))
                 checkbox.setState_(1 if new_checked else 0)
             
-            from core.reactive import Effect
             effect = Effect(update_checkbox_state)
             self._bindings.append(effect)
             logger.info(f"🔗 Checkbox响应式绑定已创建")
@@ -1104,7 +1066,6 @@ class Checkbox(UIComponent):
     def set_checked(self, checked: Union[bool, Any]) -> 'Checkbox':
         """设置选中状态"""
         self.checked = checked
-        from core.reactive import Signal, Computed
         self._is_reactive_checked = isinstance(checked, (Signal, Computed))
         
         if self._nsview:
@@ -1180,7 +1141,6 @@ class RadioButton(UIComponent):
         self.on_select = on_select
         
         # 检查是否为响应式状态
-        from core.reactive import Signal, Computed
         self._is_reactive_selected = isinstance(selected, (Signal, Computed))
         self._bindings = []
         self._radio_delegate = None
@@ -1220,7 +1180,6 @@ class RadioButton(UIComponent):
                 new_selected = bool(getattr(self.selected, 'value', False))
                 radio.setState_(1 if new_selected else 0)
             
-            from core.reactive import Effect
             effect = Effect(update_radio_state)
             self._bindings.append(effect)
             logger.info(f"🔗 RadioButton响应式绑定已创建")
@@ -1250,7 +1209,6 @@ class RadioButton(UIComponent):
     def set_selected(self, selected: Union[bool, Any]) -> 'RadioButton':
         """设置选中状态"""
         self.selected = selected
-        from core.reactive import Signal, Computed
         self._is_reactive_selected = isinstance(selected, (Signal, Computed))
         
         if self._nsview:

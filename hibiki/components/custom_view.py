@@ -12,9 +12,9 @@ Hibiki UI v4 自定义视图组件
 from typing import Optional, Callable, Any, Tuple
 from AppKit import *
 from Foundation import *
-from core.component import UIComponent
-from core.styles import ComponentStyle, px
-from core.reactive import Signal
+from ..core.component import UIComponent
+from ..core.styles import ComponentStyle, px
+from ..core.reactive import Signal
 import objc
 
 from hibiki.core.logging import get_logger

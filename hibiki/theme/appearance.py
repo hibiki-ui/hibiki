@@ -8,7 +8,7 @@ import weakref
 import objc
 from AppKit import NSApplication, NSAppearance
 from Foundation import NSObject
-from core.reactive import Signal
+from ..core.reactive import Signal
 
 from hibiki.core.logging import get_logger
 logger = get_logger('theme.appearance')

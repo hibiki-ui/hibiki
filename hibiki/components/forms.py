@@ -12,12 +12,9 @@ from AppKit import NSView
 from Foundation import NSObject
 
 # 导入核心架构
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from core.component import UIComponent, Container
-from core.styles import ComponentStyle
-from core.reactive import Signal, Computed, Effect
+from ..core.component import UIComponent, Container
+from ..core.styles import ComponentStyle
+from ..core.reactive import Signal, Computed, Effect
 
 from hibiki.core.logging import get_logger
 logger = get_logger('components.forms')
@@ -560,7 +557,7 @@ if __name__ == "__main__":
     logger.info("🔧 Hibiki UI v4.0 表单系统测试\n")
     
     # 初始化管理器系统
-    from core.managers import ManagerFactory
+    from ..core.managers import ManagerFactory
     ManagerFactory.initialize_all()
     
     logger.info("🧪 验证器测试:")
