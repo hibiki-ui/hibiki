@@ -29,11 +29,11 @@ logger = get_logger('components.basic')
 
 
 # 全局按钮委托类
-class HibikiButtonDelegate(NSObject):
+class ButtonDelegate(NSObject):
     """Button事件委托类"""
     
     def init(self):
-        self = objc.super(HibikiButtonDelegate, self).init()
+        self = objc.super(ButtonDelegate, self).init()
         if self is None:
             return None
         self.callback = None
@@ -265,10 +265,10 @@ class Button(UIComponent):
     def _bind_click_event(self, button: NSButton):
         """绑定点击事件"""
         try:
-            # 使用全局HibikiButtonDelegate类
-            self._target_delegate = HibikiButtonDelegate.alloc().init()
+            # 使用全局ButtonDelegate类
+            self._target_delegate = ButtonDelegate.alloc().init()
             if self._target_delegate is None:
-                logger.warning("⚠️ 无法创建HibikiButtonDelegate")
+                logger.warning("⚠️ 无法创建ButtonDelegate")
                 return
                 
             self._target_delegate.callback = self.on_click
@@ -1229,7 +1229,7 @@ class RadioButton(UIComponent):
     
     def _bind_select_event(self, radio):
         """绑定选择事件"""
-        delegate = HibikiRadioButtonDelegate.alloc().init()
+        delegate = RadioButtonDelegate.alloc().init()
         delegate.callback = self.on_select
         delegate.value = self.value
         delegate.radio_button = self
@@ -1260,11 +1260,11 @@ class RadioButton(UIComponent):
         return self
 
 
-class HibikiRadioButtonDelegate(NSObject):
+class RadioButtonDelegate(NSObject):
     """RadioButton事件委托类"""
     
     def init(self):
-        self = objc.super(HibikiRadioButtonDelegate, self).init()
+        self = objc.super(RadioButtonDelegate, self).init()
         if self is None:
             return None
         self.callback = None
@@ -1576,11 +1576,11 @@ class ImageView(UIComponent):
 # 7. 选择组件 (Selection Components)
 # ================================
 
-class HibikiPopUpButtonDelegate(NSObject):
+class PopUpButtonDelegate(NSObject):
     """PopUpButton选择事件委托类"""
     
     def init(self):
-        self = objc.super(HibikiPopUpButtonDelegate, self).init()
+        self = objc.super(PopUpButtonDelegate, self).init()
         if self is None:
             return None
         self.callback = None
@@ -1684,9 +1684,9 @@ class PopUpButton(UIComponent):
         """绑定选择事件"""
         try:
             # 创建委托
-            self._target_delegate = HibikiPopUpButtonDelegate.alloc().init()
+            self._target_delegate = PopUpButtonDelegate.alloc().init()
             if self._target_delegate is None:
-                logger.warning("⚠️ 无法创建HibikiPopUpButtonDelegate")
+                logger.warning("⚠️ 无法创建PopUpButtonDelegate")
                 return
                 
             self._target_delegate.callback = self.on_selection
