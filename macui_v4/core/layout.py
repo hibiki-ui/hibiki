@@ -50,11 +50,11 @@ try:
 except ImportError:
     import logging
     logger = logging.getLogger("macui_v4.layout")
+    logger.setLevel(logging.DEBUG)
     if not logger.handlers:
         handler = logging.StreamHandler()
-        handler.setLevel(logging.INFO)
+        handler.setLevel(logging.DEBUG)
         logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
 
 
 @dataclass
@@ -414,11 +414,10 @@ class V4LayoutEngine:
             return None
         
         # 获取结果
-        x, y, width, height = rebuilt_node.get_layout()
-        try:
-            content_width, content_height = rebuilt_node.get_content_size()
-        except:
-            content_width, content_height = width, height
+        box = rebuilt_node.get_box()
+        x, y, width, height = box.x, box.y, box.width, box.height
+        # Stretchable Node没有get_content_size方法，直接使用box尺寸
+        content_width, content_height = width, height
         
         compute_time = (time.perf_counter() - start_time) * 1000
         
@@ -453,12 +452,34 @@ class V4LayoutEngine:
             if hasattr(root_component, 'children'):
                 logger.info(f"   发现子组件: {len(root_component.children)} 个")
                 for i, child_component in enumerate(root_component.children):
-                    child_node = self._create_stretchable_node_for_component(child_component)
-                    if child_node:
-                        root_node.append(child_node)
-                        logger.info(f"   添加子节点 {i+1}: {child_component.__class__.__name__}")
+                    # 只创建单个节点，不递归处理子组件（避免重复处理）
+                    child_node = self._create_single_stretchable_node(child_component)
+                    logger.debug(f"🔍 子节点创建结果: {child_component.__class__.__name__} -> {type(child_node)} {child_node is not None}")
+                    logger.debug(f"🔍 即将检查child_node: id={id(child_node)}, type={type(child_node)}")
+                    
+                    # 立即检查以避免变量污染
+                    child_node_is_valid = child_node is not None
+                    logger.debug(f"🔍 child_node_is_valid = {child_node_is_valid}")
+                    
+                    if child_node_is_valid:
+                        try:
+                            root_node.append(child_node)
+                            logger.info(f"   ✅ 添加子节点 {i+1}: {child_component.__class__.__name__}")
+                            
+                            # 递归处理孙子节点
+                            if hasattr(child_component, 'children'):
+                                logger.debug(f"🔍 处理孙子节点: {child_component.__class__.__name__} 有 {len(child_component.children)} 个子组件")
+                                for grandchild in child_component.children:
+                                    grandchild_node = self._create_stretchable_node_for_component(grandchild)
+                                    if grandchild_node:
+                                        child_node.append(grandchild_node)
+                                        logger.debug(f"     ✅ 添加孙子节点: {grandchild.__class__.__name__}")
+                        except Exception as e:
+                            logger.error(f"   ❌ 添加子节点异常: {child_component.__class__.__name__} - {e}")
+                            import traceback
+                            logger.error(f"   ❌ 异常详情: {traceback.format_exc()}")
                     else:
-                        logger.warning(f"   ⚠️ 子节点创建失败 {i+1}: {child_component.__class__.__name__}")
+                        logger.warning(f"   ⚠️ 子节点创建失败 {i+1}: {child_component.__class__.__name__} (返回值为None)")
             
             logger.info(f"🔄 重建布局树完成: {root_component.__class__.__name__}")
             logger.info(f"   根节点样式: display={stretchable_style.display}, size={stretchable_style.size}")
@@ -471,6 +492,36 @@ class V4LayoutEngine:
             logger.error(f"❌ 详细错误: {traceback.format_exc()}")
             return None
     
+    def _create_single_stretchable_node(self, component):
+        """为组件创建单个Stretchable节点（不递归处理子组件）"""
+        try:
+            import stretchable as st
+            
+            # 获取组件样式并转换
+            component_style = getattr(component, 'style', None)
+            if not component_style:
+                logger.warning(f"⚠️ 组件没有样式: {component.__class__.__name__}")
+                # 为没有样式的组件创建默认样式
+                from ..core.styles import ComponentStyle
+                component_style = ComponentStyle()
+                component.style = component_style
+                logger.info(f"✨ 为组件创建默认样式: {component.__class__.__name__}")
+                
+            logger.debug(f"🎨 转换单个节点样式: {component.__class__.__name__} -> {component_style}")
+            stretchable_style = V4StyleConverter.convert_to_stretchable_style(component_style)
+            
+            # 创建节点（不处理子组件）
+            node = st.Node(style=stretchable_style)
+            logger.debug(f"📐 创建单个Stretchable节点成功: {component.__class__.__name__}")
+            
+            return node
+            
+        except Exception as e:
+            logger.error(f"❌ 创建单个Stretchable节点异常: {component.__class__.__name__} - {e}")
+            import traceback
+            logger.error(f"❌ 详细异常: {traceback.format_exc()}")
+            return None
+    
     def _create_stretchable_node_for_component(self, component):
         """为组件创建纯Stretchable节点（不涉及v4布局缓存）"""
         try:
@@ -480,12 +531,18 @@ class V4LayoutEngine:
             component_style = getattr(component, 'style', None)
             if not component_style:
                 logger.warning(f"⚠️ 组件没有样式: {component.__class__.__name__}")
-                return None
+                # 为没有样式的组件创建默认样式
+                from ..core.styles import ComponentStyle
+                component_style = ComponentStyle()
+                component.style = component_style
+                logger.info(f"✨ 为组件创建默认样式: {component.__class__.__name__}")
                 
+            logger.debug(f"🎨 转换样式: {component.__class__.__name__} -> {component_style}")
             stretchable_style = V4StyleConverter.convert_to_stretchable_style(component_style)
             
             # 创建节点
             node = st.Node(style=stretchable_style)
+            logger.debug(f"📐 创建Stretchable节点成功: {component.__class__.__name__}")
             
             # 递归处理子组件
             if hasattr(component, 'children'):
