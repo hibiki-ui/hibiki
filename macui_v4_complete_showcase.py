@@ -150,7 +150,7 @@ class ReactiveCounterDemo:
         
         self.greeting_label = Label(
             showcase_data.greeting_message,
-            style=ComponentStyle(width=px(400), height=px(30))
+            style=ComponentStyle(width=px(400), height=px(30))  # 恢复原尺寸
         )
         
         # 设置Effect来自动更新UI
@@ -318,7 +318,7 @@ class LayoutDemo:
         status_text = Computed(lambda: f"方向: {self.current_direction.value}, 对齐: {self.current_alignment.value}")
         status_label = Label(
             status_text,
-            style=ComponentStyle(width=px(300), height=px(30))
+            style=ComponentStyle(width=px(300), height=px(30))  # 恢复原尺寸，主标签已删除
         )
         
         return Container(
@@ -361,7 +361,7 @@ class InteractionDemo:
         
         self.status_label = Label(
             self.user_message,
-            style=ComponentStyle(width=px(400), height=px(30))
+            style=ComponentStyle(width=px(400), height=px(30))  # 恢复原尺寸，主标签已删除
         )
         
         self.click_label = Label(
@@ -1045,11 +1045,11 @@ class FormsDemo:
                 
                 # 表单摘要
                 Label(showcase_data.form_summary, 
-                     style=ComponentStyle(width=px(400), height=px(30))),
+                     style=ComponentStyle(width=px(400), height=px(30))),  # 恢复原尺寸
                 
                 # 表单状态
                 Label(showcase_data.form_status, 
-                     style=ComponentStyle(width=px(400), height=px(30))),
+                     style=ComponentStyle(width=px(400), height=px(30))),  # 恢复原尺寸
                 
                 # 最后提交的数据
                 Label(
@@ -1074,7 +1074,7 @@ class AdvancedLayoutDemo:
         """创建高级布局演示界面"""
         title = Label(
             "🏗️ 高级布局系统演示", 
-            style=ComponentStyle(width=px(400), height=px(30))
+            style=ComponentStyle(width=px(400), height=px(30))  # 恢复原尺寸
         )
         
         # === Grid布局演示区域 ===
@@ -1348,7 +1348,7 @@ class ShowcaseApp:
     
     def create_dynamic_content(self):
         """创建动态内容区域"""
-        # 创建一个显示当前演示状态的响应式标签
+        # 创建主状态标签，使用独特的样式避免重叠
         def get_current_status():
             demo_name = self.current_demo.value
             status_map = {
@@ -1357,13 +1357,15 @@ class ShowcaseApp:
                 "layout": "✅ 当前: 📐 布局系统演示",
                 "advanced_layout": "✅ 当前: 🏗️ 高级布局演示",
                 "interaction": "✅ 当前: 🎮 交互系统演示",
-                "forms": "✅ 当前: 📋 表单系统演示"
+                "forms": "✅ 当前: 📋 表单系统演示",
+                "animations": "✅ 当前: 🎬 动画系统演示"
             }
             return status_map.get(demo_name, "🎨 macUI v4 框架演示")
         
         current_status = Computed(get_current_status)
+        # 使用更独特的尺寸避免和子组件标签重叠
         status_label = Label(current_status, 
-                           style=ComponentStyle(width=px(400), height=px(30)))
+                           style=ComponentStyle(width=px(520), height=px(40)))
         
         # 创建初始内容
         initial_content = self._create_demo_content(self.current_demo.value)
@@ -1389,7 +1391,7 @@ class ShowcaseApp:
                 display=Display.FLEX,
                 flex_direction=FlexDirection.COLUMN,
                 align_items=AlignItems.CENTER,
-                gap=px(15)
+                gap=px(30)  # 进一步增大间距避免X/Y方向重叠
             )
         )
         

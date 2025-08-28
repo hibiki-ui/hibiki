@@ -133,6 +133,34 @@ class LayerManager:
         
         print(f"📋 组件注册到层级 {z_value}, 总组件数: {self._total_components}")
         
+    def unregister_component(self, component: 'UIComponent'):
+        """从层级管理器注销组件"""
+        component_removed = False
+        
+        # 遍历所有层级，查找并移除该组件
+        for z_value, components_refs in self._layer_registry.items():
+            # 过滤掉匹配的组件引用
+            original_count = len(components_refs)
+            components_refs[:] = [ref for ref in components_refs 
+                                if ref() is not None and ref() is not component]
+            
+            removed_count = original_count - len(components_refs)
+            if removed_count > 0:
+                self._total_components -= removed_count
+                component_removed = True
+                print(f"🗑️ 从层级 {z_value} 注销组件, 移除数: {removed_count}, 剩余总数: {self._total_components}")
+        
+        # 如果没有找到组件，可能是弱引用已失效
+        if not component_removed:
+            # 执行全面清理，移除所有失效的引用
+            original_total = self._total_components
+            for z_value in list(self._layer_registry.keys()):
+                self._cleanup_dead_references(z_value)
+            
+            cleaned_count = original_total - self._total_components
+            if cleaned_count > 0:
+                print(f"🧹 清理层级管理器失效引用: {cleaned_count}个, 剩余总数: {self._total_components}")
+        
     def get_auto_z_index(self, layer: ZLayer) -> int:
         """获取自动分配的z-index"""
         base_z = layer.value

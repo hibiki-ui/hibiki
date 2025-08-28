@@ -231,6 +231,13 @@ class Component(ABC):
         except Exception as e:
             print(f"⚠️ 布局节点清理错误: {e}")
         
+        # 清理层级管理器注册（仅对UIComponent）
+        if hasattr(self, 'layer_manager'):
+            try:
+                self.layer_manager.unregister_component(self)
+            except Exception as e:
+                print(f"⚠️ 层级管理器注销错误: {e}")
+        
         # 清空状态
         self._signals.clear()
         self._computed.clear()
