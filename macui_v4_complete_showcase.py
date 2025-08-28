@@ -44,6 +44,18 @@ from core.animation import (
     Animation, AnimationGroup, AnimationManager, AnimationCurve
 )
 
+# 导入主题系统
+from theme import (
+    ThemeManager, Theme, PresetThemes, ThemeChangeEvent,
+    get_theme_manager, get_current_theme, set_theme, get_color, get_font,
+    ColorRole, TextStyle, AppearanceMode
+)
+
+# 导入自定义组件系统
+from components.custom_view import CustomView, DrawingUtils
+import math
+import random
+
 # PyObjC导入
 from AppKit import *
 from Foundation import *
@@ -1067,6 +1079,364 @@ class FormsDemo:
 # 🏗️ 高级布局演示组件
 # ================================
 
+class ThemeDemo:
+    """主题系统演示"""
+    
+    def __init__(self):
+        self.theme_manager = ThemeManager.shared()
+        self.selected_theme = Signal("system")
+        
+        # 监听主题变化
+        self.theme_manager.add_theme_observer(self.on_theme_changed)
+        print("🎨 ThemeDemo初始化完成")
+    
+    def on_theme_changed(self, event):
+        """主题变化回调"""
+        print(f"🎨 主题变化事件: {event.old_theme.name if event.old_theme else 'None'} -> {event.new_theme.name}")
+    
+    def switch_to_system_theme(self):
+        """切换到系统主题"""
+        self.theme_manager.set_theme_by_name("system")
+        self.selected_theme.value = "system"
+        showcase_data.total_clicks.value += 1
+    
+    def switch_to_developer_theme(self):
+        """切换到开发者主题"""
+        self.theme_manager.set_theme_by_name("developer")
+        self.selected_theme.value = "developer"
+        showcase_data.total_clicks.value += 1
+    
+    def switch_to_high_contrast_theme(self):
+        """切换到高对比度主题"""
+        self.theme_manager.set_theme_by_name("high_contrast")
+        self.selected_theme.value = "high_contrast"
+        showcase_data.total_clicks.value += 1
+    
+    def create_component(self):
+        """创建主题演示组件"""
+        
+        # 当前主题信息
+        def get_current_theme_info():
+            current_theme = self.theme_manager.current_theme.value
+            is_dark = self.theme_manager.is_dark_mode()
+            mode_text = "深色模式" if is_dark else "浅色模式"
+            return f"当前主题: {current_theme.name} ({mode_text})"
+        
+        current_theme_label = Label(
+            Computed(get_current_theme_info),
+            style=ComponentStyle(width=px(400), height=px(30))
+        )
+        
+        # 主题切换按钮
+        theme_buttons = Container(
+            children=[
+                Button("系统主题", on_click=self.switch_to_system_theme,
+                      style=ComponentStyle(width=px(120), height=px(35))),
+                Button("开发者主题", on_click=self.switch_to_developer_theme,
+                      style=ComponentStyle(width=px(120), height=px(35))),
+                Button("高对比度", on_click=self.switch_to_high_contrast_theme,
+                      style=ComponentStyle(width=px(120), height=px(35)))
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.ROW,
+                gap=px(15)
+            )
+        )
+        
+        # 字体样式演示
+        font_samples = Container(
+            children=[
+                Label("大标题样式 - macUI v4主题系统",
+                     style=ComponentStyle(width=px(500), height=px(50))),
+                Label("标题1样式 - 主题切换演示", 
+                     style=ComponentStyle(width=px(400), height=px(35))),
+                Label("正文样式 - 这是常规的正文文本，展示主题颜色效果",
+                     style=ComponentStyle(width=px(600), height=px(30))),
+                Label("脚注样式 - 小号文本展示",
+                     style=ComponentStyle(width=px(350), height=px(25)))
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(10),
+                align_items=AlignItems.CENTER
+            )
+        )
+        
+        # 主题状态信息
+        def get_theme_status():
+            registered_themes = self.theme_manager.get_registered_themes()
+            theme_names = list(registered_themes.keys())
+            return f"可用主题: {', '.join(theme_names)} | 当前选择: {self.selected_theme.value}"
+        
+        theme_status_label = Label(
+            Computed(get_theme_status),
+            style=ComponentStyle(width=px(600), height=px(25))
+        )
+        
+        # 主容器
+        theme_container = Container(
+            children=[
+                Label("🎨 主题系统演示",
+                     style=ComponentStyle(width=px(300), height=px(40))),
+                current_theme_label,
+                theme_buttons,
+                Label("📝 字体样式展示",
+                     style=ComponentStyle(width=px(250), height=px(30))),
+                font_samples,
+                theme_status_label,
+                Label("💡 提示: 切换macOS系统外观查看自动适应效果",
+                     style=ComponentStyle(width=px(500), height=px(25)))
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(20)
+            )
+        )
+        
+        return theme_container
+
+
+class DrawingDemo:
+    """简易画图程序演示"""
+    
+    def __init__(self):
+        # 响应式状态
+        self.drawing_points = Signal([])  # 绘制的点
+        self.current_color = Signal((0.0, 0.5, 1.0, 0.8))  # 当前颜色
+        self.brush_size = Signal(5.0)  # 画笔大小
+        self.status_text = Signal("点击并拖拽来绘制 🎨")
+        
+        # 内部状态
+        self.is_drawing = False
+        self.last_point = None
+        
+        print("🎨 DrawingDemo初始化完成")
+    
+    def _on_draw(self, context, rect, bounds):
+        """自定义绘制函数"""
+        # 清空背景
+        DrawingUtils.fill_rect(context, 0, 0, bounds.size.width, bounds.size.height, 
+                             (1.0, 1.0, 1.0, 1.0))  # 白色背景
+        
+        # 绘制边框
+        DrawingUtils.stroke_rect(context, 0, 0, bounds.size.width, bounds.size.height, 
+                               (0.8, 0.8, 0.8, 1.0), 2.0)
+        
+        # 绘制所有点
+        points = self.drawing_points.value
+        color = self.current_color.value
+        size = self.brush_size.value
+        
+        for point in points:
+            x, y = point
+            DrawingUtils.fill_circle(context, x, y, size, color)
+        
+        # 绘制网格(可选)
+        self._draw_grid(context, bounds)
+    
+    def _draw_grid(self, context, bounds):
+        """绘制辅助网格"""
+        grid_size = 50
+        grid_color = (0.9, 0.9, 0.9, 0.3)
+        
+        # 垂直线
+        x = grid_size
+        while x < bounds.size.width:
+            DrawingUtils.draw_line(context, x, 0, x, bounds.size.height, grid_color, 0.5)
+            x += grid_size
+        
+        # 水平线
+        y = grid_size
+        while y < bounds.size.height:
+            DrawingUtils.draw_line(context, 0, y, bounds.size.width, y, grid_color, 0.5)
+            y += grid_size
+    
+    def _on_mouse_down(self, x, y, event):
+        """鼠标按下 - 开始绘制"""
+        self.is_drawing = True
+        self.last_point = (x, y)
+        
+        # 添加点
+        points = self.drawing_points.value.copy()
+        points.append((x, y))
+        self.drawing_points.value = points
+        
+        self.status_text.value = f"绘制中... ({x:.0f}, {y:.0f})"
+        showcase_data.total_clicks.value += 1
+    
+    def _on_mouse_up(self, x, y, event):
+        """鼠标抬起 - 结束绘制"""
+        self.is_drawing = False
+        self.last_point = None
+        self.status_text.value = f"绘制完成，共 {len(self.drawing_points.value)} 个点"
+    
+    def _on_mouse_dragged(self, x, y, event):
+        """鼠标拖拽 - 连续绘制"""
+        if self.is_drawing and self.last_point:
+            # 在两点之间插值，创建平滑线条
+            last_x, last_y = self.last_point
+            
+            # 计算距离
+            dx = x - last_x
+            dy = y - last_y
+            distance = math.sqrt(dx*dx + dy*dy)
+            
+            # 根据距离插值点
+            if distance > 3:  # 避免过于密集的点
+                steps = int(distance / 3)
+                points = self.drawing_points.value.copy()
+                
+                for i in range(1, steps + 1):
+                    t = i / steps
+                    inter_x = last_x + dx * t
+                    inter_y = last_y + dy * t
+                    points.append((inter_x, inter_y))
+                
+                self.drawing_points.value = points
+                self.last_point = (x, y)
+        
+        self.status_text.value = f"绘制中... ({x:.0f}, {y:.0f})"
+    
+    def _on_key_down(self, key_code, characters, event):
+        """键盘事件处理"""
+        print(f"🎹 按键: {key_code} ({characters})")
+        
+        if characters == ' ':  # 空格键清空
+            self.drawing_points.value = []
+            self.status_text.value = "画布已清空 ✨"
+        
+        elif characters.lower() == 'c':  # C键换色
+            colors = [
+                (1.0, 0.0, 0.0, 0.8),  # 红色
+                (0.0, 1.0, 0.0, 0.8),  # 绿色
+                (0.0, 0.5, 1.0, 0.8),  # 蓝色
+                (1.0, 0.5, 0.0, 0.8),  # 橙色
+                (1.0, 0.0, 1.0, 0.8),  # 紫色
+            ]
+            self.current_color.value = random.choice(colors)
+            self.status_text.value = "颜色已切换 🌈"
+        
+        elif characters.lower() == 's':  # S键改变大小
+            sizes = [3.0, 5.0, 8.0, 12.0, 15.0]
+            current_size = self.brush_size.value
+            try:
+                current_index = sizes.index(current_size)
+                next_index = (current_index + 1) % len(sizes)
+                self.brush_size.value = sizes[next_index]
+                self.status_text.value = f"画笔大小: {sizes[next_index]} 📏"
+            except ValueError:
+                self.brush_size.value = sizes[0]
+    
+    def clear_canvas(self):
+        """清空画布"""
+        self.drawing_points.value = []
+        self.status_text.value = "画布已清空 ✨"
+        showcase_data.total_clicks.value += 1
+    
+    def change_color(self):
+        """更换颜色"""
+        colors = [
+            (1.0, 0.0, 0.0, 0.8),  # 红色
+            (0.0, 1.0, 0.0, 0.8),  # 绿色
+            (0.0, 0.5, 1.0, 0.8),  # 蓝色
+            (1.0, 0.5, 0.0, 0.8),  # 橙色
+            (1.0, 0.0, 1.0, 0.8),  # 紫色
+            (0.5, 0.5, 0.5, 0.8),  # 灰色
+        ]
+        self.current_color.value = random.choice(colors)
+        self.status_text.value = "颜色已切换 🌈"
+        showcase_data.total_clicks.value += 1
+    
+    def change_brush_size(self):
+        """更换画笔大小"""
+        sizes = [3.0, 5.0, 8.0, 12.0, 15.0]
+        current_size = self.brush_size.value
+        try:
+            current_index = sizes.index(current_size)
+            next_index = (current_index + 1) % len(sizes)
+            self.brush_size.value = sizes[next_index]
+            self.status_text.value = f"画笔大小: {sizes[next_index]} 📏"
+        except ValueError:
+            self.brush_size.value = sizes[0]
+        showcase_data.total_clicks.value += 1
+    
+    def create_component(self):
+        """创建画图演示组件"""
+        
+        # 状态显示标签
+        status_label = Label(
+            self.status_text,
+            style=ComponentStyle(width=px(400), height=px(30))
+        )
+        
+        # 绘图区域
+        canvas = CustomView(
+            style=ComponentStyle(width=px(600), height=px(400)),
+            on_draw=self._on_draw,
+            on_mouse_down=self._on_mouse_down,
+            on_mouse_up=self._on_mouse_up,
+            on_mouse_dragged=self._on_mouse_dragged,
+            on_key_down=self._on_key_down
+        )
+        
+        # 设置自动重绘 - 当绘制相关的信号变化时自动重绘
+        canvas.setup_auto_redraw(self.drawing_points, self.current_color, self.brush_size)
+        
+        # 控制按钮
+        control_buttons = Container(
+            children=[
+                Button("清空画布", on_click=self.clear_canvas,
+                      style=ComponentStyle(width=px(100), height=px(35))),
+                Button("更换颜色", on_click=self.change_color,
+                      style=ComponentStyle(width=px(100), height=px(35))),
+                Button("画笔大小", on_click=self.change_brush_size,
+                      style=ComponentStyle(width=px(100), height=px(35)))
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.ROW,
+                gap=px(15)
+            )
+        )
+        
+        # 信息标签
+        info_text = Computed(
+            lambda: f"🎨 画笔大小: {self.brush_size.value} | 点数: {len(self.drawing_points.value)} | "
+                   f"颜色: {'🔴' if self.current_color.value[0] > 0.5 else '🟢' if self.current_color.value[1] > 0.5 else '🔵'}"
+        )
+        
+        info_label = Label(
+            info_text,
+            style=ComponentStyle(width=px(600), height=px(25))
+        )
+        
+        # 主容器
+        drawing_container = Container(
+            children=[
+                Label("🎨 简易画图程序", 
+                     style=ComponentStyle(width=px(300), height=px(40))),
+                status_label,
+                canvas,
+                control_buttons,
+                info_label,
+                Label("💡 提示: 拖拽绘制 | 空格清空 | C键换色 | S键改大小",
+                     style=ComponentStyle(width=px(600), height=px(25)))
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(15)
+            )
+        )
+        
+        return drawing_container
+
+
 class AdvancedLayoutDemo:
     """高级布局系统完整演示"""
     
@@ -1304,6 +1674,8 @@ class ShowcaseApp:
         self.interaction_demo = InteractionDemo()
         self.components_demo = ComponentsDemo()
         self.forms_demo = FormsDemo()
+        self.theme_demo = ThemeDemo()
+        self.drawing_demo = DrawingDemo()
         
         # 当前演示页面
         self.current_demo = Signal("components")  # 默认显示组件演示
@@ -1340,6 +1712,10 @@ class ShowcaseApp:
             return self.interaction_demo.create_component()
         elif demo_name == "forms":
             return self.forms_demo.create_form_demo()
+        elif demo_name == "theme":
+            return self.theme_demo.create_component()
+        elif demo_name == "drawing":
+            return self.drawing_demo.create_component()
         elif demo_name == "animations":
             return self.create_animation_demo()
         else:
@@ -1358,6 +1734,8 @@ class ShowcaseApp:
                 "advanced_layout": "✅ 当前: 🏗️ 高级布局演示",
                 "interaction": "✅ 当前: 🎮 交互系统演示",
                 "forms": "✅ 当前: 📋 表单系统演示",
+                "theme": "✅ 当前: 🎨 主题系统演示",
+                "drawing": "✅ 当前: 🖌️ 简易画图程序",
                 "animations": "✅ 当前: 🎬 动画系统演示"
             }
             return status_map.get(demo_name, "🎨 macUI v4 框架演示")
@@ -1420,6 +1798,10 @@ class ShowcaseApp:
                 Button("🎮 交互演示", on_click=self.switch_demo("interaction"), 
                       style=ComponentStyle(width=px(100), height=px(35))),
                 Button("📋 表单演示", on_click=self.switch_demo("forms"), 
+                      style=ComponentStyle(width=px(100), height=px(35))),
+                Button("🎨 主题系统", on_click=self.switch_demo("theme"), 
+                      style=ComponentStyle(width=px(100), height=px(35))),
+                Button("🖌️ 画图程序", on_click=self.switch_demo("drawing"), 
                       style=ComponentStyle(width=px(100), height=px(35))),
                 Button("🎬 动画系统", on_click=self.switch_demo("animations"), 
                       style=ComponentStyle(width=px(100), height=px(35))),

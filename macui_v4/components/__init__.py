@@ -4,6 +4,7 @@ macUI v4.0 组件库
 """
 
 from .basic import Label, Button, TextField, Slider, Switch
+from .custom_view import CustomView, DrawingUtils
 
 __all__ = [
     # 基础组件
@@ -11,5 +12,9 @@ __all__ = [
     'Button', 
     'TextField',
     'Slider',
-    'Switch'
+    'Switch',
+    
+    # 自定义组件
+    'CustomView',
+    'DrawingUtils'
 ]
