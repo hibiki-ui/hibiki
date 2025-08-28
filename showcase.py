@@ -14,28 +14,25 @@
 import sys
 import os
 
-# 添加hibiki路径
-sys.path.append(os.path.join(os.path.dirname(__file__), "hibiki"))
-
-# 导入v4核心
-from core.managers import ManagerFactory
-from core.styles import ComponentStyle, Display, FlexDirection, AlignItems, JustifyContent, px, percent
-from core.reactive import Signal, Computed, Effect
-from components.basic import (
+# 导入v4核心 - 使用正确的hibiki包导入
+from hibiki.core.managers import ManagerFactory
+from hibiki.core.styles import ComponentStyle, Display, FlexDirection, AlignItems, JustifyContent, px, percent
+from hibiki.core.reactive import Signal, Computed, Effect
+from hibiki.components.basic import (
     Label, Button, TextField, Slider, Switch,
     TextArea, Checkbox, RadioButton, 
     ProgressBar, ImageView, PopUpButton, ComboBox
 )
-from core.component import Container
+from hibiki.core.component import Container
 
 # 导入表单系统
-from components.forms import (
+from hibiki.components.forms import (
     Form, FormField, FormBuilder, FormTemplates,
     RequiredValidator, EmailValidator, LengthValidator, NumberValidator, CustomValidator
 )
 
 # 导入高级布局系统
-from components.layout import (
+from hibiki.components.layout import (
     GridContainer, ResponsiveGrid, GridTemplate,
     HStack, VStack, ZStack,
     MasonryContainer, SplitView, ScrollableContainer,
@@ -43,20 +40,20 @@ from components.layout import (
 )
 
 # 导入动画系统
-from core.animation import (
+from hibiki.core.animation import (
     animate, fade_in, fade_out, bounce,
     Animation, AnimationGroup, AnimationManager, AnimationCurve
 )
 
 # 导入主题系统
-from theme import (
+from hibiki.theme import (
     ThemeManager, Theme, PresetThemes, ThemeChangeEvent,
     get_theme_manager, get_current_theme, set_theme, get_color, get_font,
     ColorRole, TextStyle, AppearanceMode
 )
 
 # 导入自定义组件系统
-from components.custom_view import CustomView, DrawingUtils
+from hibiki.components.custom_view import CustomView, DrawingUtils
 import math
 import random
 
