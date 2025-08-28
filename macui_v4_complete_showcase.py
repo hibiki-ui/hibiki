@@ -716,32 +716,34 @@ class ShowcaseApp:
         print("🎨 ShowcaseApp初始化完成")
     
     def switch_demo(self, demo_name):
-        """切换演示页面"""
+        """切换演示页面 - 使用动态内容更新"""
         def handler():
             old_demo = self.current_demo.value
             self.current_demo.value = demo_name
             print(f"🔄 切换演示: {old_demo} -> {demo_name}")
             
-            # 根据不同演示显示不同信息
-            if demo_name == "components":
-                print("✅ 当前显示: 🧩 五大组件演示")
-                print("   包含: Label、Button、TextField、Slider、Switch组件")
-                print("   功能: 响应式绑定、事件处理、布局管理")
-            elif demo_name == "reactive":
-                print("✅ 当前显示: 🔄 响应式系统演示")
-                print("   包含: Signal状态管理、Computed计算属性、Effect副作用")
-                print("   功能: 实时数据绑定、自动更新、依赖追踪")
-            elif demo_name == "layout":
-                print("✅ 当前显示: 📐 布局系统演示")
-                print("   包含: Flexbox布局、Container嵌套、样式系统")
-                print("   功能: 响应式布局、对齐控制、间距管理")
-            elif demo_name == "interaction":
-                print("✅ 当前显示: 🎮 交互系统演示")  
-                print("   包含: 按钮点击、事件处理、状态更新")
-                print("   功能: 用户交互、回调函数、动态响应")
-                
+            # 动态更新内容区域
+            if hasattr(self, '_content_container') and self._content_container:
+                new_content = self._create_demo_content(demo_name)
+                self._content_container.set_children([new_content])
+                print(f"🔄 内容区域已动态更新为: {demo_name}")
+            
             print(f"💡 导航切换完成! 当前演示: {demo_name}")
         return handler
+    
+    def _create_demo_content(self, demo_name):
+        """根据演示类型创建对应的内容"""
+        if demo_name == "components":
+            return self.components_demo.create_component()
+        elif demo_name == "reactive":
+            return self.reactive_demo.create_component()
+        elif demo_name == "layout":
+            return self.layout_demo.create_component()
+        elif demo_name == "interaction":
+            return self.interaction_demo.create_component()
+        else:
+            # 默认返回组件演示
+            return self.components_demo.create_component()
     
     def create_dynamic_content(self):
         """创建动态内容区域"""
@@ -760,11 +762,25 @@ class ShowcaseApp:
         status_label = Label(current_status, 
                            style=ComponentStyle(width=px(400), height=px(30)))
         
-        # 创建包含状态标签和组件演示的容器
-        content_with_status = Container(
+        # 创建初始内容
+        initial_content = self._create_demo_content(self.current_demo.value)
+        
+        # 创建动态内容容器（用于动态更新）
+        self._content_container = Container(
+            children=[initial_content],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(10)
+            )
+        )
+        
+        # 创建包含状态标签和动态内容的主容器
+        main_content_container = Container(
             children=[
                 status_label,
-                self.components_demo.create_component()
+                self._content_container
             ],
             style=ComponentStyle(
                 display=Display.FLEX,
@@ -774,7 +790,7 @@ class ShowcaseApp:
             )
         )
         
-        return content_with_status
+        return main_content_container
     
     def create_main_interface(self):
         """创建主界面"""

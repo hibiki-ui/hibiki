@@ -410,6 +410,23 @@ class V4LayoutEngine:
         
         parent_node.add_child(child_node, index)
     
+    def remove_child_relationship(self, parent_component, child_component):
+        """移除父子布局关系"""
+        parent_node = self.get_node_for_component(parent_component)
+        child_node = self.get_node_for_component(child_component)
+        
+        if parent_node and child_node:
+            try:
+                parent_node.remove_child(child_node)
+                print(f"🗑️ 布局关系移除: {child_component.__class__.__name__}")
+            except Exception as e:
+                print(f"⚠️ 移除布局关系失败: {e}")
+        
+        # 清理子组件的布局节点
+        if child_node and child_component in self._component_nodes:
+            del self._component_nodes[child_component]
+            print(f"🧹 清理布局节点: {child_component.__class__.__name__}")
+    
     def compute_layout_for_component(self, component, available_size: Optional[Tuple[float, float]] = None) -> Optional[LayoutResult]:
         """计算组件布局 - v3风格直接方式"""
         start_time = time.perf_counter()

@@ -718,11 +718,133 @@ class Container(UIComponent):
         # 如果容器已挂载，立即挂载新子组件
         if self._nsview and hasattr(child, 'mount'):
             try:
+                # 设置父子关系
+                child._parent_container = self
+                
+                # 添加到布局系统
+                from .layout import get_layout_engine
+                engine = get_layout_engine()
+                engine.add_child_relationship(self, child, len(self.children) - 1)
+                
+                # 挂载NSView
                 child_view = child.mount()
                 self._nsview.addSubview_(child_view)
+                
+                # 重新计算布局
+                self._update_layout()
+                
                 print(f"➕ 动态添加子组件: {child.__class__.__name__}")
             except Exception as e:
                 print(f"⚠️ 动态添加子组件失败: {e}")
+
+    def remove_child_component(self, child: UIComponent):
+        """移除子组件"""
+        if child in self.children:
+            try:
+                # 从NSView移除
+                if self._nsview and hasattr(child, '_nsview') and child._nsview:
+                    child._nsview.removeFromSuperview()
+                
+                # 从布局系统移除
+                from .layout import get_layout_engine
+                engine = get_layout_engine()
+                engine.remove_child_relationship(self, child)
+                
+                # 从children列表移除
+                self.children.remove(child)
+                self.remove_child(child)
+                
+                # 清理子组件资源
+                child.cleanup()
+                
+                # 重新计算布局
+                self._update_layout()
+                
+                print(f"➖ 动态移除子组件: {child.__class__.__name__}")
+            except Exception as e:
+                print(f"⚠️ 动态移除子组件失败: {e}")
+
+    def clear_children(self):
+        """清空所有子组件"""
+        if not self.children:
+            return
+            
+        try:
+            # 批量移除所有子组件
+            children_copy = self.children.copy()  # 避免在迭代中修改列表
+            for child in children_copy:
+                self.remove_child_component(child)
+                
+            print(f"🧹 清空容器所有子组件")
+        except Exception as e:
+            print(f"⚠️ 清空子组件失败: {e}")
+
+    def replace_child_component(self, old_child: UIComponent, new_child: UIComponent):
+        """替换子组件"""
+        if old_child not in self.children:
+            print(f"⚠️ 要替换的子组件不存在: {old_child.__class__.__name__}")
+            return
+            
+        try:
+            # 获取原子组件的索引
+            index = self.children.index(old_child)
+            
+            # 移除旧组件
+            self.remove_child_component(old_child)
+            
+            # 在相同位置插入新组件
+            self.children.insert(index, new_child)
+            self.add_child(new_child)
+            
+            # 如果容器已挂载，立即挂载新组件
+            if self._nsview and hasattr(new_child, 'mount'):
+                # 设置父子关系
+                new_child._parent_container = self
+                
+                # 添加到布局系统
+                from .layout import get_layout_engine
+                engine = get_layout_engine()
+                engine.add_child_relationship(self, new_child, index)
+                
+                # 挂载NSView
+                new_child_view = new_child.mount()
+                self._nsview.addSubview_(new_child_view)
+                
+                # 重新计算布局
+                self._update_layout()
+            
+            print(f"🔄 替换子组件: {old_child.__class__.__name__} -> {new_child.__class__.__name__}")
+        except Exception as e:
+            print(f"⚠️ 替换子组件失败: {e}")
+
+    def set_children(self, new_children: List[UIComponent]):
+        """批量设置子组件（替换所有现有子组件）"""
+        try:
+            # 先清空现有子组件
+            self.clear_children()
+            
+            # 添加新的子组件
+            for child in new_children:
+                self.add_child_component(child)
+                
+            print(f"🔄 批量设置子组件: {len(new_children)}个组件")
+        except Exception as e:
+            print(f"⚠️ 批量设置子组件失败: {e}")
+
+    def _update_layout(self):
+        """更新布局（在子组件变化后调用）"""
+        if self._nsview:
+            try:
+                from .layout import get_layout_engine
+                engine = get_layout_engine()
+                
+                # 重新计算布局
+                if hasattr(self, '_layout_node') and self._layout_node:
+                    engine.apply_layout(self)
+                    
+                print(f"🔄 容器布局已更新")
+            except Exception as e:
+                print(f"⚠️ 更新布局失败: {e}")
 
 # ================================
 # 4. 测试代码
