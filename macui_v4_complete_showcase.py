@@ -21,7 +21,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "macui_v4"))
 from core.managers import ManagerFactory
 from core.styles import ComponentStyle, Display, FlexDirection, AlignItems, JustifyContent, px, percent
 from core.reactive import Signal, Computed, Effect
-from components.basic import Label, Button
+from components.basic import Label, Button, TextField, Slider, Switch
 from core.component import Container
 
 # PyObjC导入
@@ -42,11 +42,30 @@ class ShowcaseData:
         self.user_name = Signal("macUI v4 User")
         self.theme = Signal("Light")
         
+        # 新组件状态
+        self.slider_value = Signal(50.0)
+        self.volume = Signal(75.0)
+        self.brightness = Signal(60.0)
+        self.dark_mode = Signal(False)
+        self.notifications = Signal(True)
+        self.auto_save = Signal(True)
+        self.text_input = Signal("输入一些文本...")
+        
         # 计算属性
         self.counter_doubled = Computed(lambda: self.counter.value * 2)
         self.counter_squared = Computed(lambda: self.counter.value ** 2)
         self.greeting_message = Computed(
             lambda: f"Hello {self.user_name.value}! Counter: {self.counter.value}"
+        )
+        
+        # 新组件的计算属性
+        self.slider_percentage = Computed(lambda: f"{self.slider_value.value:.0f}%")
+        self.volume_display = Computed(lambda: f"音量: {self.volume.value:.0f}%")
+        self.brightness_display = Computed(lambda: f"亮度: {self.brightness.value:.0f}%")
+        self.settings_summary = Computed(
+            lambda: f"深色模式: {'开' if self.dark_mode.value else '关'} | "
+                   f"通知: {'开' if self.notifications.value else '关'} | "
+                   f"自动保存: {'开' if self.auto_save.value else '关'}"
         )
         
         # 统计信息
@@ -401,6 +420,283 @@ class InteractionDemo:
         )
 
 # ================================
+# 🧩 组件库演示
+# ================================
+
+class ComponentsDemo:
+    """五大组件完整演示"""
+    
+    def __init__(self):
+        print("🧩 ComponentsDemo初始化完成")
+    
+    def on_slider_change(self, value):
+        """滑块值变化回调"""
+        showcase_data.slider_value.value = value
+        print(f"🎚️ 滑块值变化: {value}")
+    
+    def on_volume_change(self, value):
+        """音量滑块变化回调"""
+        showcase_data.volume.value = value
+        print(f"🔊 音量变化: {value}")
+    
+    def on_brightness_change(self, value):
+        """亮度滑块变化回调"""
+        showcase_data.brightness.value = value
+        print(f"☀️ 亮度变化: {value}")
+    
+    def on_dark_mode_change(self, state):
+        """深色模式开关回调"""
+        showcase_data.dark_mode.value = state
+        print(f"🌙 深色模式: {state}")
+    
+    def on_notifications_change(self, state):
+        """通知开关回调"""
+        showcase_data.notifications.value = state
+        print(f"🔔 通知: {state}")
+    
+    def on_auto_save_change(self, state):
+        """自动保存开关回调"""
+        showcase_data.auto_save.value = state
+        print(f"💾 自动保存: {state}")
+    
+    def on_text_change(self, text):
+        """文本输入回调"""
+        showcase_data.text_input.value = text
+        print(f"📝 文本输入: {text}")
+    
+    def create_component(self):
+        """创建组件演示界面"""
+        
+        # 标题
+        title = Label("🧩 macUI v4 五大组件演示", 
+                     style=ComponentStyle(width=px(400), height=px(40)))
+        
+        # === 滑块组件演示 ===
+        slider_section = Container(
+            children=[
+                Label("🎚️ Slider 滑块组件", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+                
+                # 主滑块
+                Container(
+                    children=[
+                        Label("数值:", style=ComponentStyle(width=px(50), height=px(30))),
+                        Slider(
+                            value=showcase_data.slider_value,
+                            min_value=0.0,
+                            max_value=100.0,
+                            on_change=self.on_slider_change,
+                            style=ComponentStyle(width=px(200), height=px(30))
+                        ),
+                        Label(showcase_data.slider_percentage, 
+                             style=ComponentStyle(width=px(60), height=px(30)))
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                # 音量滑块
+                Container(
+                    children=[
+                        Label("音量:", style=ComponentStyle(width=px(50), height=px(30))),
+                        Slider(
+                            value=showcase_data.volume,
+                            min_value=0.0,
+                            max_value=100.0,
+                            on_change=self.on_volume_change,
+                            style=ComponentStyle(width=px(200), height=px(30))
+                        ),
+                        Label(showcase_data.volume_display, 
+                             style=ComponentStyle(width=px(80), height=px(30)))
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                # 亮度滑块
+                Container(
+                    children=[
+                        Label("亮度:", style=ComponentStyle(width=px(50), height=px(30))),
+                        Slider(
+                            value=showcase_data.brightness,
+                            min_value=0.0,
+                            max_value=100.0,
+                            on_change=self.on_brightness_change,
+                            style=ComponentStyle(width=px(200), height=px(30))
+                        ),
+                        Label(showcase_data.brightness_display, 
+                             style=ComponentStyle(width=px(80), height=px(30)))
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(10)
+            )
+        )
+        
+        # === 开关组件演示 ===
+        switch_section = Container(
+            children=[
+                Label("🔘 Switch 开关组件", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+                
+                # 深色模式开关
+                Container(
+                    children=[
+                        Label("深色模式:", style=ComponentStyle(width=px(80), height=px(30))),
+                        Switch(
+                            value=showcase_data.dark_mode,
+                            on_change=self.on_dark_mode_change,
+                            style=ComponentStyle(width=px(60), height=px(30))
+                        ),
+                        Label(Computed(lambda: "🌙" if showcase_data.dark_mode.value else "☀️"), 
+                             style=ComponentStyle(width=px(30), height=px(30)))
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                # 通知开关
+                Container(
+                    children=[
+                        Label("通知:", style=ComponentStyle(width=px(80), height=px(30))),
+                        Switch(
+                            value=showcase_data.notifications,
+                            on_change=self.on_notifications_change,
+                            style=ComponentStyle(width=px(60), height=px(30))
+                        ),
+                        Label(Computed(lambda: "🔔" if showcase_data.notifications.value else "🔕"), 
+                             style=ComponentStyle(width=px(30), height=px(30)))
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                # 自动保存开关
+                Container(
+                    children=[
+                        Label("自动保存:", style=ComponentStyle(width=px(80), height=px(30))),
+                        Switch(
+                            value=showcase_data.auto_save,
+                            on_change=self.on_auto_save_change,
+                            style=ComponentStyle(width=px(60), height=px(30))
+                        ),
+                        Label(Computed(lambda: "💾" if showcase_data.auto_save.value else "📄"), 
+                             style=ComponentStyle(width=px(30), height=px(30)))
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(10)
+            )
+        )
+        
+        # === 文本输入组件演示 ===
+        textfield_section = Container(
+            children=[
+                Label("📝 TextField 文本输入组件", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+                
+                Container(
+                    children=[
+                        Label("输入:", style=ComponentStyle(width=px(50), height=px(30))),
+                        TextField(
+                            value=showcase_data.text_input,
+                            placeholder="请输入文本...",
+                            on_change=self.on_text_change,
+                            style=ComponentStyle(width=px(200), height=px(30))
+                        ),
+                    ],
+                    style=ComponentStyle(
+                        display=Display.FLEX,
+                        flex_direction=FlexDirection.ROW,
+                        align_items=AlignItems.CENTER,
+                        gap=px(10)
+                    )
+                ),
+                
+                # 显示输入的文本
+                Label(
+                    Computed(lambda: f"您输入的文本: {showcase_data.text_input.value}"),
+                    style=ComponentStyle(width=px(350), height=px(25))
+                ),
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(10)
+            )
+        )
+        
+        # === 设置状态摘要 ===
+        settings_summary = Container(
+            children=[
+                Label("⚙️ 设置状态摘要", 
+                     style=ComponentStyle(width=px(350), height=px(25))),
+                Label(showcase_data.settings_summary, 
+                     style=ComponentStyle(width=px(500), height=px(30))),
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                gap=px(10)
+            )
+        )
+        
+        # 主容器
+        return Container(
+            children=[
+                title,
+                slider_section,
+                switch_section,
+                textfield_section,
+                settings_summary,
+                Label("✨ 所有组件都支持响应式绑定和事件处理", 
+                     style=ComponentStyle(width=px(400), height=px(25))),
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(15),
+                width=px(600),
+                height=px(700)
+            )
+        )
+
+# ================================
 # 🚀 主应用
 # ================================
 
@@ -412,49 +708,105 @@ class ShowcaseApp:
         self.reactive_demo = ReactiveCounterDemo()
         self.layout_demo = LayoutDemo()
         self.interaction_demo = InteractionDemo()
+        self.components_demo = ComponentsDemo()
         
         # 当前演示页面
-        self.current_demo = Signal("reactive")
+        self.current_demo = Signal("components")  # 默认显示组件演示
         
         print("🎨 ShowcaseApp初始化完成")
     
     def switch_demo(self, demo_name):
         """切换演示页面"""
         def handler():
+            old_demo = self.current_demo.value
             self.current_demo.value = demo_name
-            print(f"🔄 切换到演示: {demo_name}")
-            # 注意：实际应用中需要重新创建内容区域
+            print(f"🔄 切换演示: {old_demo} -> {demo_name}")
+            
+            # 根据不同演示显示不同信息
+            if demo_name == "components":
+                print("✅ 当前显示: 🧩 五大组件演示")
+                print("   包含: Label、Button、TextField、Slider、Switch组件")
+                print("   功能: 响应式绑定、事件处理、布局管理")
+            elif demo_name == "reactive":
+                print("✅ 当前显示: 🔄 响应式系统演示")
+                print("   包含: Signal状态管理、Computed计算属性、Effect副作用")
+                print("   功能: 实时数据绑定、自动更新、依赖追踪")
+            elif demo_name == "layout":
+                print("✅ 当前显示: 📐 布局系统演示")
+                print("   包含: Flexbox布局、Container嵌套、样式系统")
+                print("   功能: 响应式布局、对齐控制、间距管理")
+            elif demo_name == "interaction":
+                print("✅ 当前显示: 🎮 交互系统演示")  
+                print("   包含: 按钮点击、事件处理、状态更新")
+                print("   功能: 用户交互、回调函数、动态响应")
+                
+            print(f"💡 导航切换完成! 当前演示: {demo_name}")
         return handler
+    
+    def create_dynamic_content(self):
+        """创建动态内容区域"""
+        # 创建一个显示当前演示状态的响应式标签
+        def get_current_status():
+            demo_name = self.current_demo.value
+            status_map = {
+                "components": "✅ 当前: 🧩 五大组件演示",
+                "reactive": "✅ 当前: 🔄 响应式系统演示", 
+                "layout": "✅ 当前: 📐 布局系统演示",
+                "interaction": "✅ 当前: 🎮 交互系统演示"
+            }
+            return status_map.get(demo_name, "🎨 macUI v4 框架演示")
+        
+        current_status = Computed(get_current_status)
+        status_label = Label(current_status, 
+                           style=ComponentStyle(width=px(400), height=px(30)))
+        
+        # 创建包含状态标签和组件演示的容器
+        content_with_status = Container(
+            children=[
+                status_label,
+                self.components_demo.create_component()
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(15)
+            )
+        )
+        
+        return content_with_status
     
     def create_main_interface(self):
         """创建主界面"""
         
         # 标题
         title = Label(
-            "🎨 macUI v4 Complete Feature Showcase",
+            "🎨 macUI v4 Complete Showcase - 5大组件演示",
             style=ComponentStyle(width=px(500), height=px(50))
         )
         
         # 导航按钮
         nav_buttons = Container(
             children=[
-                Button("响应式演示", on_click=self.switch_demo("reactive"), 
+                Button("🧩 组件演示", on_click=self.switch_demo("components"), 
                       style=ComponentStyle(width=px(120), height=px(35))),
-                Button("布局演示", on_click=self.switch_demo("layout"), 
+                Button("🔄 响应式演示", on_click=self.switch_demo("reactive"), 
+                      style=ComponentStyle(width=px(120), height=px(35))),
+                Button("📐 布局演示", on_click=self.switch_demo("layout"), 
                       style=ComponentStyle(width=px(100), height=px(35))),
-                Button("交互演示", on_click=self.switch_demo("interaction"), 
+                Button("🎮 交互演示", on_click=self.switch_demo("interaction"), 
                       style=ComponentStyle(width=px(100), height=px(35))),
             ],
             style=ComponentStyle(
                 display=Display.FLEX,
                 flex_direction=FlexDirection.ROW,
                 justify_content=JustifyContent.CENTER,
-                gap=px(15)
+                gap=px(10)
             )
         )
         
-        # 内容区域 - 默认显示响应式演示
-        content_area = self.reactive_demo.create_component()
+        # 内容区域 - 根据current_demo动态显示不同演示
+        content_area = self.create_dynamic_content()
         
         # 主容器
         main_container = Container(

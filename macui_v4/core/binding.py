@@ -30,7 +30,8 @@ class ReactiveBinding:
         "alpha": lambda v, val: ReactiveBinding._set_with_log(v, "setAlphaValue_", float(val)),
         "frame": lambda v, val: ReactiveBinding._set_with_log(v, "setFrame_", val),
         "tooltip": lambda v, val: ReactiveBinding._set_with_log(v, "setToolTip_", str(val) if val is not None else ""),
-        "doubleValue": lambda v, val: ReactiveBinding._set_with_log(v, "setDoubleValue_", float(val)),
+        "doubleValue": lambda v, val: ReactiveBinding._set_with_log(v, "setDoubleValue_", float(val) if not hasattr(val, 'value') else float(val.value)),
+        "state": lambda v, val: ReactiveBinding._set_with_log(v, "setState_", 1 if bool(val) else 0),
     }
 
     @staticmethod

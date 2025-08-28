@@ -290,8 +290,8 @@ class TextField(UIComponent):
         self.value = value
         self.placeholder = placeholder
         self.on_change = on_change
-        # 导入响应式类型检查
-        from ..core.reactive import Signal, Computed
+        # 导入响应式类型检查 - 使用与文件头部一致的导入方式
+        from core.reactive import Signal, Computed
         self._is_reactive_value = isinstance(value, (Signal, Computed))
         self._delegate = None
         
@@ -430,7 +430,342 @@ class TextFieldDelegate(NSObject):
                 print(f"⚠️ TextField文本改变回调错误: {e}")
 
 # ================================
-# 4. 使用示例和测试
+# 4. Slider - 滑块组件
+# ================================
+
+class Slider(UIComponent):
+    """现代化Slider滑块组件
+    
+    基于macUI v4.0新架构的滑块组件。
+    支持数值选择、范围限制和响应式绑定。
+    
+    Features:
+    - 数值范围控制 (min_value, max_value)
+    - 响应式值绑定
+    - 值变化回调事件
+    - 完整的布局API支持
+    - 高层和低层API支持
+    """
+    
+    def __init__(self, 
+                 value: Union[float, int, Any] = 0.0,
+                 min_value: float = 0.0,
+                 max_value: float = 100.0,
+                 on_change: Optional[Callable[[float], None]] = None,
+                 style: Optional[ComponentStyle] = None, 
+                 **style_kwargs):
+        """🏗️ CORE METHOD: Slider component initialization
+        
+        Args:
+            value: 当前滑块值，支持数字或响应式Signal
+            min_value: 最小值
+            max_value: 最大值
+            on_change: 值变化回调函数
+            style: 组件样式对象
+            **style_kwargs: 样式快捷参数
+        """
+        super().__init__(style, **style_kwargs)
+        self.value = value
+        self.min_value = min_value
+        self.max_value = max_value
+        self.on_change = on_change
+        
+        # 导入响应式类型检查
+        try:
+            from ..core.reactive import Signal, Computed
+        except ImportError:
+            from core.reactive import Signal, Computed
+        self._is_reactive_value = isinstance(value, (Signal, Computed))
+        
+        print(f"🎚️ Slider创建: value={value}, range=[{min_value}, {max_value}], reactive={self._is_reactive_value}")
+    
+    def _create_nsview(self) -> NSView:
+        """🚀 创建NSSlider作为滑块"""
+        from AppKit import NSSlider
+        
+        slider = NSSlider.alloc().init()
+        
+        # 设置滑块范围
+        slider.setMinValue_(self.min_value)
+        slider.setMaxValue_(self.max_value)
+        
+        # 设置初始值 - 使用响应式绑定系统
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+        from core.binding import ReactiveBinding
+        
+        # 绑定滑块值，自动处理响应式和静态值
+        binding_cleanup = ReactiveBinding.bind(slider, "doubleValue", self.value)
+        if binding_cleanup:
+            # 如果有响应式绑定，记录清理函数以便后续清理
+            if not hasattr(self, '_binding_cleanups'):
+                self._binding_cleanups = []
+            self._binding_cleanups.append(binding_cleanup)
+        
+        # 绑定滑块值变化事件
+        if self.on_change:
+            try:
+                # 创建滑块委托
+                self._delegate = SliderDelegate.alloc().init()
+                self._delegate.callback = self.on_change
+                self._delegate.slider_component = self  # 保存组件引用
+                
+                # 设置委托和动作
+                slider.setTarget_(self._delegate)
+                slider.setAction_("sliderChanged:")
+                
+                print(f"🔗 Slider值变化事件已绑定")
+                
+            except Exception as e:
+                print(f"⚠️ Slider事件绑定失败: {e}")
+        
+        print(f"🎚️ NSSlider创建完成: range=[{self.min_value}, {self.max_value}]")
+        return slider
+    
+    def get_value(self) -> float:
+        """获取当前滑块值"""
+        if self._nsview:
+            return self._nsview.doubleValue()
+        
+        # 如果NSView还未创建，从响应式值或静态值获取
+        if self._is_reactive_value and hasattr(self.value, 'value'):
+            return float(self.value.value)
+        return float(self.value)
+    
+    def set_value(self, value: Union[float, int]) -> 'Slider':
+        """动态设置滑块值
+        
+        Args:
+            value: 新的滑块值
+        """
+        # 确保值在范围内
+        value = max(self.min_value, min(self.max_value, float(value)))
+        self.value = value
+        
+        from ..core.reactive import Signal, Computed
+        self._is_reactive_value = isinstance(value, (Signal, Computed))
+        
+        if self._nsview:
+            self._nsview.setDoubleValue_(value)
+            print(f"🎚️ Slider值更新: {value}")
+        
+        return self
+    
+    def set_range(self, min_value: float, max_value: float) -> 'Slider':
+        """动态设置滑块范围
+        
+        Args:
+            min_value: 新的最小值
+            max_value: 新的最大值
+        """
+        self.min_value = min_value
+        self.max_value = max_value
+        
+        if self._nsview:
+            self._nsview.setMinValue_(min_value)
+            self._nsview.setMaxValue_(max_value)
+            # 确保当前值仍在新范围内
+            current_value = self._nsview.doubleValue()
+            if current_value < min_value or current_value > max_value:
+                new_value = max(min_value, min(max_value, current_value))
+                self._nsview.setDoubleValue_(new_value)
+            print(f"🎚️ Slider范围更新: [{min_value}, {max_value}]")
+        
+        return self
+
+
+# 全局滑块委托类
+class SliderDelegate(NSObject):
+    """Slider值变化事件委托类"""
+    
+    def init(self):
+        self = objc.super(SliderDelegate, self).init()
+        if self is None:
+            return None
+        self.callback = None
+        self.slider_component = None
+        return self
+    
+    def sliderChanged_(self, sender):
+        """滑块值变化事件处理"""
+        if hasattr(self, 'callback') and self.callback:
+            try:
+                # 获取当前滑块值
+                current_value = sender.doubleValue()
+                
+                # 更新组件的值
+                if hasattr(self, 'slider_component') and self.slider_component:
+                    if self.slider_component._is_reactive_value and hasattr(self.slider_component.value, 'value'):
+                        self.slider_component.value.value = current_value
+                    else:
+                        self.slider_component.value = current_value
+                
+                # 调用回调函数
+                self.callback(current_value)
+                print(f"🎚️ Slider值变化: {current_value}")
+                
+            except Exception as e:
+                print(f"⚠️ Slider值变化回调错误: {e}")
+
+# ================================
+# 5. Switch - 开关组件  
+# ================================
+
+class Switch(UIComponent):
+    """现代化Switch开关组件
+    
+    基于macUI v4.0新架构的开关组件。
+    支持布尔值切换、响应式绑定和状态回调。
+    
+    Features:
+    - 布尔值状态切换 (True/False)
+    - 响应式状态绑定
+    - 状态变化回调事件
+    - 完整的布局API支持
+    - 高层和低层API支持
+    """
+    
+    def __init__(self, 
+                 value: Union[bool, Any] = False,
+                 on_change: Optional[Callable[[bool], None]] = None,
+                 style: Optional[ComponentStyle] = None, 
+                 **style_kwargs):
+        """🏗️ CORE METHOD: Switch component initialization
+        
+        Args:
+            value: 开关状态，支持布尔值或响应式Signal
+            on_change: 状态变化回调函数
+            style: 组件样式对象
+            **style_kwargs: 样式快捷参数
+        """
+        super().__init__(style, **style_kwargs)
+        self.value = value
+        self.on_change = on_change
+        
+        # 导入响应式类型检查
+        try:
+            from ..core.reactive import Signal, Computed
+        except ImportError:
+            from core.reactive import Signal, Computed
+        self._is_reactive_value = isinstance(value, (Signal, Computed))
+        
+        print(f"🔘 Switch创建: value={value}, reactive={self._is_reactive_value}")
+    
+    def _create_nsview(self) -> NSView:
+        """🚀 创建NSButton配置为开关样式"""
+        from AppKit import NSButton, NSButtonTypeSwitch
+        
+        switch = NSButton.alloc().init()
+        
+        # 设置为开关样式
+        switch.setButtonType_(NSButtonTypeSwitch)
+        switch.setTitle_("")  # 不显示标题
+        
+        # 设置初始状态 - 使用响应式绑定系统
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+        from core.binding import ReactiveBinding
+        
+        # 绑定开关状态，自动处理响应式和静态值
+        # 使用state属性来绑定NSButton的开关状态
+        binding_cleanup = ReactiveBinding.bind(switch, "state", self.value)
+        if binding_cleanup:
+            # 如果有响应式绑定，记录清理函数以便后续清理
+            if not hasattr(self, '_binding_cleanups'):
+                self._binding_cleanups = []
+            self._binding_cleanups.append(binding_cleanup)
+        
+        # 绑定开关状态变化事件
+        if self.on_change:
+            try:
+                # 创建开关委托
+                self._delegate = SwitchDelegate.alloc().init()
+                self._delegate.callback = self.on_change
+                self._delegate.switch_component = self  # 保存组件引用
+                
+                # 设置委托和动作
+                switch.setTarget_(self._delegate)
+                switch.setAction_("switchChanged:")
+                
+                print(f"🔗 Switch状态变化事件已绑定")
+                
+            except Exception as e:
+                print(f"⚠️ Switch事件绑定失败: {e}")
+        
+        print(f"🔘 NSButton(Switch)创建完成: state={self.get_value()}")
+        return switch
+    
+    def get_value(self) -> bool:
+        """获取当前开关状态"""
+        if self._nsview:
+            return bool(self._nsview.state())
+        
+        # 如果NSView还未创建，从响应式值或静态值获取
+        if self._is_reactive_value and hasattr(self.value, 'value'):
+            return bool(self.value.value)
+        return bool(self.value)
+    
+    def set_value(self, value: bool) -> 'Switch':
+        """动态设置开关状态
+        
+        Args:
+            value: 新的开关状态
+        """
+        self.value = value
+        
+        from ..core.reactive import Signal, Computed
+        self._is_reactive_value = isinstance(value, (Signal, Computed))
+        
+        if self._nsview:
+            self._nsview.setState_(1 if value else 0)
+            print(f"🔘 Switch状态更新: {value}")
+        
+        return self
+    
+    def toggle(self) -> 'Switch':
+        """切换开关状态"""
+        current_state = self.get_value()
+        self.set_value(not current_state)
+        return self
+
+
+# 全局开关委托类
+class SwitchDelegate(NSObject):
+    """Switch状态变化事件委托类"""
+    
+    def init(self):
+        self = objc.super(SwitchDelegate, self).init()
+        if self is None:
+            return None
+        self.callback = None
+        self.switch_component = None
+        return self
+    
+    def switchChanged_(self, sender):
+        """开关状态变化事件处理"""
+        if hasattr(self, 'callback') and self.callback:
+            try:
+                # 获取当前开关状态
+                current_state = bool(sender.state())
+                
+                # 更新组件的值
+                if hasattr(self, 'switch_component') and self.switch_component:
+                    if self.switch_component._is_reactive_value and hasattr(self.switch_component.value, 'value'):
+                        self.switch_component.value.value = current_state
+                    else:
+                        self.switch_component.value = current_state
+                
+                # 调用回调函数
+                self.callback(current_state)
+                print(f"🔘 Switch状态变化: {current_state}")
+                
+            except Exception as e:
+                print(f"⚠️ Switch状态变化回调错误: {e}")
+
+# ================================
+# 6. 使用示例和测试
 # ================================
 
 if __name__ == "__main__":
