@@ -30,7 +30,8 @@
       "Bash(uv pip:*)",
       "Bash(pkill:*)",
       "WebFetch(domain:reactbits.dev)",
-      "WebFetch(domain:reaktiv.readthedocs.io)"
+      "WebFetch(domain:reaktiv.readthedocs.io)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": [],

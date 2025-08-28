@@ -95,15 +95,18 @@ class ReactiveCounterDemo:
         
         # Effect: 当counter变化时更新标签
         def update_counter_display():
-            # 手动更新NSTextField的文本
-            if hasattr(self.counter_label, '_nsview'):
-                self.counter_label._nsview.setStringValue_(f"计数: {showcase_data.counter.value}")
-            if hasattr(self.doubled_label, '_nsview'):
-                self.doubled_label._nsview.setStringValue_(f"双倍: {showcase_data.counter_doubled.value}")
-            if hasattr(self.squared_label, '_nsview'):
-                self.squared_label._nsview.setStringValue_(f"平方: {showcase_data.counter_squared.value}")
-            if hasattr(self.greeting_label, '_nsview'):
-                self.greeting_label._nsview.setStringValue_(showcase_data.greeting_message.value)
+            # 手动更新NSTextField的文本 - 添加安全检查
+            try:
+                if hasattr(self.counter_label, '_nsview') and self.counter_label._nsview is not None:
+                    self.counter_label._nsview.setStringValue_(f"计数: {showcase_data.counter.value}")
+                if hasattr(self.doubled_label, '_nsview') and self.doubled_label._nsview is not None:
+                    self.doubled_label._nsview.setStringValue_(f"双倍: {showcase_data.counter_doubled.value}")
+                if hasattr(self.squared_label, '_nsview') and self.squared_label._nsview is not None:
+                    self.squared_label._nsview.setStringValue_(f"平方: {showcase_data.counter_squared.value}")
+                if hasattr(self.greeting_label, '_nsview') and self.greeting_label._nsview is not None:
+                    self.greeting_label._nsview.setStringValue_(showcase_data.greeting_message.value)
+            except Exception as e:
+                print(f"⚠️  UI更新错误: {e}")
         
         # 创建Effect来监听状态变化
         self.update_effect = Effect(update_counter_display)
@@ -316,12 +319,15 @@ class InteractionDemo:
     def setup_updates(self):
         """设置UI更新"""
         def update_display():
-            if hasattr(self.status_label, '_nsview'):
-                self.status_label._nsview.setStringValue_(self.user_message.value)
-            if hasattr(self.click_label, '_nsview'):
-                self.click_label._nsview.setStringValue_(f"总点击次数: {self.click_count.value}")
-            if hasattr(self.last_action_label, '_nsview'):
-                self.last_action_label._nsview.setStringValue_(f"最后操作: {self.last_button.value}")
+            try:
+                if hasattr(self.status_label, '_nsview') and self.status_label._nsview is not None:
+                    self.status_label._nsview.setStringValue_(self.user_message.value)
+                if hasattr(self.click_label, '_nsview') and self.click_label._nsview is not None:
+                    self.click_label._nsview.setStringValue_(f"总点击次数: {self.click_count.value}")
+                if hasattr(self.last_action_label, '_nsview') and self.last_action_label._nsview is not None:
+                    self.last_action_label._nsview.setStringValue_(f"最后操作: {self.last_button.value}")
+            except Exception as e:
+                print(f"⚠️  交互UI更新错误: {e}")
         
         self.update_effect = Effect(update_display)
     

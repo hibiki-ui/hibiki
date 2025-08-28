@@ -20,7 +20,8 @@ from stretchable.style import (
     Position as StPosition,
     Length,
     Size,
-    Rect
+    Rect,
+    PCT
 )
 
 # 导入v4样式系统 - 处理相对导入和绝对导入
@@ -188,7 +189,7 @@ class V4StyleConverter:
             if v4_length.unit == LengthUnit.PX:
                 return Length.from_any(float(v4_length.value))
             elif v4_length.unit == LengthUnit.PERCENT:
-                return Length.from_any(f"{v4_length.value}%")
+                return v4_length.value * PCT
             elif v4_length.unit == LengthUnit.AUTO:
                 return Length.default()  # Stretchable的auto表示
         
