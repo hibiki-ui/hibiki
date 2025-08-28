@@ -11,11 +11,6 @@
 ✅ 样式系统基础功能
 """
 
-# 使用本地开发包导入
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-
 import hibiki
 from hibiki import (
     # 核心系统

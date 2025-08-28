@@ -10,11 +10,6 @@
 ✅ 表单数据的响应式处理
 """
 
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
 from hibiki import (
     Signal,
     Computed,
@@ -27,6 +22,10 @@ from hibiki import (
     Container,
     ManagerFactory,
     ComponentStyle,
+    Display,
+    FlexDirection,
+    JustifyContent,
+    AlignItems,
     px,
 )
 
@@ -163,11 +162,11 @@ def main():
             ),
             summary_label,
             Container(
-                children=[reset_btn], style=ComponentStyle(display="flex", justify_content="center")
+                children=[reset_btn], style=ComponentStyle(display=Display.FLEX, justify_content=JustifyContent.CENTER)
             ),
         ],
         style=ComponentStyle(
-            padding=px(40), display="flex", flex_direction="column", align_items="center"
+            padding=px(40), display=Display.FLEX, flex_direction=FlexDirection.COLUMN, align_items=AlignItems.CENTER
         ),
     )
 

@@ -11,7 +11,10 @@ from .component import Component, UIComponent, Container
 from .reactive import Signal, Computed, Effect, create_signal, create_computed, create_effect
 
 # 样式系统
-from .styles import ComponentStyle, StylePresets, px, percent, auto
+from .styles import (
+    ComponentStyle, StylePresets, px, percent, auto,
+    Display, FlexDirection, JustifyContent, AlignItems, LengthUnit
+)
 
 # 绑定系统
 from .binding import ReactiveBinding, FormDataBinding
@@ -52,6 +55,11 @@ __all__ = [
     'px',
     'percent', 
     'auto',
+    'Display',
+    'FlexDirection',
+    'JustifyContent',
+    'AlignItems',
+    'LengthUnit',
     
     # 绑定系统
     'ReactiveBinding',
