@@ -10,6 +10,9 @@ from hibiki.ui import (
     Display, FlexDirection, AlignItems, JustifyContent
 )
 from hibiki.music.core.app_state import MusicAppState
+from hibiki.music.core.scanner import scan_music_library
+from hibiki.music.data.database import SongService
+from pathlib import Path
 
 class HibikiMusicApp:
     """
@@ -31,39 +34,93 @@ class HibikiMusicApp:
         self.app_manager = None
         self.window = None
         
-    def _add_test_songs(self):
-        """添加一些测试歌曲数据"""
+    def _load_music_library(self):
+        """加载音乐库"""
+        print("🔍 加载音乐库...")
+        
+        # 获取当前目录的music/data路径
+        current_dir = Path(__file__).parent.parent.parent.parent  # music目录
+        data_dir = current_dir / "data"
+        
+        # 首次扫描 - 如果data目录存在就扫描
+        if data_dir.exists():
+            print(f"📁 扫描目录: {data_dir}")
+            try:
+                scan_music_library(str(data_dir))
+                print("✅ 音乐库扫描完成")
+            except Exception as e:
+                print(f"⚠️ 扫描失败: {e}")
+        
+        # 从数据库加载所有歌曲
+        try:
+            song_service = SongService()
+            db_songs = song_service.get_all_songs()
+            
+            if db_songs:
+                # 转换为应用状态使用的Song对象
+                from hibiki.music.core.app_state import Song
+                app_songs = [
+                    Song(
+                        id=str(song.id),
+                        title=song.title,
+                        artist=song.artist,
+                        album=song.album,
+                        duration=song.duration,
+                        file_path=song.file_path
+                    )
+                    for song in db_songs
+                ]
+                
+                self.state.add_songs(app_songs)
+                self.state.set_playlist(app_songs)
+                print(f"✅ 从数据库加载了 {len(app_songs)} 首歌曲")
+                
+                # 如果有歌曲，默认选中第一首
+                if app_songs:
+                    self.state.current_song.value = app_songs[0]
+                    
+            else:
+                print("📋 数据库中暂无歌曲")
+                self._add_fallback_songs()
+                
+        except Exception as e:
+            print(f"❌ 加载音乐库失败: {e}")
+            self._add_fallback_songs()
+    
+    def _add_fallback_songs(self):
+        """添加备用测试歌曲"""
         from hibiki.music.core.app_state import Song
         import os
         
-        # 添加一些测试歌曲 (你可以替换为实际的音频文件路径)
+        print("🎵 添加备用测试歌曲...")
+        
         test_songs = [
             Song(
-                id="test_1",
-                title="测试歌曲 1",
-                artist="测试艺术家",
-                album="测试专辑",
-                duration=180.0,
-                file_path="/System/Library/Sounds/Ping.aiff"  # macOS 系统声音
+                id="fallback_1",
+                title="测试音频 - Ping",
+                artist="macOS System",
+                album="System Sounds",
+                duration=1.0,
+                file_path="/System/Library/Sounds/Ping.aiff"
             ),
             Song(
-                id="test_2", 
-                title="测试歌曲 2",
-                artist="另一个艺术家",
-                album="另一个专辑",
-                duration=240.0,
-                file_path="/System/Library/Sounds/Glass.aiff"  # macOS 系统声音
+                id="fallback_2",
+                title="测试音频 - Glass",
+                artist="macOS System", 
+                album="System Sounds",
+                duration=1.5,
+                file_path="/System/Library/Sounds/Glass.aiff"
             )
         ]
         
-        # 只添加存在的文件
         valid_songs = [song for song in test_songs if os.path.exists(song.file_path)]
         if valid_songs:
             self.state.add_songs(valid_songs)
             self.state.set_playlist(valid_songs)
-            print(f"✅ 添加了 {len(valid_songs)} 首测试歌曲")
+            self.state.current_song.value = valid_songs[0]
+            print(f"✅ 添加了 {len(valid_songs)} 首备用歌曲")
         else:
-            print("⚠️ 没有找到有效的测试音频文件")
+            print("⚠️ 没有找到有效的备用音频文件")
     
     def create_ui(self) -> Container:
         """创建主界面"""
@@ -80,7 +137,7 @@ class HibikiMusicApp:
         
         # 状态信息
         status_label = Label(
-            lambda: f"音乐库: {self.state.total_songs.value} 首歌曲",
+            lambda: f"音乐库: {self.state.total_songs.value} 首歌曲 | 数据库: SQLModel + SQLite",
             style=ComponentStyle(margin_bottom=px(15)),
             font_size=16,
             text_align="center",
@@ -89,7 +146,7 @@ class HibikiMusicApp:
         
         # 当前播放信息
         current_playing_label = Label(
-            lambda: f"正在播放: {self.state.current_song.value.title if self.state.current_song.value else '无'}",
+            lambda: f"正在播放: {self.state.current_song.value.title + ' - ' + self.state.current_song.value.artist if self.state.current_song.value else '无'}",
             style=ComponentStyle(margin_bottom=px(15)),
             font_size=14,
             text_align="center",
@@ -145,9 +202,9 @@ class HibikiMusicApp:
         
         # 说明文字
         description_label = Label(
-            "这是 Hibiki Music 的 MVP v0.1 版本\n" +
-            "展示了基于 Hibiki UI 的响应式状态管理\n" +
-            "后续版本将添加实际的音频播放功能",
+            "🎵 Hibiki Music MVP v0.2 - 真实音乐库版本\n" +
+            "✅ SQLModel 数据库 + mutagen 元数据提取\n" +
+            "✅ AVPlayer 音频播放引擎 + 响应式状态管理",
             style=ComponentStyle(margin_top=px(30)),
             font_size=12,
             text_align="center",
@@ -180,17 +237,17 @@ class HibikiMusicApp:
         try:
             print("🚀 启动 Hibiki Music...")
             
-            # 添加测试歌曲数据
-            self._add_test_songs()
+            # 加载音乐库数据
+            self._load_music_library()
             
             # 创建应用管理器
             self.app_manager = ManagerFactory.get_app_manager()
             
             # 创建主窗口
             self.window = self.app_manager.create_window(
-                title="Hibiki Music MVP v0.1",
-                width=600,
-                height=400
+                title="Hibiki Music MVP v0.2 - 真实音乐库",
+                width=700,
+                height=450
             )
             
             # 创建并设置UI
@@ -198,8 +255,8 @@ class HibikiMusicApp:
             self.window.set_content(main_ui)
             
             print("✅ Hibiki Music 已启动！")
-            print("📝 当前版本: MVP v0.1")
-            print("🎯 功能: 基础架构 + 响应式状态管理")
+            print("📝 当前版本: MVP v0.2")
+            print("🎯 功能: 音乐库扫描 + SQLModel数据库 + AVPlayer播放")
             
             # 运行应用
             self.app_manager.run()

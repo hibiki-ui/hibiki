@@ -18,7 +18,8 @@ dependencies = [
     "pyobjc-framework-AVFoundation>=10.0",
     "pyobjc-framework-MediaPlayer>=10.0",
     
-    # 数据库
+    # 数据库 - 现代化 SQLModel 架构
+    "sqlmodel>=0.0.14",
     "sqlalchemy>=2.0.0",
     "alembic>=1.12.0",
     
