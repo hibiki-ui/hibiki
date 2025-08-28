@@ -51,7 +51,7 @@ class ReactiveBinding:
                 except Exception:
                     pass  # 忽略获取旧值的错误
             
-            logger.info(f"🎯 UI设置: {type(view).__name__}[{id(view)}].{method_name}({repr(value)})")
+            logger.debug(f"🎯 UI设置: {type(view).__name__}[{id(view)}].{method_name}({repr(value)})")
             method(value)
             
             if old_value is not None:
@@ -73,7 +73,7 @@ class ReactiveBinding:
         Returns:
             更新函数，可用于手动解绑
         """
-        logger.info(f"ReactiveBinding.bind: {type(view).__name__}[{id(view)}].{prop} -> {type(signal_or_value).__name__}[{id(signal_or_value)}]")
+        logger.debug(f"ReactiveBinding.bind: {type(view).__name__}[{id(view)}].{prop} -> {type(signal_or_value).__name__}[{id(signal_or_value)}]")
         
         if prop == "style":
             return ReactiveBinding._bind_style(view, signal_or_value)
@@ -84,33 +84,33 @@ class ReactiveBinding:
 
         def update():
             try:
-                logger.info(f"🔄 ReactiveBinding.update[{prop}]: 开始更新 {type(view).__name__}[{id(view)}]")
+                logger.debug(f"🔄 ReactiveBinding.update[{prop}]: 开始更新 {type(view).__name__}[{id(view)}]")
                 
                 # 直接使用当前模块中导入的Signal类
                 current_observer = Signal._current_observer.get()
                 import threading
                 thread_id = threading.get_ident()
-                logger.info(f"🔍 Binding.update: 线程ID={thread_id}, 当前观察者 = {type(current_observer).__name__ if current_observer else 'None'}[{id(current_observer) if current_observer else 'N/A'}]")
+                logger.debug(f"🔍 Binding.update: 线程ID={thread_id}, 当前观察者 = {type(current_observer).__name__ if current_observer else 'None'}[{id(current_observer) if current_observer else 'N/A'}]")
                 
                 # 获取值
                 if isinstance(signal_or_value, (Signal, Computed)):
                     # Signal 或 Computed - 调用value属性来建立依赖关系
-                    logger.info(f"🎯 Binding: 访问 {type(signal_or_value).__name__}.value，当前观察者: {current_observer}")
+                    logger.debug(f"🎯 Binding: 访问 {type(signal_or_value).__name__}.value，当前观察者: {current_observer}")
                     value = signal_or_value.value  # 这里会触发Signal.get()并注册观察者
-                    logger.info(f"🔄 Binding update[{prop}]: 从{type(signal_or_value).__name__}获取值: {value}")
+                    logger.debug(f"🔄 Binding update[{prop}]: 从{type(signal_or_value).__name__}获取值: {value}")
                 elif callable(signal_or_value):
                     # 可调用对象
                     value = signal_or_value()
-                    logger.info(f"🔄 Binding update[{prop}]: 从可调用对象获取值: {value}")
+                    logger.debug(f"🔄 Binding update[{prop}]: 从可调用对象获取值: {value}")
                 else:
                     # 静态值
                     value = signal_or_value
-                    logger.info(f"🔄 Binding update[{prop}]: 使用静态值: {repr(value)}")
+                    logger.debug(f"🔄 Binding update[{prop}]: 使用静态值: {repr(value)}")
                 
                 # 应用值到视图
-                logger.info(f"🔄 Binding update[{prop}]: 即将设置 {type(view).__name__}[{id(view)}] = {repr(value)}")
+                logger.debug(f"🔄 Binding update[{prop}]: 即将设置 {type(view).__name__}[{id(view)}] = {repr(value)}")
                 setter(view, value)
-                logger.info(f"✅ Binding update[{prop}]: 设置完成")
+                logger.debug(f"✅ Binding update[{prop}]: 设置完成")
             except Exception as e:
                 logger.error(f"❌ Binding update error for {prop}: {e}")
                 import traceback

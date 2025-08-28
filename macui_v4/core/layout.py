@@ -273,7 +273,7 @@ class LayoutNode:
         
         self._stretchable_node = st.Node(style=stretchable_style)
         
-        logger.info(f"📐 创建布局节点: {self.key} -> {component.__class__.__name__}")
+        logger.debug(f"📐 创建布局节点: {self.key} -> {component.__class__.__name__}")
     
     def add_child(self, child_node: 'LayoutNode', index: Optional[int] = None):
         """添加子节点 - v3风格直接操作"""
@@ -305,7 +305,7 @@ class LayoutNode:
                 logger.debug(f"🔍 Stretchable Python list: {list(self._stretchable_node)}")
                 return False
             
-            logger.info(f"➕ 布局节点添加子节点成功: {self.key} -> {child_node.key} (子节点数: {actual_children})")
+            logger.debug(f"➕ 布局节点添加子节点成功: {self.key} -> {child_node.key} (子节点数: {actual_children})")
             return True
             
         except Exception as e:
@@ -322,7 +322,7 @@ class LayoutNode:
             child_node.parent = None
             # 确保Stretchable节点的parent引用也清空
             child_node._stretchable_node.parent = None
-            logger.info(f"➖ 从布局节点移除子节点: {self.key} <- {child_node.key}")
+            logger.debug(f"➖ 从布局节点移除子节点: {self.key} <- {child_node.key}")
     
     def update_style(self, style: ComponentStyle):
         """更新节点样式"""
@@ -378,20 +378,20 @@ class V4LayoutEngine:
         self._cache_hits = 0
         self._cache_misses = 0
         
-        logger.info("🏗️ V4LayoutEngine初始化完成")
+        logger.debug("🏗️ V4LayoutEngine初始化完成")
     
     def create_node_for_component(self, component) -> LayoutNode:
         """为组件创建布局节点"""
         if component in self._component_nodes:
             existing_node = self._component_nodes[component]
-            logger.info(f"📐 使用已存在的布局节点: {component.__class__.__name__}")
+            logger.debug(f"📐 使用已存在的布局节点: {component.__class__.__name__}")
             return existing_node
         
         style = getattr(component, 'style', None)
         node = LayoutNode(component, style)
         self._component_nodes[component] = node
         
-        logger.info(f"📐 为组件创建布局节点: {component.__class__.__name__}")
+        logger.debug(f"📐 为组件创建布局节点: {component.__class__.__name__}")
         return node
     
     def get_node_for_component(self, component) -> Optional[LayoutNode]:
@@ -451,7 +451,7 @@ class V4LayoutEngine:
         )
         
         if self.debug_mode:
-            logger.info(f"✅ 布局计算完成: {component.__class__.__name__} -> {width:.1f}x{height:.1f} @ ({x:.1f}, {y:.1f}) [{compute_time:.2f}ms]")
+            logger.debug(f"✅ 布局计算完成: {component.__class__.__name__} -> {width:.1f}x{height:.1f} @ ({x:.1f}, {y:.1f}) [{compute_time:.2f}ms]")
         
         return result
     
@@ -468,7 +468,7 @@ class V4LayoutEngine:
                 from ..core.styles import ComponentStyle
                 component_style = ComponentStyle()
                 component.style = component_style
-                logger.info(f"✨ 为组件创建默认样式: {component.__class__.__name__}")
+                logger.debug(f"✨ 为组件创建默认样式: {component.__class__.__name__}")
                 
             logger.debug(f"🎨 转换单个节点样式: {component.__class__.__name__} -> {component_style}")
             stretchable_style = V4StyleConverter.convert_to_stretchable_style(component_style)
@@ -498,7 +498,7 @@ class V4LayoutEngine:
                 from ..core.styles import ComponentStyle
                 component_style = ComponentStyle()
                 component.style = component_style
-                logger.info(f"✨ 为组件创建默认样式: {component.__class__.__name__}")
+                logger.debug(f"✨ 为组件创建默认样式: {component.__class__.__name__}")
                 
             logger.debug(f"🎨 转换样式: {component.__class__.__name__} -> {component_style}")
             stretchable_style = V4StyleConverter.convert_to_stretchable_style(component_style)
@@ -527,7 +527,7 @@ class V4LayoutEngine:
         node = self.get_node_for_component(component)
         if node and hasattr(component, 'style'):
             node.update_style(component.style)
-            logger.info(f"🎨 更新组件样式: {component.__class__.__name__}")
+            logger.debug(f"🎨 更新组件样式: {component.__class__.__name__}")
     
     def cleanup_component(self, component):
         """清理组件的布局节点"""
@@ -543,13 +543,13 @@ class V4LayoutEngine:
             
             # 清理映射
             del self._component_nodes[component]
-            logger.info(f"🧹 清理组件布局节点: {component.__class__.__name__}")
+            logger.debug(f"🧹 清理组件布局节点: {component.__class__.__name__}")
     
     def debug_print_stats(self):
         """打印调试统计"""
-        logger.info(f"📊 布局引擎统计:")
-        logger.info(f"   🔄 布局调用次数: {self._layout_calls}")
-        logger.info(f"   📐 活跃布局节点: {len(self._component_nodes)}")
+        logger.debug(f"📊 布局引擎统计:")
+        logger.debug(f"   🔄 布局调用次数: {self._layout_calls}")
+        logger.debug(f"   📐 活跃布局节点: {len(self._component_nodes)}")
 
 
 # 全局布局引擎实例

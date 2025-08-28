@@ -32,7 +32,8 @@
       "WebFetch(domain:reactbits.dev)",
       "WebFetch(domain:reaktiv.readthedocs.io)",
       "Bash(git log:*)",
-      "Bash(timeout 30 uv run:*)"
+      "Bash(timeout 30 uv run:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": [],

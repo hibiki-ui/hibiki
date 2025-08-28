@@ -23,12 +23,10 @@ except ImportError:
     # 防止重复添加handlers
     if not logger.handlers:
         handler = logging.StreamHandler()
-        handler.setLevel(logging.INFO)
+        handler.setLevel(logging.WARNING)  # 提高到WARNING级别
         logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
-        print(f"🔧 Logger初始化: 添加了StreamHandler, 总handlers数: {len(logger.handlers)}")
-    else:
-        print(f"⚠️  Logger已存在handlers: {len(logger.handlers)} 个")
+        logger.setLevel(logging.WARNING)   # 提高到WARNING级别
+        # 移除初始化日志，避免不必要的输出
 
 # 🆕 优化的批处理系统
 def _start_batch():
@@ -37,7 +35,7 @@ def _start_batch():
     with _batch_lock:
         _batch_depth += 1
         if _batch_depth == 1:
-            logger.info(f"🚀 开始批处理 (深度: {_batch_depth})")
+            logger.debug(f"🚀 开始批处理 (深度: {_batch_depth})")
 
 def _end_batch():
     """结束批处理并刷新更新"""
@@ -45,13 +43,13 @@ def _end_batch():
     with _batch_lock:
         _batch_depth -= 1
         if _batch_depth == 0:
-            logger.info(f"🏁 结束批处理，处理 {len(_deferred_updates)} 个排队更新")
+            logger.debug(f"🏁 结束批处理，处理 {len(_deferred_updates)} 个排队更新")
             _flush_deferred_updates()
 
 def _enqueue_update(observer):
     """将更新加入队列"""
     _deferred_updates.append(observer)
-    logger.info(f"📥 更新入队: {type(observer).__name__}[{id(observer)}]")
+    logger.debug(f"📥 更新入队: {type(observer).__name__}[{id(observer)}]")
 
 def _flush_deferred_updates():
     """🆕 批处理刷新 - 真正的动态队列处理"""
@@ -92,36 +90,36 @@ def _flush_deferred_updates():
         
         current_batch.sort(key=get_priority)
         
-        logger.info(f"🔄 第{round_number}轮：按依赖顺序处理 {len(current_batch)} 个观察者")
+        logger.debug(f"🔄 第{round_number}轮：按依赖顺序处理 {len(current_batch)} 个观察者")
         for i, observer in enumerate(current_batch):
-            logger.info(f"   {i+1}. {type(observer).__name__}[{id(observer)}] (优先级: {get_priority(observer)})")
+            logger.debug(f"   {i+1}. {type(observer).__name__}[{id(observer)}] (优先级: {get_priority(observer)})")
         
         # 按排序后的顺序执行更新
         for observer in current_batch:
-            logger.info(f"⚡ 执行更新: {type(observer).__name__}[{id(observer)}]")
+            logger.debug(f"⚡ 执行更新: {type(observer).__name__}[{id(observer)}]")
             
             try:
                 if hasattr(observer, '_rerun') and hasattr(observer, '_active'):
                     if observer._active:
-                        logger.info(f"   调用 {type(observer).__name__}._rerun() - active")
+                        logger.debug(f"   调用 {type(observer).__name__}._rerun() - active")
                         observer._rerun()
                     else:
-                        logger.info(f"   跳过 {type(observer).__name__} - inactive")
+                        logger.debug(f"   跳过 {type(observer).__name__} - inactive")
                 elif hasattr(observer, '_rerun'):
-                    logger.info(f"   调用 {type(observer).__name__}._rerun() - no active check")
+                    logger.debug(f"   调用 {type(observer).__name__}._rerun() - no active check")
                     observer._rerun()
                 else:
-                    logger.info(f"   直接调用 {type(observer).__name__}()")
+                    logger.debug(f"   直接调用 {type(observer).__name__}()")
                     observer()
             except Exception as e:
                 logger.error(f"❌ 批处理更新错误: {e}")
         
         # 检查处理完这一轮后是否有新观察者
         if _deferred_updates:
-            logger.info(f"🔄 第{round_number}轮完成，发现 {len(_deferred_updates)} 个新观察者，进入第{round_number + 1}轮...")
+            logger.debug(f"🔄 第{round_number}轮完成，发现 {len(_deferred_updates)} 个新观察者，进入第{round_number + 1}轮...")
             round_number += 1
         else:
-            logger.info(f"🏁 批处理完成，共 {round_number} 轮")
+            logger.debug(f"🏁 批处理完成，共 {round_number} 轮")
             break
 
 class BatchUpdater:
@@ -186,7 +184,7 @@ class Signal(Generic[T]):
             self._version += 1  # 🆕 版本递增
             _global_version += 1  # 🆕 全局版本递增
             
-            logger.info(f"Signal[{id(self)}].set: {old_value} -> {new_value} (v{old_version} -> v{self._version}), 观察者数: {len(self._observers)}")
+            logger.debug(f"Signal[{id(self)}].set: {old_value} -> {new_value} (v{old_version} -> v{self._version}), 观察者数: {len(self._observers)}")
             
             # 🆕 批处理通知
             _start_batch()
@@ -200,7 +198,7 @@ class Signal(Generic[T]):
     def _notify_observers(self):
         """🚀 优化通知观察者 - 智能批处理"""
         observers = list(self._observers)  # 创建副本避免并发修改
-        logger.info(f"Signal[{id(self)}]._notify_observers: 批处理通知 {len(observers)} 个观察者")
+        logger.debug(f"Signal[{id(self)}]._notify_observers: 批处理通知 {len(observers)} 个观察者")
         
         for i, observer in enumerate(observers):
             try:
@@ -359,17 +357,17 @@ class Computed(Generic[T]):
 
     def _invalidate(self):
         """标记为需要重新计算并通知"""
-        logger.info(f"Computed[{id(self)}]._invalidate: dirty={self._dirty}")
+        logger.debug(f"Computed[{id(self)}]._invalidate: dirty={self._dirty}")
         if not self._dirty:  # 避免重复失效
             self._dirty = True
-            logger.info(f"Computed[{id(self)}]: 标记为脏，开始通知观察者")
+            logger.debug(f"Computed[{id(self)}]: 标记为脏，开始通知观察者")
             self._notify_observers()
         else:
-            logger.info(f"Computed[{id(self)}]: 已经是脏状态，跳过通知观察者")
+            logger.debug(f"Computed[{id(self)}]: 已经是脏状态，跳过通知观察者")
     
     def _rerun(self):
         """重新运行计算 - 与Effect接口兼容"""
-        logger.info(f"Computed[{id(self)}]._rerun: 收到重新运行请求，立即重新计算")
+        logger.debug(f"Computed[{id(self)}]._rerun: 收到重新运行请求，立即重新计算")
         # 🚀 修复：直接重新计算，不只是标记为脏
         self._recompute()
 
@@ -425,7 +423,7 @@ class Effect:
         self._active = True
         self._dependency_versions: Dict[int, int] = {}  # 🆕 依赖版本追踪
         
-        logger.info(f"Effect创建: id={id(self)}, 函数={fn.__name__ if hasattr(fn, '__name__') else type(fn).__name__}")
+        logger.debug(f"Effect创建: id={id(self)}, 函数={fn.__name__ if hasattr(fn, '__name__') else type(fn).__name__}")
         
         # 注册到全局列表以防止被垃圾回收
         _active_effects.add(self)
@@ -451,41 +449,41 @@ class Effect:
         token = Signal._current_observer.set(self)
         import threading
         thread_id = threading.get_ident()
-        logger.info(f"🎯 Effect[{id(self)}]: 线程ID={thread_id}, 设置为当前观察者，开始执行函数")
+        logger.debug(f"🎯 Effect[{id(self)}]: 线程ID={thread_id}, 设置为当前观察者，开始执行函数")
         
         try:
             # 在调用函数之前再次确认观察者上下文
             current_observer = Signal._current_observer.get()
-            logger.info(f"🎯 Effect[{id(self)}]: 准备调用函数 - 观察者上下文 = {type(current_observer).__name__ if current_observer else 'None'}[{id(current_observer) if current_observer else 'N/A'}]")
+            logger.debug(f"🎯 Effect[{id(self)}]: 准备调用函数 - 观察者上下文 = {type(current_observer).__name__ if current_observer else 'None'}[{id(current_observer) if current_observer else 'N/A'}]")
             
             # 测试函数：直接检查上下文传递
             def test_context():
                 test_observer = Signal._current_observer.get()
-                logger.info(f"🧪 Effect[{id(self)}]: 内联测试函数 - 观察者上下文 = {type(test_observer).__name__ if test_observer else 'None'}[{id(test_observer) if test_observer else 'N/A'}]")
+                logger.debug(f"🧪 Effect[{id(self)}]: 内联测试函数 - 观察者上下文 = {type(test_observer).__name__ if test_observer else 'None'}[{id(test_observer) if test_observer else 'N/A'}]")
                 return test_observer
             
             test_result = test_context()
-            logger.info(f"🧪 Effect[{id(self)}]: 测试结果: 上下文传递{'成功' if test_result else '失败'}")
+            logger.debug(f"🧪 Effect[{id(self)}]: 测试结果: 上下文传递{'成功' if test_result else '失败'}")
             
             # 调试self._fn的类型和属性
-            logger.info(f"🔬 Effect[{id(self)}]: self._fn 类型: {type(self._fn)}")
-            logger.info(f"🔬 Effect[{id(self)}]: self._fn 属性: {dir(self._fn) if hasattr(self._fn, '__dir__') else 'N/A'}")
+            logger.debug(f"🔬 Effect[{id(self)}]: self._fn 类型: {type(self._fn)}")
+            logger.debug(f"🔬 Effect[{id(self)}]: self._fn 属性: {dir(self._fn) if hasattr(self._fn, '__dir__') else 'N/A'}")
             if hasattr(self._fn, '__name__'):
-                logger.info(f"🔬 Effect[{id(self)}]: self._fn.__name__: {self._fn.__name__}")
+                logger.debug(f"🔬 Effect[{id(self)}]: self._fn.__name__: {self._fn.__name__}")
             if hasattr(self._fn, '__module__'):
-                logger.info(f"🔬 Effect[{id(self)}]: self._fn.__module__: {self._fn.__module__}")
+                logger.debug(f"🔬 Effect[{id(self)}]: self._fn.__module__: {self._fn.__module__}")
             
             # 检查函数的globals中是否有不同的Signal类
             if hasattr(self._fn, '__globals__'):
                 fn_globals = self._fn.__globals__
                 # 查找Signal相关的导入
                 signal_in_globals = [k for k in fn_globals.keys() if 'signal' in k.lower() or 'Signal' in k]
-                logger.info(f"🔬 Effect[{id(self)}]: 函数globals中的Signal相关: {signal_in_globals}")
+                logger.debug(f"🔬 Effect[{id(self)}]: 函数globals中的Signal相关: {signal_in_globals}")
                 for key in signal_in_globals:
                     value = fn_globals.get(key)
                     if hasattr(value, '_current_observer'):
-                        logger.info(f"🔬 Effect[{id(self)}]: {key}._current_observer = {value._current_observer}")
-                        logger.info(f"🔬 Effect[{id(self)}]: {key}._current_observer.get() = {value._current_observer.get()}")
+                        logger.debug(f"🔬 Effect[{id(self)}]: {key}._current_observer = {value._current_observer}")
+                        logger.debug(f"🔬 Effect[{id(self)}]: {key}._current_observer.get() = {value._current_observer.get()}")
             
             result = self._fn()
             # 如果函数返回清理函数，保存它
@@ -513,7 +511,7 @@ class Effect:
     
     def _rerun(self):
         """重新运行副作用"""
-        logger.info(f"Effect[{id(self)}]._rerun: 收到重新运行请求")
+        logger.debug(f"Effect[{id(self)}]._rerun: 收到重新运行请求")
         if self._active:
             self._run_effect()
         else:
