@@ -10,7 +10,7 @@ from AppKit import NSApplication, NSAppearance
 from Foundation import NSObject
 from ..core.reactive import Signal
 
-from hibiki.core.logging import get_logger
+from ..core.logging import get_logger
 logger = get_logger('theme.appearance')
 
 

@@ -11,7 +11,7 @@ from .fonts import FontScheme, TextStyle, PresetFontSchemes
 from .appearance import AppearanceManager, AppearanceMode, AppearanceObserver
 from ..core.reactive import Signal, Effect
 
-from hibiki.core.logging import get_logger
+from ..core.logging import get_logger
 logger = get_logger('theme.theme_manager')
 
 

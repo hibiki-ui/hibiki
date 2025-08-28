@@ -23,7 +23,7 @@ except ImportError:
     from core.styles import ComponentStyle, Display, FlexDirection, JustifyContent, AlignItems, px, percent, Length
     from core.reactive import Signal, Computed
 
-from hibiki.core.logging import get_logger
+from ..core.logging import get_logger
 logger = get_logger('components.layout')
 
 

@@ -17,7 +17,7 @@ from ..core.styles import ComponentStyle, px
 from ..core.reactive import Signal
 import objc
 
-from hibiki.core.logging import get_logger
+from ..core.logging import get_logger
 logger = get_logger('components.custom_view')
 
 

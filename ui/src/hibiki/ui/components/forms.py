@@ -16,7 +16,7 @@ from ..core.component import UIComponent, Container
 from ..core.styles import ComponentStyle
 from ..core.reactive import Signal, Computed, Effect
 
-from hibiki.core.logging import get_logger
+from ..core.logging import get_logger
 logger = get_logger('components.forms')
 
 

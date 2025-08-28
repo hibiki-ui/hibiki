@@ -23,7 +23,7 @@ from ..core.binding import bind_text, ReactiveBinding
 # 导入objc
 import objc
 
-from hibiki.core.logging import get_logger
+from ..core.logging import get_logger
 logger = get_logger('components.basic')
 
 
