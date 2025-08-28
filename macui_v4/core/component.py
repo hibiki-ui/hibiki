@@ -770,10 +770,33 @@ class Container(UIComponent):
             return
             
         try:
-            # 批量移除所有子组件
+            # 在清空前先获得布局引擎引用
+            from .layout import get_layout_engine
+            engine = get_layout_engine()
+            
+            # 批量移除所有子组件 - 关键修复：彻底清理布局关系
             children_copy = self.children.copy()  # 避免在迭代中修改列表
             for child in children_copy:
+                # 先从布局引擎移除关系
+                try:
+                    engine.remove_child_relationship(self, child)
+                except Exception as layout_e:
+                    print(f"⚠️ 清理布局关系失败（可忽略）: {layout_e}")
+                
+                # 再移除UI关系
                 self.remove_child_component(child)
+            
+            # 额外保险：强制重建当前容器的布局节点
+            try:
+                current_node = engine.get_node_for_component(self)
+                if current_node:
+                    engine._deep_cleanup_node(current_node)
+                    # 重新创建干净的布局节点
+                    if self in engine._component_nodes:
+                        del engine._component_nodes[self]
+                    engine.create_node_for_component(self)
+            except Exception as rebuild_e:
+                print(f"⚠️ 重建容器布局节点失败（可忽略）: {rebuild_e}")
                 
             print(f"🧹 清空容器所有子组件")
         except Exception as e:
