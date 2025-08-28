@@ -24,6 +24,7 @@ class ReactiveBinding:
     SETTERS: Dict[str, Callable[[Any, Any], None]] = {
         "text": lambda v, val: ReactiveBinding._set_with_log(v, "setStringValue_", str(val) if val is not None else ""),
         "stringValue": lambda v, val: ReactiveBinding._set_with_log(v, "setStringValue_", str(val) if val is not None else ""),  # 添加stringValue支持
+        "string": lambda v, val: ReactiveBinding._set_with_log(v, "setString_", str(val) if val is not None else ""),  # NSTextView支持
         "title": lambda v, val: ReactiveBinding._set_with_log(v, "setTitle_", str(val) if val is not None else ""),
         "hidden": lambda v, val: ReactiveBinding._set_with_log(v, "setHidden_", bool(val)),
         "enabled": lambda v, val: ReactiveBinding._set_with_log(v, "setEnabled_", bool(val)),
