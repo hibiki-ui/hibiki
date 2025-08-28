@@ -45,6 +45,11 @@ class MusicAppState:
         print("🔄 初始化 MusicAppState...")
         
         # ================================
+        # 音频播放引擎
+        # ================================
+        self.audio_player = None  # 延迟初始化，避免循环依赖
+        
+        # ================================
         # 播放器状态
         # ================================
         self.current_song = Signal(None)  # Song | None
@@ -98,6 +103,13 @@ class MusicAppState:
         self._setup_effects()
         
         print("✅ MusicAppState 初始化完成")
+    
+    def init_audio_player(self):
+        """初始化音频播放引擎 (延迟初始化)"""
+        if self.audio_player is None:
+            from .player import AudioPlayer
+            self.audio_player = AudioPlayer(self)
+            print("🎵 AudioPlayer 已初始化")
         
     def _apply_filters(self) -> List[Song]:
         """应用当前筛选条件"""
@@ -139,15 +151,28 @@ class MusicAppState:
     
     def play_song(self, song: Song):
         """播放指定歌曲"""
-        self.current_song.value = song
-        self.is_playing.value = True
-        self.position.value = 0.0
-        self.duration.value = song.duration
-        # TODO: 实际音频播放逻辑将在 MVP Phase 1 实现
+        if not song:
+            return False
+            
+        # 确保音频播放器已初始化
+        self.init_audio_player()
+        
+        # 加载并播放歌曲
+        if self.audio_player.load_song(song):
+            return self.audio_player.play()
+        else:
+            print(f"❌ 无法播放歌曲: {song.title}")
+            return False
         
     def toggle_play_pause(self):
         """切换播放/暂停"""
-        self.is_playing.value = not self.is_playing.value
+        # 确保音频播放器已初始化
+        self.init_audio_player()
+        
+        if self.audio_player:
+            return self.audio_player.toggle_play_pause()
+        else:
+            return False
         
     def next_song(self):
         """下一首"""
@@ -219,3 +244,52 @@ class MusicAppState:
         """清空所有筛选条件"""
         self.current_filter.value = TagFilter()
         self.search_query.value = ""
+        
+    # ================================
+    # 音频播放器控制方法
+    # ================================
+    
+    def set_volume(self, volume: float) -> bool:
+        """设置音量 (0.0 - 1.0)"""
+        self.init_audio_player()
+        
+        if self.audio_player:
+            return self.audio_player.set_volume(volume)
+        else:
+            return False
+    
+    def seek_to_position(self, position: float) -> bool:
+        """跳转到指定位置 (秒)"""
+        self.init_audio_player()
+        
+        if self.audio_player:
+            return self.audio_player.seek_to_position(position)
+        else:
+            return False
+    
+    def pause(self) -> bool:
+        """暂停播放"""
+        self.init_audio_player()
+        
+        if self.audio_player:
+            return self.audio_player.pause()
+        else:
+            return False
+    
+    def resume(self) -> bool:
+        """继续播放"""
+        self.init_audio_player()
+        
+        if self.audio_player:
+            return self.audio_player.play()
+        else:
+            return False
+    
+    def stop(self) -> bool:
+        """停止播放"""
+        self.init_audio_player()
+        
+        if self.audio_player:
+            return self.audio_player.stop()
+        else:
+            return False

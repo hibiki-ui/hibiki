@@ -6,7 +6,7 @@
 """
 
 from hibiki.ui import (
-    ManagerFactory, Label, Container, ComponentStyle, px,
+    ManagerFactory, Label, Button, Container, ComponentStyle, px,
     Display, FlexDirection, AlignItems, JustifyContent
 )
 from hibiki.music.core.app_state import MusicAppState
@@ -31,6 +31,40 @@ class HibikiMusicApp:
         self.app_manager = None
         self.window = None
         
+    def _add_test_songs(self):
+        """添加一些测试歌曲数据"""
+        from hibiki.music.core.app_state import Song
+        import os
+        
+        # 添加一些测试歌曲 (你可以替换为实际的音频文件路径)
+        test_songs = [
+            Song(
+                id="test_1",
+                title="测试歌曲 1",
+                artist="测试艺术家",
+                album="测试专辑",
+                duration=180.0,
+                file_path="/System/Library/Sounds/Ping.aiff"  # macOS 系统声音
+            ),
+            Song(
+                id="test_2", 
+                title="测试歌曲 2",
+                artist="另一个艺术家",
+                album="另一个专辑",
+                duration=240.0,
+                file_path="/System/Library/Sounds/Glass.aiff"  # macOS 系统声音
+            )
+        ]
+        
+        # 只添加存在的文件
+        valid_songs = [song for song in test_songs if os.path.exists(song.file_path)]
+        if valid_songs:
+            self.state.add_songs(valid_songs)
+            self.state.set_playlist(valid_songs)
+            print(f"✅ 添加了 {len(valid_songs)} 首测试歌曲")
+        else:
+            print("⚠️ 没有找到有效的测试音频文件")
+    
     def create_ui(self) -> Container:
         """创建主界面"""
         
@@ -62,13 +96,51 @@ class HibikiMusicApp:
             color="#333"
         )
         
-        # 播放状态
+        # 播放状态和进度
         play_status_label = Label(
             lambda: f"状态: {'播放中' if self.state.is_playing.value else '已暂停'}",
-            style=ComponentStyle(margin_bottom=px(20)),
+            style=ComponentStyle(margin_bottom=px(10)),
             font_size=14,
             text_align="center",
             color=lambda: "#007AFF" if self.state.is_playing.value else "#666"
+        )
+        
+        progress_label = Label(
+            lambda: f"进度: {self.state.position.value:.1f}s / {self.state.duration.value:.1f}s",
+            style=ComponentStyle(margin_bottom=px(20)),
+            font_size=12,
+            text_align="center",
+            color="#999"
+        )
+        
+        # 播放控制按钮
+        play_pause_btn = Button(
+            lambda: "⏸️ 暂停" if self.state.is_playing.value else "▶️ 播放",
+            style=ComponentStyle(width=px(100), height=px(35), margin_right=px(10)),
+            on_click=lambda: self.state.toggle_play_pause()
+        )
+        
+        previous_btn = Button(
+            "⏮️ 上一首",
+            style=ComponentStyle(width=px(100), height=px(35), margin_right=px(10)),
+            on_click=lambda: self.state.previous_song()
+        )
+        
+        next_btn = Button(
+            "⏭️ 下一首", 
+            style=ComponentStyle(width=px(100), height=px(35)),
+            on_click=lambda: self.state.next_song()
+        )
+        
+        # 播放控制容器
+        playback_controls = Container(
+            children=[previous_btn, play_pause_btn, next_btn],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.ROW,
+                justify_content=JustifyContent.CENTER,
+                margin_bottom=px(20)
+            )
         )
         
         # 说明文字
@@ -89,6 +161,8 @@ class HibikiMusicApp:
                 status_label,
                 current_playing_label,
                 play_status_label,
+                progress_label,
+                playback_controls,
                 description_label
             ],
             style=ComponentStyle(
@@ -105,6 +179,9 @@ class HibikiMusicApp:
         """运行应用程序"""
         try:
             print("🚀 启动 Hibiki Music...")
+            
+            # 添加测试歌曲数据
+            self._add_test_songs()
             
             # 创建应用管理器
             self.app_manager = ManagerFactory.get_app_manager()

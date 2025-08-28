@@ -46,7 +46,8 @@
       "Bash(git push:*)",
       "Read(/Users/david/david/app/**)",
       "Bash(cat:*)",
-      "WebFetch(domain:docs.astral.sh)"
+      "WebFetch(domain:docs.astral.sh)",
+      "mcp__memory__search_nodes"
     ],
     "deny": [],
     "ask": [],
