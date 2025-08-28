@@ -316,6 +316,7 @@ class UIComponent(Component):
     
     def _apply_positioning_and_layout(self):
         """应用定位和布局"""
+        
         if not self._nsview:
             return
             
@@ -344,9 +345,9 @@ class UIComponent(Component):
             print(f"📍 绝对定位已应用: ({x:.1f}, {y:.1f}, {w:.1f}, {h:.1f})")
             
         except Exception as e:
-            print(f"⚠️ 绝对定位应用失败: {e}")
-            # 回退到默认尺寸
-            self._apply_fallback_frame()
+            print(f"❌ 绝对定位应用失败: {e}")
+            # v4应该完全依赖布局引擎，不提供回退方案
+            raise e
     
     def _apply_relative_positioning(self):
         """应用相对定位"""
@@ -380,12 +381,15 @@ class UIComponent(Component):
             engine = get_layout_engine()
             
             # 检查是否是容器根节点
-            is_root_container = (hasattr(self, 'children') and 
-                               len(getattr(self, 'children', [])) > 0 and
-                               getattr(self, '_parent_container', None) is None)
+            has_children = hasattr(self, 'children') and len(getattr(self, 'children', [])) > 0
+            has_no_parent = getattr(self, '_parent_container', None) is None
+            is_root_container = has_children and has_no_parent
             
             # 检查是否是子组件
             is_child_component = getattr(self, '_parent_container', None) is not None
+            
+            # 调试信息
+            print(f"🔍 {self.__class__.__name__} 布局检查: has_children={has_children}, has_no_parent={has_no_parent}, is_root_container={is_root_container}, is_child_component={is_child_component}")
             
             # 只有根容器和独立组件才创建布局节点，子组件完全跳过
             if is_root_container:
@@ -402,19 +406,17 @@ class UIComponent(Component):
                 if layout_result:
                     # 应用根容器布局
                     self._apply_layout_result(layout_result)
+                    print(f"🔧 准备应用子组件布局: {self.__class__.__name__}")
                     
-                    # 递归应用所有子组件的布局
+                    # 递归应用所有子组件的布局 - 使用Stretchable计算结果
                     self._apply_children_layout(engine)
                     
                     print(f"📐 v4根容器布局已应用: {self.__class__.__name__} -> ({layout_result.x:.1f}, {layout_result.y:.1f}, {layout_result.width:.1f}x{layout_result.height:.1f})")
                     return True
                 else:
-                    print(f"⚠️ v4根容器布局计算失败: {self.__class__.__name__}")
-                    self._apply_fallback_frame()
-                    return False
+                    raise ValueError(f"v4根容器布局计算失败: {self.__class__.__name__}")
             elif is_child_component:
                 # 子组件：完全跳过布局处理，等父容器处理
-                self._apply_fallback_frame()
                 print(f"📐 v4子组件跳过独立布局: {self.__class__.__name__}")
                 return True
             else:
@@ -432,25 +434,14 @@ class UIComponent(Component):
                     print(f"📐 v4独立组件布局已应用: {self.__class__.__name__}")
                     return True
                 else:
-                    self._apply_fallback_frame()
-                    print(f"📐 v4独立组件使用简单布局: {self.__class__.__name__}")
-                    return True
+                    raise ValueError(f"v4独立组件布局计算失败: {self.__class__.__name__}")
                 
         except Exception as e:
-            print(f"⚠️ v4布局应用失败: {e}")
+            print(f"❌ v4布局应用失败: {e}")
             import traceback
             traceback.print_exc()
-            # 回退到默认frame
-            self._apply_fallback_frame()
-            return False
-    
-    def _apply_fallback_frame(self):
-        """应用回退frame"""
-        width = self._resolve_size_value(self.style.width, 100)
-        height = self._resolve_size_value(self.style.height, 30)
-        frame = NSMakeRect(0, 0, width, height)
-        self._nsview.setFrame_(frame)
-        print(f"🔧 回退frame已应用: (0, 0, {width}, {height})")
+            # v4应该完全依赖Stretchable布局引擎，不提供回退方案
+            raise e
     
     def _get_available_size_from_parent(self) -> Optional[Tuple[float, float]]:
         """从父容器获取可用尺寸"""
@@ -460,12 +451,12 @@ class UIComponent(Component):
                 frame = parent_view.frame()
                 return (frame.size.width, frame.size.height)
         
-        # 回退到视口管理器的默认尺寸
+        # 使用视口管理器的尺寸
         try:
             viewport_size = self.viewport_manager.get_viewport_size()
             return viewport_size
         except:
-            # 最后回退到默认值
+            # 默认视口尺寸
             return (800, 600)
     
     def _apply_layout_result(self, layout_result):
@@ -487,6 +478,76 @@ class UIComponent(Component):
             # Flex布局可以与Auto Layout协同
             self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(False)
     
+    def _apply_children_layout_from_stretchable(self, engine):
+        """从Stretchable重建树应用子组件布局（简化版本）"""
+        print(f"🔧 开始应用子组件布局: {self.__class__.__name__}")
+        if not hasattr(self, 'children'):
+            print(f"🔧 {self.__class__.__name__} 没有children属性")
+            return
+        print(f"🔧 {self.__class__.__name__} 有 {len(self.children)} 个子组件")
+        
+        # 简化版本：直接为每个子组件设置合理的布局
+        try:
+            y_offset = 0
+            x_offset = 0
+            
+            for i, child in enumerate(self.children):
+                if hasattr(child, '_nsview') and child._nsview:
+                    try:
+                        # 根据组件类型设置基本尺寸
+                        if child.__class__.__name__ == 'Label':
+                            width, height = 300, 30
+                        elif child.__class__.__name__ == 'Button':
+                            width, height = 120, 35
+                        else:
+                            width, height = 200, 30
+                        
+                        # 应用简单的垂直堆叠布局
+                        child._apply_layout_result(type('LayoutResult', (), {
+                            'x': x_offset, 'y': y_offset, 'width': width, 'height': height,
+                            'content_width': width, 'content_height': height,
+                            'compute_time': 0
+                        })())
+                        
+                        print(f"📐 v4子组件简单布局已应用: {child.__class__.__name__} -> ({x_offset}, {y_offset}, {width}x{height})")
+                        
+                        # 更新偏移
+                        y_offset += height + 10  # 10px 间距
+                            
+                    except Exception as e:
+                        print(f"⚠️ v4子组件简单布局应用异常: {child.__class__.__name__} - {e}")
+                        child._apply_fallback_frame()
+                        
+        except Exception as e:
+            print(f"⚠️ 子组件简单布局应用整体异常: {e}")
+            # 不再抛出异常，避免崩溃
+    
+    def _apply_simple_children_layout(self):
+        """安全的简单子组件布局应用"""
+        if not hasattr(self, 'children') or not self.children:
+            return
+            
+        y = 20  # 从顶部20px开始
+        for child in self.children:
+            if hasattr(child, '_nsview') and child._nsview:
+                # 设置简单的垂直堆叠布局
+                if child.__class__.__name__ == 'Label':
+                    w, h = 400, 30
+                elif child.__class__.__name__ == 'Button':
+                    w, h = 150, 35
+                elif child.__class__.__name__ == 'Container':
+                    w, h = 500, 200  # Container更大一些
+                else:
+                    w, h = 300, 30
+                    
+                # 直接设置frame，避免复杂的LayoutResult
+                from AppKit import NSMakeRect
+                frame = NSMakeRect(20, y, w, h)  # x=20px 左边距
+                child._nsview.setFrame_(frame)
+                print(f"✅ 简单布局: {child.__class__.__name__} -> (20, {y}, {w}x{h})")
+                
+                y += h + 15  # 15px间距
+
     def _apply_children_layout(self, engine):
         """递归应用子组件的布局"""
         if not hasattr(self, 'children'):
@@ -498,8 +559,15 @@ class UIComponent(Component):
                 child_node = engine.get_node_for_component(child)
                 if child_node:
                     try:
+                        print(f"🔍 开始处理子组件布局: {child.__class__.__name__}")
+                        print(f"🔍 child_node类型: {type(child_node)}")
+                        print(f"🔍 child_node._stretchable_node类型: {type(child_node._stretchable_node)}")
+                        
                         # 获取子组件的布局结果
-                        x, y, width, height = child_node.get_layout()
+                        box = child_node._stretchable_node.get_box()
+                        print(f"🔍 获取到box: {box}")
+                        x, y, width, height = box.x, box.y, box.width, box.height
+                        print(f"🔍 布局坐标: x={x}, y={y}, w={width}, h={height}")
                         
                         # 应用到子组件的NSView
                         child._apply_layout_result(type('LayoutResult', (), {
@@ -513,7 +581,10 @@ class UIComponent(Component):
                             child._apply_children_layout(engine)
                             
                     except Exception as e:
+                        import traceback
                         print(f"⚠️ 子组件布局应用失败: {child.__class__.__name__} - {e}")
+                        print(f"⚠️ 异常详情: {type(e).__name__}: {str(e)}")
+                        traceback.print_exc()
                         child._apply_fallback_frame()
     
     def _resolve_size_value(self, length_value, default: float) -> float:
@@ -631,21 +702,11 @@ class Container(UIComponent):
                 except Exception as e:
                     print(f"  ├─ ⚠️ 子组件 {i+1} 挂载失败: {e}")
         except Exception as e:
-            print(f"⚠️ Container v4布局树构建失败: {e}")
+            print(f"❌ Container v4布局树构建失败: {e}")
             import traceback
             traceback.print_exc()
-            
-            # 回退到简单挂载
-            for i, child in enumerate(self.children):
-                try:
-                    # 设置父子关系
-                    child._parent_container = self
-                        
-                    child_view = child.mount()
-                    container.addSubview_(child_view)
-                    print(f"  ├─ 子组件 {i+1}: {child.__class__.__name__} 已添加（简单模式）")
-                except Exception as e:
-                    print(f"  ├─ ⚠️ 子组件 {i+1} 挂载失败: {e}")
+            # v4应该完全依赖Stretchable布局引擎，不提供回退方案
+            raise e
                     
         return container
     

@@ -276,20 +276,43 @@ class LayoutNode:
         logger.info(f"📐 创建布局节点: {self.key} -> {component.__class__.__name__}")
     
     def add_child(self, child_node: 'LayoutNode', index: Optional[int] = None):
-        """添加子节点"""
+        """添加子节点 - v3风格直接操作"""
+        # 确保子节点从原父节点完全移除
         if child_node.parent:
             child_node.parent.remove_child(child_node)
         
+        # 确保Stretchable节点的parent属性也清空
+        if hasattr(child_node._stretchable_node, 'parent') and child_node._stretchable_node.parent:
+            logger.debug(f"🔍 清理Stretchable节点的parent引用: {child_node.key}")
+            child_node._stretchable_node.parent = None
+        
         child_node.parent = self
         
-        if index is None:
+        try:
+            # 简化版本：v4总是使用append，忽略index参数
+            # 这样可以确保与v3的兼容性
             self.children.append(child_node)
+            # v3风格：直接在Stretchable节点上操作
             self._stretchable_node.append(child_node._stretchable_node)
-        else:
-            self.children.insert(index, child_node)
-            self._stretchable_node.insert(index, child_node._stretchable_node)
-        
-        logger.info(f"➕ 布局节点添加子节点: {self.key} -> {child_node.key}")
+            logger.debug(f"🔍 Stretchable append 执行完成")
+            
+            # 验证添加结果（使用Python list接口）
+            actual_children = len(self._stretchable_node)
+            expected_children = len(self.children)
+            
+            if actual_children != expected_children:
+                logger.error(f"❌ 子节点添加不一致: 期望{expected_children}, 实际{actual_children}")
+                logger.debug(f"🔍 Stretchable Python list: {list(self._stretchable_node)}")
+                return False
+            
+            logger.info(f"➕ 布局节点添加子节点成功: {self.key} -> {child_node.key} (子节点数: {actual_children})")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ 添加子节点异常: {self.key} -> {child_node.key} - {e}")
+            import traceback
+            logger.error(f"❌ 详细异常: {traceback.format_exc()}")
+            return False
     
     def remove_child(self, child_node: 'LayoutNode'):
         """移除子节点"""
@@ -297,6 +320,8 @@ class LayoutNode:
             self.children.remove(child_node)
             self._stretchable_node.remove(child_node._stretchable_node)
             child_node.parent = None
+            # 确保Stretchable节点的parent引用也清空
+            child_node._stretchable_node.parent = None
             logger.info(f"➖ 从布局节点移除子节点: {self.key} <- {child_node.key}")
     
     def update_style(self, style: ComponentStyle):
@@ -386,7 +411,7 @@ class V4LayoutEngine:
         parent_node.add_child(child_node, index)
     
     def compute_layout_for_component(self, component, available_size: Optional[Tuple[float, float]] = None) -> Optional[LayoutResult]:
-        """计算组件布局"""
+        """计算组件布局 - v3风格直接方式"""
         start_time = time.perf_counter()
         self._layout_calls += 1
         
@@ -395,28 +420,25 @@ class V4LayoutEngine:
             logger.warning(f"⚠️ 组件 {component.__class__.__name__} 没有布局节点")
             return None
         
-        # 完全重建Stretchable节点树以避免状态不一致
-        rebuilt_node = self._rebuild_stretchable_tree(component)
-        if not rebuilt_node:
-            logger.warning(f"⚠️ 重建布局树失败: {component.__class__.__name__}")
-            return None
+        # v3风格：直接在原始Stretchable节点上计算布局
+        stretchable_node = node._stretchable_node
+        logger.debug(f"🔍 直接布局计算，子节点数: {len(stretchable_node)} (Python list接口)")
         
         # 执行布局计算
         try:
-            success = rebuilt_node.compute_layout(available_size)
+            success = stretchable_node.compute_layout(available_size)
             if not success:
                 logger.warning(f"⚠️ 组件布局计算失败: {component.__class__.__name__}")
                 return None
         except Exception as e:
-            logger.error(f"❌ 重建节点布局计算异常: {component.__class__.__name__} - {e}")
+            logger.error(f"❌ 布局计算异常: {component.__class__.__name__} - {e}")
             import traceback
-            logger.error(f"❌ 重建节点详细错误: {traceback.format_exc()}")
+            logger.error(f"❌ 详细错误: {traceback.format_exc()}")
             return None
         
         # 获取结果
-        box = rebuilt_node.get_box()
+        box = stretchable_node.get_box()
         x, y, width, height = box.x, box.y, box.width, box.height
-        # Stretchable Node没有get_content_size方法，直接使用box尺寸
         content_width, content_height = width, height
         
         compute_time = (time.perf_counter() - start_time) * 1000
@@ -431,66 +453,7 @@ class V4LayoutEngine:
         if self.debug_mode:
             logger.info(f"✅ 布局计算完成: {component.__class__.__name__} -> {width:.1f}x{height:.1f} @ ({x:.1f}, {y:.1f}) [{compute_time:.2f}ms]")
         
-        # 将重建的节点更新到缓存中
-        node._stretchable_node = rebuilt_node
-        
         return result
-    
-    def _rebuild_stretchable_tree(self, root_component):
-        """完全重建Stretchable节点树，模拟简单测试的方式"""
-        try:
-            import stretchable as st
-            
-            # 获取根组件样式并转换
-            root_style = getattr(root_component, 'style', None)
-            stretchable_style = V4StyleConverter.convert_to_stretchable_style(root_style)
-            
-            # 创建新的根节点
-            root_node = st.Node(style=stretchable_style)
-            
-            # 递归创建子节点
-            if hasattr(root_component, 'children'):
-                logger.info(f"   发现子组件: {len(root_component.children)} 个")
-                for i, child_component in enumerate(root_component.children):
-                    # 只创建单个节点，不递归处理子组件（避免重复处理）
-                    child_node = self._create_single_stretchable_node(child_component)
-                    logger.debug(f"🔍 子节点创建结果: {child_component.__class__.__name__} -> {type(child_node)} {child_node is not None}")
-                    logger.debug(f"🔍 即将检查child_node: id={id(child_node)}, type={type(child_node)}")
-                    
-                    # 立即检查以避免变量污染
-                    child_node_is_valid = child_node is not None
-                    logger.debug(f"🔍 child_node_is_valid = {child_node_is_valid}")
-                    
-                    if child_node_is_valid:
-                        try:
-                            root_node.append(child_node)
-                            logger.info(f"   ✅ 添加子节点 {i+1}: {child_component.__class__.__name__}")
-                            
-                            # 递归处理孙子节点
-                            if hasattr(child_component, 'children'):
-                                logger.debug(f"🔍 处理孙子节点: {child_component.__class__.__name__} 有 {len(child_component.children)} 个子组件")
-                                for grandchild in child_component.children:
-                                    grandchild_node = self._create_stretchable_node_for_component(grandchild)
-                                    if grandchild_node:
-                                        child_node.append(grandchild_node)
-                                        logger.debug(f"     ✅ 添加孙子节点: {grandchild.__class__.__name__}")
-                        except Exception as e:
-                            logger.error(f"   ❌ 添加子节点异常: {child_component.__class__.__name__} - {e}")
-                            import traceback
-                            logger.error(f"   ❌ 异常详情: {traceback.format_exc()}")
-                    else:
-                        logger.warning(f"   ⚠️ 子节点创建失败 {i+1}: {child_component.__class__.__name__} (返回值为None)")
-            
-            logger.info(f"🔄 重建布局树完成: {root_component.__class__.__name__}")
-            logger.info(f"   根节点样式: display={stretchable_style.display}, size={stretchable_style.size}")
-            logger.info(f"   子节点数量: {len(root_node)}")
-            return root_node
-            
-        except Exception as e:
-            logger.error(f"❌ 重建布局树失败: {e}")
-            import traceback
-            logger.error(f"❌ 详细错误: {traceback.format_exc()}")
-            return None
     
     def _create_single_stretchable_node(self, component):
         """为组件创建单个Stretchable节点（不递归处理子组件）"""
@@ -571,9 +534,12 @@ class V4LayoutEngine:
         if component in self._component_nodes:
             node = self._component_nodes[component]
             
-            # 从父节点移除
-            if node.parent:
-                node.parent.remove_child(node)
+            try:
+                # 从父节点移除 - 需要安全处理
+                if hasattr(node, 'parent') and node.parent:
+                    node.parent.remove_child(node)
+            except Exception as e:
+                logger.warning(f"⚠️ 布局节点清理警告: {e}")
             
             # 清理映射
             del self._component_nodes[component]
