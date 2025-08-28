@@ -66,24 +66,28 @@ class ReactiveCounterDemo:
     """响应式计数器演示"""
     
     def __init__(self):
-        # 显示标签 - 需要手动更新文本
+        # 显示标签 - 使用Computed对象实现真正的响应式绑定
+        self.counter_text = Computed(lambda: f"计数: {showcase_data.counter.value}")
+        self.doubled_text = Computed(lambda: f"双倍: {showcase_data.counter_doubled.value}") 
+        self.squared_text = Computed(lambda: f"平方: {showcase_data.counter_squared.value}")
+        
         self.counter_label = Label(
-            f"计数: {showcase_data.counter.value}",
+            self.counter_text,
             style=ComponentStyle(width=px(200), height=px(30))
         )
         
         self.doubled_label = Label(
-            f"双倍: {showcase_data.counter_doubled.value}",
+            self.doubled_text,
             style=ComponentStyle(width=px(200), height=px(30))
         )
         
         self.squared_label = Label(
-            f"平方: {showcase_data.counter_squared.value}",
+            self.squared_text,
             style=ComponentStyle(width=px(200), height=px(30))
         )
         
         self.greeting_label = Label(
-            showcase_data.greeting_message.value,
+            showcase_data.greeting_message,
             style=ComponentStyle(width=px(400), height=px(30))
         )
         
@@ -93,24 +97,15 @@ class ReactiveCounterDemo:
     def setup_reactive_updates(self):
         """设置响应式UI更新"""
         
-        # Effect: 当counter变化时更新标签
+        # 现在使用真正的响应式绑定，Label会自动更新
+        # 创建一个简单的Effect来演示响应式系统工作
         def update_counter_display():
-            # 手动更新NSTextField的文本 - 添加安全检查
-            try:
-                if hasattr(self.counter_label, '_nsview') and self.counter_label._nsview is not None:
-                    self.counter_label._nsview.setStringValue_(f"计数: {showcase_data.counter.value}")
-                if hasattr(self.doubled_label, '_nsview') and self.doubled_label._nsview is not None:
-                    self.doubled_label._nsview.setStringValue_(f"双倍: {showcase_data.counter_doubled.value}")
-                if hasattr(self.squared_label, '_nsview') and self.squared_label._nsview is not None:
-                    self.squared_label._nsview.setStringValue_(f"平方: {showcase_data.counter_squared.value}")
-                if hasattr(self.greeting_label, '_nsview') and self.greeting_label._nsview is not None:
-                    self.greeting_label._nsview.setStringValue_(showcase_data.greeting_message.value)
-            except Exception as e:
-                print(f"⚠️  UI更新错误: {e}")
+            # 仅用于日志记录，实际UI更新由ReactiveBinding自动处理
+            print(f"📢 响应式更新触发: 计数={showcase_data.counter.value}, 双倍={showcase_data.counter_doubled.value}")
         
         # 创建Effect来监听状态变化
         self.update_effect = Effect(update_counter_display)
-        print("🔄 响应式更新Effect创建完成")
+        print("🔄 响应式更新Effect创建完成 - 使用真正的响应式绑定")
     
     def increment(self):
         """增加计数"""
@@ -257,9 +252,10 @@ class LayoutDemo:
             )
         )
         
-        # 状态显示
+        # 状态显示 - 使用响应式绑定
+        status_text = Computed(lambda: f"方向: {self.current_direction.value}, 对齐: {self.current_alignment.value}")
         status_label = Label(
-            f"方向: {self.current_direction.value}, 对齐: {self.current_alignment.value}",
+            status_text,
             style=ComponentStyle(width=px(300), height=px(30))
         )
         
@@ -297,19 +293,22 @@ class InteractionDemo:
         self.last_button = Signal("None")
         self.user_message = Signal("点击任意按钮开始交互")
         
-        # 状态显示标签
+        # 状态显示标签 - 使用真正的响应式绑定
+        self.click_count_text = Computed(lambda: f"总点击次数: {self.click_count.value}")
+        self.last_action_text = Computed(lambda: f"最后操作: {self.last_button.value}")
+        
         self.status_label = Label(
-            self.user_message.value,
+            self.user_message,
             style=ComponentStyle(width=px(400), height=px(30))
         )
         
         self.click_label = Label(
-            f"总点击次数: {self.click_count.value}",
+            self.click_count_text,
             style=ComponentStyle(width=px(200), height=px(30))
         )
         
         self.last_action_label = Label(
-            f"最后操作: {self.last_button.value}",
+            self.last_action_text,
             style=ComponentStyle(width=px(200), height=px(30))
         )
         
@@ -318,16 +317,10 @@ class InteractionDemo:
     
     def setup_updates(self):
         """设置UI更新"""
+        # 现在使用真正的响应式绑定，Label会自动更新
         def update_display():
-            try:
-                if hasattr(self.status_label, '_nsview') and self.status_label._nsview is not None:
-                    self.status_label._nsview.setStringValue_(self.user_message.value)
-                if hasattr(self.click_label, '_nsview') and self.click_label._nsview is not None:
-                    self.click_label._nsview.setStringValue_(f"总点击次数: {self.click_count.value}")
-                if hasattr(self.last_action_label, '_nsview') and self.last_action_label._nsview is not None:
-                    self.last_action_label._nsview.setStringValue_(f"最后操作: {self.last_button.value}")
-            except Exception as e:
-                print(f"⚠️  交互UI更新错误: {e}")
+            # 仅用于日志记录，实际UI更新由ReactiveBinding自动处理
+            print(f"📢 交互更新触发: 点击={self.click_count.value}, 按钮={self.last_button.value}")
         
         self.update_effect = Effect(update_display)
     

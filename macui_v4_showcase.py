@@ -28,7 +28,7 @@ from core.component import Container
 # PyObjC导入
 from AppKit import NSApplication, NSWindow, NSWindowStyleMaskTitled, NSWindowStyleMaskClosable, NSWindowStyleMaskMiniaturizable, NSApplicationActivationPolicyRegular
 from Foundation import NSObject, NSMakeRect
-import AppHelper
+from PyObjCTools import AppHelper
 
 # ================================
 # 🎯 应用状态管理

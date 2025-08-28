@@ -48,24 +48,18 @@ class ReactiveBinding:
                         old_value = getattr(view, getter_name)()
                     elif hasattr(view, "stringValue") and method_name == "setStringValue_":
                         old_value = view.stringValue()
-                except:
-                    pass
+                except Exception:
+                    pass  # 忽略获取旧值的错误
             
+            logger.info(f"🎯 UI设置: {type(view).__name__}[{id(view)}].{method_name}({repr(value)})")
             method(value)
             
             if old_value is not None:
-                logger.info(f"🎯 UI更新: {type(view).__name__}[{id(view)}].{method_name}({repr(value)}) - 从 '{old_value}' 更新为 '{value}'")
-            else:
-                logger.info(f"🎯 UI设置: {type(view).__name__}[{id(view)}].{method_name}({repr(value)})")
+                logger.debug(f"🔄 值变化: {old_value} -> {value}")
+                
         except Exception as e:
-            logger.error(f"❌ 视图属性设置失败: {type(view).__name__}[{id(view)}].{method_name}({repr(value)}) - {e}")
-
-    # 样式属性映射（需要特殊处理）
-    STYLE_SETTERS: Dict[str, Callable[[Any, Any], None]] = {
-        "backgroundColor": lambda v, val: hasattr(v, "setBackgroundColor_") and v.setBackgroundColor_(val),
-        "borderWidth": lambda v, val: hasattr(v, "setBorderWidth_") and v.setBorderWidth_(float(val)),
-        "cornerRadius": lambda v, val: hasattr(v.layer(), "setCornerRadius_") and v.layer().setCornerRadius_(float(val)),
-    }
+            logger.error(f"❌ UI设置错误: {method_name} = {value}, 错误: {e}")
+            raise
 
     @staticmethod
     def bind(view: Any, prop: str, signal_or_value: Union[Signal, Computed, Callable, Any]) -> Callable[[], None]:
@@ -92,80 +86,28 @@ class ReactiveBinding:
             try:
                 logger.info(f"🔄 ReactiveBinding.update[{prop}]: 开始更新 {type(view).__name__}[{id(view)}]")
                 
-                # 立即检查观察者上下文（在函数开始时）
-                import macui_v4.core.reactive as reactive_mod
-                immediate_observer = reactive_mod.Signal._current_observer.get()
-                import threading
-                logger.info(f"🚨 Binding.update[{prop}]: IMMEDIATE CHECK - 线程ID={threading.get_ident()}, 观察者 = {type(immediate_observer).__name__ if immediate_observer else 'None'}[{id(immediate_observer) if immediate_observer else 'N/A'}]")
-                
-                # 同时检查全局变量
-                import contextvars
-                logger.info(f"🔬 当前所有ContextVar内容: {[str(var) for var in contextvars.copy_context()]}")
-                
-                # 使用函数globals中的Signal类，而不是重新导入
-                import inspect
-                current_frame = inspect.currentframe()
-                globals_signal = current_frame.f_globals.get('Signal') if current_frame else None
-                
-                if globals_signal and hasattr(globals_signal, '_current_observer'):
-                    # 使用函数定义时的Signal类
-                    Signal = globals_signal
-                    current_observer = Signal._current_observer.get()
-                    logger.info(f"✅ Binding.update: 使用函数globals中的Signal类，观察者 = {type(current_observer).__name__ if current_observer else 'None'}[{id(current_observer) if current_observer else 'N/A'}]")
-                else:
-                    # 回退到导入的Signal类
-                    from macui_v4.core.reactive import Signal
-                    current_observer = Signal._current_observer.get()
-                    logger.info(f"⚠️ Binding.update: 使用导入的Signal类，观察者 = {type(current_observer).__name__ if current_observer else 'None'}[{id(current_observer) if current_observer else 'N/A'}]")
-                
+                # 直接使用当前模块中导入的Signal类
+                current_observer = Signal._current_observer.get()
                 import threading
                 thread_id = threading.get_ident()
-                logger.info(f"🔍 Binding.update: 线程ID={thread_id}, 最终观察者 = {type(current_observer).__name__ if current_observer else 'None'}[{id(current_observer) if current_observer else 'N/A'}]")
+                logger.info(f"🔍 Binding.update: 线程ID={thread_id}, 当前观察者 = {type(current_observer).__name__ if current_observer else 'None'}[{id(current_observer) if current_observer else 'N/A'}]")
                 
                 # 获取值
-                # 使用isinstance而不是hasattr来避免意外的属性访问
-                # 使用绝对路径导入来进行类型检查，确保类型匹配
-                from macui_v4.core.reactive import Signal as AbsSignal, Computed as AbsComputed
-                
-                logger.info(f"🔍 Binding: 检查类型 - signal_or_value类型: {type(signal_or_value)}, AbsSignal类型: {AbsSignal}, AbsComputed类型: {AbsComputed}")
-                logger.info(f"🔍 Binding: isinstance(signal_or_value, (AbsSignal, AbsComputed)) = {isinstance(signal_or_value, (AbsSignal, AbsComputed))}")
-                
-                if isinstance(signal_or_value, (AbsSignal, AbsComputed)):
-                    # Signal 或 Computed
-                    # 在访问value之前，确认当前观察者上下文
-                    logger.info(f"🎯 Binding: 准备访问 {type(signal_or_value).__name__}.value，当前观察者: {Signal._current_observer.get()}")
-                    
-                    # 检查signal_or_value对象的类的ContextVar
-                    signal_obj_class = type(signal_or_value)
-                    if hasattr(signal_obj_class, '_current_observer'):
-                        logger.info(f"🔬 signal_or_value的类 {signal_obj_class} 的观察者: {signal_obj_class._current_observer.get()}")
-                        
-                        # 如果signal对象的ContextVar没有观察者，但是binding的Signal类有，那么同步设置
-                        if signal_obj_class._current_observer.get() is None and Signal._current_observer.get() is not None:
-                            binding_observer = Signal._current_observer.get()
-                            logger.info(f"🔧 同步设置观察者到signal对象的ContextVar: {binding_observer}")
-                            token = signal_obj_class._current_observer.set(binding_observer)
-                            
-                            try:
-                                value = signal_or_value.value
-                            finally:
-                                signal_obj_class._current_observer.reset(token)
-                        else:
-                            value = signal_or_value.value
-                    else:
-                        value = signal_or_value.value
-                    
-                    logger.info(f"🔄 Binding update[{prop}]: 从 {type(signal_or_value).__name__}[{id(signal_or_value)}] 获取值: {repr(value)}")
+                if isinstance(signal_or_value, (Signal, Computed)):
+                    # Signal 或 Computed - 调用value属性来建立依赖关系
+                    logger.info(f"🎯 Binding: 访问 {type(signal_or_value).__name__}.value，当前观察者: {current_observer}")
+                    value = signal_or_value.value  # 这里会触发Signal.get()并注册观察者
+                    logger.info(f"🔄 Binding update[{prop}]: 从{type(signal_or_value).__name__}获取值: {value}")
                 elif callable(signal_or_value):
-                    # 函数
+                    # 可调用对象
                     value = signal_or_value()
-                    logger.info(f"🔄 Binding update[{prop}]: 从函数获取值: {repr(value)}")
+                    logger.info(f"🔄 Binding update[{prop}]: 从可调用对象获取值: {value}")
                 else:
                     # 静态值
                     value = signal_or_value
                     logger.info(f"🔄 Binding update[{prop}]: 使用静态值: {repr(value)}")
-
-                # 设置属性
+                
+                # 应用值到视图
                 logger.info(f"🔄 Binding update[{prop}]: 即将设置 {type(view).__name__}[{id(view)}] = {repr(value)}")
                 setter(view, value)
                 logger.info(f"✅ Binding update[{prop}]: 设置完成")
@@ -211,21 +153,26 @@ class ReactiveBinding:
         
         return cleanup
 
+    # 样式设置器映射
+    STYLE_SETTERS: Dict[str, Callable[[Any, Any], None]] = {
+        "backgroundColor": lambda v, val: ReactiveBinding._set_with_log(v, "setWantsLayer_", True) or ReactiveBinding._set_with_log(v.layer(), "setBackgroundColor_", val),
+        "alpha": lambda v, val: ReactiveBinding._set_with_log(v, "setAlphaValue_", float(val)),
+        "hidden": lambda v, val: ReactiveBinding._set_with_log(v, "setHidden_", bool(val)),
+        "frame": lambda v, val: ReactiveBinding._set_with_log(v, "setFrame_", val),
+    }
+
     @staticmethod
-    def _bind_style(view: Any, style_signal: Union[Signal, Computed, Dict, Callable]) -> Callable[[], None]:
-        """绑定样式对象到视图"""
+    def _bind_style(view: Any, style_dict: Dict[str, Any]) -> Callable[[], None]:
+        """绑定样式字典"""
         def update():
             try:
-                # 获取样式对象
-                if hasattr(style_signal, "value"):
-                    styles = style_signal.value
-                elif callable(style_signal):
-                    styles = style_signal()
+                # 如果传入的是响应式样式字典
+                if hasattr(style_dict, "value"):
+                    styles = style_dict.value
+                elif callable(style_dict):
+                    styles = style_dict()
                 else:
-                    styles = style_signal
-
-                if not isinstance(styles, dict):
-                    return
+                    styles = style_dict
 
                 # 应用每个样式属性
                 for style_prop, style_value in styles.items():
@@ -286,10 +233,6 @@ class ReactiveBinding:
 
         return cleanup_all
 
-
-# ================================
-# 便捷绑定函数
-# ================================
 
 def bind_text(view: Any, text_source: Union[Signal, Computed, str]) -> Callable[[], None]:
     """绑定文本的便捷函数"""
