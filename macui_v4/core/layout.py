@@ -82,6 +82,10 @@ class V4StyleConverter:
             kwargs['display'] = StDisplay.FLEX
         elif v4_style.display == Display.BLOCK:
             kwargs['display'] = StDisplay.BLOCK
+        elif v4_style.display == Display.GRID:
+            # Stretchable可能还不支持Grid，先用FLEX作为fallback
+            kwargs['display'] = StDisplay.FLEX
+            logger.debug("⚠️ Grid布局回退到Flex模式（Stretchable Grid支持待实现）")
         elif v4_style.display == Display.NONE:
             kwargs['display'] = StDisplay.NONE
         
@@ -175,6 +179,23 @@ class V4StyleConverter:
         )
         if inset:
             kwargs['inset'] = inset
+        
+        # Grid属性转换（如果Stretchable支持Grid）
+        if hasattr(v4_style, 'grid_template_columns') and v4_style.grid_template_columns:
+            # 暂时记录Grid属性，等待Stretchable Grid支持
+            logger.debug(f"🔍 Grid模板列: {v4_style.grid_template_columns}")
+        
+        if hasattr(v4_style, 'grid_template_rows') and v4_style.grid_template_rows:
+            logger.debug(f"🔍 Grid模板行: {v4_style.grid_template_rows}")
+        
+        if hasattr(v4_style, 'grid_area') and v4_style.grid_area:
+            logger.debug(f"🔍 Grid区域: {v4_style.grid_area}")
+        
+        if hasattr(v4_style, 'grid_column') and v4_style.grid_column:
+            logger.debug(f"🔍 Grid列: {v4_style.grid_column}")
+        
+        if hasattr(v4_style, 'grid_row') and v4_style.grid_row:
+            logger.debug(f"🔍 Grid行: {v4_style.grid_row}")
         
         return st.Style(**kwargs)
     

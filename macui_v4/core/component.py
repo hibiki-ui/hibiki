@@ -838,13 +838,49 @@ class Container(UIComponent):
                 from .layout import get_layout_engine
                 engine = get_layout_engine()
                 
-                # 重新计算布局
-                if hasattr(self, '_layout_node') and self._layout_node:
-                    engine.apply_layout(self)
+                # 重新计算布局 - 使用正确的方法
+                # 检查布局引擎中是否有该组件的节点
+                layout_node = engine.get_node_for_component(self)
+                if layout_node:
+                    # 获取当前容器的可用尺寸
+                    available_size = self._get_available_size_from_parent()
                     
-                print(f"🔄 容器布局已更新")
+                    # 重新计算布局
+                    layout_result = engine.compute_layout_for_component(self, available_size)
+                    if layout_result:
+                        # 应用容器本身的布局
+                        self._apply_layout_result(layout_result)
+                        
+                        # 应用子组件布局
+                        self._apply_children_layout(engine)
+                        
+                        print(f"🔄 容器布局已更新: {self.__class__.__name__}")
+                    else:
+                        print(f"⚠️ 容器布局计算失败: {self.__class__.__name__}")
+                else:
+                    print(f"⚠️ 容器在布局引擎中没有节点，需要重新创建: {self.__class__.__name__}")
+                    # 如果容器节点不存在，重新创建
+                    try:
+                        layout_node = engine.create_node_for_component(self)
+                        if layout_node:
+                            # 重新建立所有子组件的布局关系
+                            for i, child in enumerate(self.children):
+                                engine.add_child_relationship(self, child, i)
+                            
+                            # 重新计算布局
+                            available_size = self._get_available_size_from_parent()
+                            layout_result = engine.compute_layout_for_component(self, available_size)
+                            if layout_result:
+                                self._apply_layout_result(layout_result)
+                                self._apply_children_layout(engine)
+                                print(f"🔄 容器布局节点重建并更新完成: {self.__class__.__name__}")
+                    except Exception as rebuild_e:
+                        print(f"⚠️ 重建容器布局节点失败: {rebuild_e}")
+                    
             except Exception as e:
                 print(f"⚠️ 更新布局失败: {e}")
+                import traceback
+                traceback.print_exc()
 
 # ================================
 # 4. 测试代码

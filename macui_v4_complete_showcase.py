@@ -30,6 +30,14 @@ from components.forms import (
     RequiredValidator, EmailValidator, LengthValidator, NumberValidator, CustomValidator
 )
 
+# 导入高级布局系统
+from components.layout import (
+    GridContainer, ResponsiveGrid, GridTemplate,
+    HStack, VStack, ZStack,
+    MasonryContainer, SplitView, ScrollableContainer,
+    StackDirection, LayoutPresets
+)
+
 # PyObjC导入
 from AppKit import *
 from Foundation import *
@@ -1050,6 +1058,231 @@ class FormsDemo:
             )
         )
 
+# 🏗️ 高级布局演示组件
+# ================================
+
+class AdvancedLayoutDemo:
+    """高级布局系统完整演示"""
+    
+    def create_advanced_layout_demo(self):
+        """创建高级布局演示界面"""
+        title = Label(
+            "🏗️ 高级布局系统演示", 
+            style=ComponentStyle(width=px(400), height=px(30))
+        )
+        
+        # === Grid布局演示区域 ===
+        grid_section = self._create_grid_demo_section()
+        
+        # === Stack布局演示区域 ===
+        stack_section = self._create_stack_demo_section()
+        
+        # === 响应式布局演示区域 ===
+        responsive_section = self._create_responsive_demo_section()
+        
+        # === 瀑布流演示区域 ===
+        masonry_section = self._create_masonry_demo_section()
+        
+        # === 布局预设演示区域 ===
+        presets_section = self._create_presets_demo_section()
+        
+        return Container(
+            children=[
+                title,
+                grid_section,
+                stack_section, 
+                responsive_section,
+                masonry_section,
+                presets_section
+            ],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(20),
+                padding=px(10)
+            )
+        )
+    
+    def _create_grid_demo_section(self):
+        """创建Grid布局演示"""
+        section_title = Label("📐 Grid布局演示", style=ComponentStyle(width=px(300), height=px(25)))
+        
+        # 创建Grid容器
+        grid = GridContainer(
+            columns="repeat(3, 1fr)",
+            gap=12
+        )
+        
+        # 添加示例卡片
+        for i in range(6):
+            card = Label(
+                f"Grid项 {i+1}",
+                style=ComponentStyle(
+                    width=px(80),
+                    height=px(60),
+                    padding=px(5)
+                )
+            )
+            grid.add_child(card)
+        
+        # 设置第一个项目跨两列
+        if len(grid.children) > 0:
+            grid.set_grid_position(
+                grid.children[0],
+                column_start=1,
+                column_end=3
+            )
+        
+        return Container(
+            children=[section_title, grid],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(8),
+                padding=px(8)
+            )
+        )
+    
+    def _create_stack_demo_section(self):
+        """创建Stack布局演示"""
+        section_title = Label("📚 Stack布局演示", style=ComponentStyle(width=px(300), height=px(25)))
+        
+        # 水平Stack
+        hstack = HStack(spacing=8, alignment="center")
+        for i in range(4):
+            item = Label(f"H{i+1}", style=ComponentStyle(width=px(40), height=px(40)))
+            hstack.add_child(item)
+        
+        # 垂直Stack
+        vstack = VStack(spacing=6, alignment="center")
+        for i in range(3):
+            item = Label(f"V{i+1}", style=ComponentStyle(width=px(60), height=px(30)))
+            vstack.add_child(item)
+        
+        # Z层叠Stack
+        zstack = ZStack()
+        bg = Label("背景", style=ComponentStyle(width=px(80), height=px(60)))
+        fg = Label("前景", style=ComponentStyle(width=px(40), height=px(30)))
+        zstack.add_layer(bg, z_index=1)
+        zstack.add_layer(fg, z_index=2, offset_x=10, offset_y=10)
+        
+        # 组合展示
+        stack_demo = Container(
+            children=[hstack, vstack, zstack],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.ROW,
+                justify_content=JustifyContent.SPACE_AROUND,
+                gap=px(15)
+            )
+        )
+        
+        return Container(
+            children=[section_title, stack_demo],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(8),
+                padding=px(8)
+            )
+        )
+    
+    def _create_responsive_demo_section(self):
+        """创建响应式布局演示"""
+        section_title = Label("📱 响应式布局演示", style=ComponentStyle(width=px(300), height=px(25)))
+        
+        # 创建响应式Grid
+        responsive_grid = ResponsiveGrid(
+            min_column_width=60,
+            max_columns=4,
+            gap=8
+        )
+        
+        # 添加响应式项目
+        for i in range(8):
+            item = Label(
+                f"R{i+1}",
+                style=ComponentStyle(
+                    width=px(50),
+                    height=px(40)
+                )
+            )
+            responsive_grid.add_child(item)
+        
+        return Container(
+            children=[section_title, responsive_grid],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(8),
+                padding=px(8)
+            )
+        )
+    
+    def _create_masonry_demo_section(self):
+        """创建瀑布流演示"""
+        section_title = Label("🌊 瀑布流布局演示", style=ComponentStyle(width=px(300), height=px(25)))
+        
+        # 创建瀑布流容器
+        masonry = MasonryContainer(columns=3, gap=6)
+        
+        # 添加不同高度的项目
+        heights = [40, 60, 50, 70, 45, 55]
+        for i, height in enumerate(heights):
+            item = Label(
+                f"M{i+1}",
+                style=ComponentStyle(
+                    width=px(50),
+                    height=px(height)
+                )
+            )
+            masonry.add_masonry_item(item)
+        
+        return Container(
+            children=[section_title, masonry],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(8),
+                padding=px(8)
+            )
+        )
+    
+    def _create_presets_demo_section(self):
+        """创建布局预设演示"""
+        section_title = Label("🎯 布局预设演示", style=ComponentStyle(width=px(300), height=px(25)))
+        
+        # 使用预设创建卡片网格
+        card_grid = LayoutPresets.card_grid(columns=2, gap=8)
+        
+        # 添加预设项目
+        for i in range(4):
+            card = Label(
+                f"预设{i+1}",
+                style=ComponentStyle(
+                    width=px(70),
+                    height=px(50)
+                )
+            )
+            card_grid.add_child(card)
+        
+        return Container(
+            children=[section_title, card_grid],
+            style=ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                align_items=AlignItems.CENTER,
+                gap=px(8),
+                padding=px(8)
+            )
+        )
+
+
 # ================================
 # 🚀 主应用
 # ================================
@@ -1061,6 +1294,7 @@ class ShowcaseApp:
         # 演示组件
         self.reactive_demo = ReactiveCounterDemo()
         self.layout_demo = LayoutDemo()
+        self.advanced_layout_demo = AdvancedLayoutDemo()
         self.interaction_demo = InteractionDemo()
         self.components_demo = ComponentsDemo()
         self.forms_demo = FormsDemo()
@@ -1094,6 +1328,8 @@ class ShowcaseApp:
             return self.reactive_demo.create_component()
         elif demo_name == "layout":
             return self.layout_demo.create_component()
+        elif demo_name == "advanced_layout":
+            return self.advanced_layout_demo.create_advanced_layout_demo()
         elif demo_name == "interaction":
             return self.interaction_demo.create_component()
         elif demo_name == "forms":
@@ -1111,6 +1347,7 @@ class ShowcaseApp:
                 "components": "✅ 当前: 🧩 五大组件演示",
                 "reactive": "✅ 当前: 🔄 响应式系统演示", 
                 "layout": "✅ 当前: 📐 布局系统演示",
+                "advanced_layout": "✅ 当前: 🏗️ 高级布局演示",
                 "interaction": "✅ 当前: 🎮 交互系统演示",
                 "forms": "✅ 当前: 📋 表单系统演示"
             }
@@ -1168,6 +1405,8 @@ class ShowcaseApp:
                       style=ComponentStyle(width=px(120), height=px(35))),
                 Button("📐 布局演示", on_click=self.switch_demo("layout"), 
                       style=ComponentStyle(width=px(100), height=px(35))),
+                Button("🏗️ 高级布局", on_click=self.switch_demo("advanced_layout"), 
+                      style=ComponentStyle(width=px(100), height=px(35))),
                 Button("🎮 交互演示", on_click=self.switch_demo("interaction"), 
                       style=ComponentStyle(width=px(100), height=px(35))),
                 Button("📋 表单演示", on_click=self.switch_demo("forms"), 
@@ -1177,7 +1416,7 @@ class ShowcaseApp:
                 display=Display.FLEX,
                 flex_direction=FlexDirection.ROW,
                 justify_content=JustifyContent.CENTER,
-                gap=px(10)
+                gap=px(8)
             )
         )
         
