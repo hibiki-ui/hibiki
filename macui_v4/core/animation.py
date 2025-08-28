@@ -18,19 +18,32 @@ from typing import Optional, Callable, Dict, Any, List, Union
 from enum import Enum
 
 try:
-    from Cocoa import (
+    from Cocoa import NSView
+    from Quartz import (
         CALayer, CAAnimationGroup, CABasicAnimation, CAKeyframeAnimation,
-        CATransaction, CAMediaTimingFunctionName, NSView
+        CATransaction, CAMediaTimingFunctionName, CAMediaTimingFunction
     )
+    CORE_ANIMATION_AVAILABLE = True
 except ImportError:
-    # 测试环境fallback
-    CALayer = None
-    CAAnimationGroup = None
-    CABasicAnimation = None
-    CAKeyframeAnimation = None
-    CATransaction = None
-    CAMediaTimingFunctionName = None
-    NSView = None
+    try:
+        # 备用导入路径
+        from AppKit import NSView
+        from QuartzCore import (
+            CALayer, CAAnimationGroup, CABasicAnimation, CAKeyframeAnimation,
+            CATransaction, CAMediaTimingFunctionName, CAMediaTimingFunction
+        )
+        CORE_ANIMATION_AVAILABLE = True
+    except ImportError:
+        # 测试环境fallback
+        CALayer = None
+        CAAnimationGroup = None
+        CABasicAnimation = None
+        CAKeyframeAnimation = None
+        CATransaction = None
+        CAMediaTimingFunctionName = None
+        CAMediaTimingFunction = None
+        NSView = None
+        CORE_ANIMATION_AVAILABLE = False
 
 from .reactive import Signal, Effect
 
@@ -145,10 +158,12 @@ class Animation:
         
         # 设置动画曲线
         timing_function_name = self._get_timing_function_name()
-        if timing_function_name and CAMediaTimingFunctionName:
-            from Cocoa import CAMediaTimingFunction
-            timing_function = CAMediaTimingFunction.functionWithName_(timing_function_name)
-            animation.setTimingFunction_(timing_function)
+        if timing_function_name and CAMediaTimingFunction:
+            try:
+                timing_function = CAMediaTimingFunction.functionWithName_(timing_function_name)
+                animation.setTimingFunction_(timing_function)
+            except Exception as e:
+                logger.debug(f"设置动画曲线失败: {e}, 使用默认曲线")
         
         # 保持动画结束状态
         animation.setFillMode_("kCAFillModeForwards")
@@ -357,15 +372,31 @@ class AnimationManager:
         if not view:
             logger.warning("⚠️ 无效的视图，无法执行动画")
             return None
+            
+        # 检查 Core Animation 可用性
+        if not CORE_ANIMATION_AVAILABLE:
+            logger.warning("⚠️ Core Animation不可用 (测试环境)")
+            return None
         
-        # 获取视图的图层
+        # 确保视图有 CALayer 支持
+        if not hasattr(view, 'setWantsLayer_') or not hasattr(view, 'layer'):
+            logger.warning("⚠️ 视图不支持 CALayer")
+            return None
+        
+        # 获取或创建视图的图层
         layer = view.layer()
         if not layer:
-            # 创建图层
-            view.setWantsLayer_(True)
-            layer = view.layer()
-            if not layer:
-                logger.warning("⚠️ 无法获取视图图层")
+            try:
+                # 启用 layer-backed view
+                view.setWantsLayer_(True)
+                layer = view.layer()
+                if layer:
+                    logger.debug("✅ 成功为视图创建 CALayer")
+                else:
+                    logger.warning("⚠️ 无法为视图创建 CALayer")
+                    return None
+            except Exception as e:
+                logger.warning(f"⚠️ 创建图层失败: {e}")
                 return None
         
         # 解析动画参数
@@ -425,11 +456,21 @@ class AnimationManager:
         """淡入动画预设"""
         if not view:
             return None
+            
+        # 检查 Core Animation 可用性
+        if not CORE_ANIMATION_AVAILABLE:
+            logger.warning("⚠️ Core Animation不可用 (测试环境)")
+            return None
         
+        # 获取或创建图层
         layer = view.layer()
         if not layer:
-            view.setWantsLayer_(True)
-            layer = view.layer()
+            try:
+                view.setWantsLayer_(True)
+                layer = view.layer()
+            except Exception as e:
+                logger.warning(f"⚠️ 创建图层失败: {e}")
+                return None
         
         if layer:
             # 设置初始透明度
@@ -453,11 +494,21 @@ class AnimationManager:
         """淡出动画预设"""
         if not view:
             return None
+            
+        # 检查 Core Animation 可用性
+        if not CORE_ANIMATION_AVAILABLE:
+            logger.warning("⚠️ Core Animation不可用 (测试环境)")
+            return None
         
+        # 获取或创建图层
         layer = view.layer()
         if not layer:
-            view.setWantsLayer_(True)
-            layer = view.layer()
+            try:
+                view.setWantsLayer_(True)
+                layer = view.layer()
+            except Exception as e:
+                logger.warning(f"⚠️ 创建图层失败: {e}")
+                return None
         
         if layer:
             fade_anim = Animation(
@@ -477,11 +528,21 @@ class AnimationManager:
         """弹性缩放动画预设"""
         if not view:
             return None
+            
+        # 检查 Core Animation 可用性
+        if not CORE_ANIMATION_AVAILABLE:
+            logger.warning("⚠️ Core Animation不可用 (测试环境)")
+            return None
         
+        # 获取或创建图层
         layer = view.layer()
         if not layer:
-            view.setWantsLayer_(True)
-            layer = view.layer()
+            try:
+                view.setWantsLayer_(True)
+                layer = view.layer()
+            except Exception as e:
+                logger.warning(f"⚠️ 创建图层失败: {e}")
+                return None
         
         if layer:
             # 创建多阶段缩放动画
