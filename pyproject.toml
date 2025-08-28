@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "hibiki-ui"
+name = "hibiki-ecosystem"
 version = "0.1.0"
-description = "A reactive UI framework for native macOS apps using Python and PyObjC"
+description = "Hibiki UI 生态系统 - UI 框架和智能音乐播放器"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Hibiki UI Team" }]
@@ -34,12 +34,12 @@ classifiers = [
     "Framework :: AsyncIO",
 ]
 requires-python = ">=3.11"
-dependencies = [
-    "pyobjc>=11.1",
-    "pyobjc-core>=10.0",
-    "pyobjc-framework-cocoa>=10.0",
-    "pyobjc-framework-Quartz>=11.0",
-    "stretchable>=1.1.7",
+dependencies = []
+
+[tool.uv.workspace]
+members = [
+    "ui",
+    "music"
 ]
 
 [project.optional-dependencies]

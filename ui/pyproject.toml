@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hibiki-ui"
+version = "0.1.0"
+description = "Hibiki UI - Reactive UI Framework for Native macOS Applications"
+authors = [
+    {name = "Hibiki UI Team"}
+]
+dependencies = [
+    "stretchable>=0.3.0",
+    "pyobjc>=10.0",
+    "pyobjc-framework-Cocoa>=10.0",
+    "pyobjc-framework-Quartz>=10.0",
+]
+readme = "README.md"
+requires-python = ">= 3.11"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hibiki"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true

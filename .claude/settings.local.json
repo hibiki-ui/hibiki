@@ -41,7 +41,11 @@
       "mcp__language-server__diagnostics",
       "mcp__memory__create_entities",
       "mcp__memory__add_observations",
-      "mcp__memory__create_relations"
+      "mcp__memory__create_relations",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Read(/Users/david/david/app/**)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": [],
