@@ -76,7 +76,7 @@ class Label(UIComponent):
         self.text = text
         # 导入响应式类型检查
         try:
-            from ..core.reactive import Signal, Computed
+            from core.reactive import Signal, Computed
         except ImportError:
             # 兜底导入
             from core.reactive import Signal, Computed
@@ -138,7 +138,7 @@ class Label(UIComponent):
             text: 新的文本内容
         """
         self.text = text
-        from ..core.reactive import Signal, Computed
+        from core.reactive import Signal, Computed
         self._is_reactive_text = isinstance(text, (Signal, Computed))
         
         if self._nsview:
@@ -373,7 +373,7 @@ class TextField(UIComponent):
             text: 新的文本内容
         """
         self.value = text
-        from ..core.reactive import Signal, Computed
+        from core.reactive import Signal, Computed
         self._is_reactive_value = isinstance(text, (Signal, Computed))
         
         if self._nsview:
@@ -478,7 +478,7 @@ class Slider(UIComponent):
         
         # 导入响应式类型检查
         try:
-            from ..core.reactive import Signal, Computed
+            from core.reactive import Signal, Computed
         except ImportError:
             from core.reactive import Signal, Computed
         self._is_reactive_value = isinstance(value, (Signal, Computed))
@@ -549,7 +549,7 @@ class Slider(UIComponent):
         value = max(self.min_value, min(self.max_value, float(value)))
         self.value = value
         
-        from ..core.reactive import Signal, Computed
+        from core.reactive import Signal, Computed
         self._is_reactive_value = isinstance(value, (Signal, Computed))
         
         if self._nsview:
@@ -651,7 +651,7 @@ class Switch(UIComponent):
         
         # 导入响应式类型检查
         try:
-            from ..core.reactive import Signal, Computed
+            from core.reactive import Signal, Computed
         except ImportError:
             from core.reactive import Signal, Computed
         self._is_reactive_value = isinstance(value, (Signal, Computed))
@@ -721,7 +721,7 @@ class Switch(UIComponent):
         """
         self.value = value
         
-        from ..core.reactive import Signal, Computed
+        from core.reactive import Signal, Computed
         self._is_reactive_value = isinstance(value, (Signal, Computed))
         
         if self._nsview:
@@ -796,7 +796,7 @@ class TextArea(UIComponent):
         """
         # 确保有合适的默认尺寸
         if style is None:
-            from ..core.styles import px
+            from core.styles import px
             style = ComponentStyle(width=px(300), height=px(150))
         
         super().__init__(style, **style_kwargs)
@@ -806,7 +806,7 @@ class TextArea(UIComponent):
         self.on_text_change = on_text_change
         
         # 检查是否为响应式文本
-        from ..core.reactive import Signal, Computed
+        from core.reactive import Signal, Computed
         self._is_reactive_text = isinstance(text, (Signal, Computed))
         self._bindings = []  # 存储绑定清理函数
         self._text_delegate = None
@@ -859,7 +859,7 @@ class TextArea(UIComponent):
         
         # 响应式绑定
         if self._is_reactive_text:
-            from ..core.binding import ReactiveBinding
+            from core.binding import ReactiveBinding
             binding_cleanup = ReactiveBinding.bind(text_view, "string", self.text)
             self._bindings.append(binding_cleanup)
             print(f"🔗 TextArea响应式绑定已创建")
@@ -891,7 +891,7 @@ class TextArea(UIComponent):
     def set_text(self, text: Union[str, Any]) -> 'TextArea':
         """动态设置文本内容"""
         self.text = text
-        from ..core.reactive import Signal, Computed
+        from core.reactive import Signal, Computed
         self._is_reactive_text = isinstance(text, (Signal, Computed))
         
         if hasattr(self, '_text_view') and self._text_view:
@@ -979,7 +979,7 @@ class Checkbox(UIComponent):
         self.on_change = on_change
         
         # 检查是否为响应式状态
-        from ..core.reactive import Signal, Computed
+        from core.reactive import Signal, Computed
         self._is_reactive_checked = isinstance(checked, (Signal, Computed))
         self._bindings = []
         self._checkbox_delegate = None
@@ -1012,14 +1012,14 @@ class Checkbox(UIComponent):
         
         # 响应式绑定
         if self._is_reactive_checked:
-            from ..core.binding import ReactiveBinding
+            from core.binding import ReactiveBinding
             
             # 自定义绑定函数，因为checkbox需要特殊的状态处理
             def update_checkbox_state():
                 new_checked = bool(getattr(self.checked, 'value', False))
                 checkbox.setState_(1 if new_checked else 0)
             
-            from ..core.reactive import Effect
+            from core.reactive import Effect
             effect = Effect(update_checkbox_state)
             self._bindings.append(effect)
             print(f"🔗 Checkbox响应式绑定已创建")
@@ -1048,7 +1048,7 @@ class Checkbox(UIComponent):
     def set_checked(self, checked: Union[bool, Any]) -> 'Checkbox':
         """设置选中状态"""
         self.checked = checked
-        from ..core.reactive import Signal, Computed
+        from core.reactive import Signal, Computed
         self._is_reactive_checked = isinstance(checked, (Signal, Computed))
         
         if self._nsview:
@@ -1124,7 +1124,7 @@ class RadioButton(UIComponent):
         self.on_select = on_select
         
         # 检查是否为响应式状态
-        from ..core.reactive import Signal, Computed
+        from core.reactive import Signal, Computed
         self._is_reactive_selected = isinstance(selected, (Signal, Computed))
         self._bindings = []
         self._radio_delegate = None
@@ -1157,14 +1157,14 @@ class RadioButton(UIComponent):
         
         # 响应式绑定
         if self._is_reactive_selected:
-            from ..core.binding import ReactiveBinding
+            from core.binding import ReactiveBinding
             
             # 自定义绑定函数
             def update_radio_state():
                 new_selected = bool(getattr(self.selected, 'value', False))
                 radio.setState_(1 if new_selected else 0)
             
-            from ..core.reactive import Effect
+            from core.reactive import Effect
             effect = Effect(update_radio_state)
             self._bindings.append(effect)
             print(f"🔗 RadioButton响应式绑定已创建")
@@ -1194,7 +1194,7 @@ class RadioButton(UIComponent):
     def set_selected(self, selected: Union[bool, Any]) -> 'RadioButton':
         """设置选中状态"""
         self.selected = selected
-        from ..core.reactive import Signal, Computed
+        from core.reactive import Signal, Computed
         self._is_reactive_selected = isinstance(selected, (Signal, Computed))
         
         if self._nsview:
@@ -1245,6 +1245,7 @@ class ProgressBar(UIComponent):
             style: 组件样式
             indeterminate: 是否为不确定进度条
         """
+        super().__init__(style)
         # 处理响应式值
         if hasattr(initial_value, 'value'):
             self._is_reactive_value = True
@@ -1320,7 +1321,7 @@ class ProgressBar(UIComponent):
                 print(f"📊 ProgressBar值更新: {new_value}")
         
         # 使用Effect建立响应式绑定
-        from ..core.reactive import Effect
+        from core.reactive import Effect
         self._value_effect = Effect(update_progress)
         
     def _bind_reactive_maximum(self):
@@ -1335,7 +1336,7 @@ class ProgressBar(UIComponent):
                 print(f"📊 ProgressBar最大值更新: {new_maximum}")
         
         # 使用Effect建立响应式绑定
-        from ..core.reactive import Effect
+        from core.reactive import Effect
         self._maximum_effect = Effect(update_maximum)
     
     def set_value(self, value: float) -> 'ProgressBar':
@@ -1656,7 +1657,7 @@ class PopUpButton(UIComponent):
                     print(f"🔽 PopUpButton选中更新: index={new_index}")
         
         # 使用Effect建立响应式绑定
-        from ..core.reactive import Effect
+        from core.reactive import Effect
         self._selection_effect = Effect(update_selection)
     
     def add_item(self, item: str, at_index: int = -1) -> 'PopUpButton':
@@ -1796,6 +1797,7 @@ class ComboBox(UIComponent):
             on_selection: 选择回调函数
             style: 组件样式
         """
+        super().__init__(style)
         self.items = items or ["选项A", "选项B", "选项C"]
         
         # 处理响应式文本
@@ -1884,7 +1886,7 @@ class ComboBox(UIComponent):
                 print(f"📝 ComboBox文本更新: '{new_text}'")
         
         # 使用Effect建立响应式绑定
-        from ..core.reactive import Effect
+        from core.reactive import Effect
         self._text_effect = Effect(update_text)
     
     def add_item(self, item: str) -> 'ComboBox':
