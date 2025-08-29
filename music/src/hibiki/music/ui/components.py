@@ -27,7 +27,7 @@ class MusicProgressBar(UIComponent):
     
     def __init__(
         self,
-        progress: Signal[float],  # 0.0 - 1.0
+        progress: Signal[float],  # 当前播放位置（秒）
         duration: Signal[float],
         on_seek: Optional[Callable[[float], None]] = None,
         style: Optional[ComponentStyle] = None
@@ -56,8 +56,16 @@ class MusicProgressBar(UIComponent):
             # 背景
             DrawingUtils.fill_rect(context, 0, 0, width, height, (0.9, 0.9, 0.9, 1.0))
             
-            # 已播放进度
-            progress_width = width * self.progress.value
+            # 已播放进度 - 计算正确的比例
+            if self.duration.value > 0:
+                progress_ratio = self.progress.value / self.duration.value
+            else:
+                progress_ratio = 0.0
+            progress_width = width * progress_ratio
+            
+            # 调试信息 - 仅在有进度时打印
+            if progress_ratio > 0:
+                print(f"🎚️ [进度条绘制] position={self.progress.value:.2f}s, duration={self.duration.value:.2f}s, ratio={progress_ratio:.3f}")
             DrawingUtils.fill_rect(context, 0, 0, progress_width, height, (0.0, 0.5, 1.0, 1.0))
             
             # 悬停预览
@@ -101,8 +109,8 @@ class MusicProgressBar(UIComponent):
             on_mouse_up=on_mouse_up
         )
         
-        # 设置自动重绘 - 暂时注释，避免导入问题
-        # custom_view.setup_auto_redraw(self.progress, self.is_dragging, self.hover_progress)
+        # 设置自动重绘 - 现在import问题已修复
+        custom_view.setup_auto_redraw(self.progress, self.is_dragging, self.hover_progress)
         
         return custom_view.mount()
 
@@ -179,7 +187,7 @@ class AlbumArtView(UIComponent):
                 self.is_loading.value = False
         
         Effect(load_image)
-        # custom_view.setup_auto_redraw(self.loaded_image, self.is_loading)
+        custom_view.setup_auto_redraw(self.loaded_image, self.is_loading)
         
         return custom_view.mount()
 
@@ -285,7 +293,7 @@ class VolumeSlider(UIComponent):
             on_mouse_dragged=on_volume_drag
         )
         
-        # custom_view.setup_auto_redraw(self.volume, self.is_muted, self.is_dragging)
+        custom_view.setup_auto_redraw(self.volume, self.is_muted, self.is_dragging)
         
         return custom_view.mount()
 
@@ -384,9 +392,9 @@ class SongListItem(UIComponent):
             on_mouse_up=on_item_click
         )
         
-        # custom_view.setup_auto_redraw(
-        #     self.is_playing, self.is_selected, self.is_hovering
-        # )
+        custom_view.setup_auto_redraw(
+            self.is_playing, self.is_selected, self.is_hovering
+        )
         
         return custom_view.mount()
 

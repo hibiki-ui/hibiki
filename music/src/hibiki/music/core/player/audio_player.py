@@ -33,13 +33,13 @@ class AudioPlayerDelegate(NSObject):
     
     def playerItemDidPlayToEnd_(self, notification):
         """歌曲播放完成"""
-        print("🎵 歌曲播放完成")
+        self.logger.info("🎵 歌曲播放完成")
         if self.audio_player:
             self.audio_player._on_playback_finished()
     
     def playerItemFailedToPlay_(self, notification):
         """播放失败"""
-        print("❌ 歌曲播放失败")
+        self.logger.error("❌ 歌曲播放失败")
         if self.audio_player:
             self.audio_player._on_playback_error(notification)
 
@@ -56,7 +56,9 @@ class AudioPlayer:
     """
     
     def __init__(self, app_state: MusicAppState):
-        print("🎵 初始化 AudioPlayer...")
+        from ..logging import get_logger
+        self.logger = get_logger("player.audio")
+        self.logger.info("🎵 初始化 AudioPlayer...")
         
         self.app_state = app_state
         self.av_player: Optional[AVPlayer] = None
@@ -73,7 +75,7 @@ class AudioPlayer:
         # 设置通知监听
         self._setup_notifications()
         
-        print("✅ AudioPlayer 初始化完成")
+        self.logger.info("✅ AudioPlayer 初始化完成")
         
     def _setup_audio_session(self):
         """设置系统音频会话"""
@@ -82,11 +84,11 @@ class AudioPlayer:
             success = audio_session.setCategory_error_(AVAudioSessionCategoryPlayback, None)
             if success[0]:
                 audio_session.setActive_error_(True, None)
-                print("✅ 音频会话配置成功")
+                self.logger.info("✅ 音频会话配置成功")
             else:
-                print("⚠️ 音频会话配置失败")
+                self.logger.warning("⚠️ 音频会话配置失败")
         except Exception as e:
-            print(f"❌ 音频会话设置错误: {e}")
+            self.logger.error(f"❌ 音频会话设置错误: {e}")
     
     def _setup_notifications(self):
         """设置播放通知监听"""
@@ -111,22 +113,22 @@ class AudioPlayer:
     def load_song(self, song: Song) -> bool:
         """加载歌曲文件"""
         if not song or not song.file_path:
-            print("❌ 无效的歌曲信息")
+            self.logger.error("❌ 无效的歌曲信息")
             return False
             
         if not os.path.exists(song.file_path):
-            print(f"❌ 音频文件不存在: {song.file_path}")
+            self.logger.error(f"❌ 音频文件不存在: {song.file_path}")
             return False
         
         try:
-            print(f"🎵 加载歌曲: {song.title} - {song.artist}")
+            self.logger.info(f"🎵 加载歌曲: {song.title} - {song.artist}")
             
             # 创建播放项
             file_url = NSURL.fileURLWithPath_(song.file_path)
             self.current_item = AVPlayerItem.playerItemWithURL_(file_url)
             
             if not self.current_item:
-                print("❌ 无法创建 AVPlayerItem")
+                self.logger.error("❌ 无法创建 AVPlayerItem")
                 return False
             
             # 创建或替换播放器
@@ -140,31 +142,34 @@ class AudioPlayer:
             self.app_state.duration.value = self._get_duration()
             self.app_state.position.value = 0.0
             
-            print(f"✅ 歌曲加载成功，时长: {self.app_state.duration.value:.1f}秒")
+            self.logger.info(f"✅ 歌曲加载成功，时长: {self.app_state.duration.value:.1f}秒")
             return True
             
         except Exception as e:
-            print(f"❌ 加载歌曲失败: {e}")
+            self.logger.error(f"❌ 加载歌曲失败: {e}")
             return False
     
     def play(self) -> bool:
         """开始播放"""
         if not self.av_player or not self.current_item:
-            print("❌ 没有可播放的歌曲")
+            self.logger.error("❌ 没有可播放的歌曲")
             return False
         
         try:
+            self.logger.debug("🎵 [音频引擎] 调用 av_player.play()...")
             self.av_player.play()
+            self.logger.debug("🎵 [音频引擎] 设置播放状态为 True...")
             self.app_state.is_playing.value = True
             
             # 启动进度跟踪
+            self.logger.debug("🎵 [音频引擎] 调用启动进度跟踪...")
             self._start_progress_tracking()
             
-            print("▶️ 开始播放")
+            self.logger.info("▶️ [音频引擎] 开始播放完成")
             return True
             
         except Exception as e:
-            print(f"❌ 播放失败: {e}")
+            self.logger.error(f"❌ 播放失败: {e}")
             return False
     
     def pause(self) -> bool:
@@ -179,11 +184,11 @@ class AudioPlayer:
             # 停止进度跟踪
             self._stop_progress_tracking()
             
-            print("⏸️ 暂停播放")
+            self.logger.info("⏸️ 暂停播放")
             return True
             
         except Exception as e:
-            print(f"❌ 暂停失败: {e}")
+            self.logger.error(f"❌ 暂停失败: {e}")
             return False
     
     def toggle_play_pause(self) -> bool:
@@ -207,11 +212,11 @@ class AudioPlayer:
             
             self._stop_progress_tracking()
             
-            print("⏹️ 停止播放")
+            self.logger.info("⏹️ 停止播放")
             return True
             
         except Exception as e:
-            print(f"❌ 停止失败: {e}")
+            self.logger.error(f"❌ 停止失败: {e}")
             return False
     
     def seek_to_position(self, position_seconds: float) -> bool:
@@ -231,11 +236,11 @@ class AudioPlayer:
             self.av_player.seekToTime_(target_time)
             self.app_state.position.value = position
             
-            print(f"⏭️ 跳转到位置: {position:.1f}秒")
+            self.logger.info(f"⏭️ 跳转到位置: {position:.1f}秒")
             return True
             
         except Exception as e:
-            print(f"❌ 跳转失败: {e}")
+            self.logger.error(f"❌ 跳转失败: {e}")
             return False
     
     def set_volume(self, volume: float) -> bool:
@@ -249,11 +254,11 @@ class AudioPlayer:
             self.av_player.setVolume_(volume)
             self.app_state.volume.value = volume
             
-            print(f"🔊 音量设置为: {int(volume * 100)}%")
+            self.logger.info(f"🔊 音量设置为: {int(volume * 100)}%")
             return True
             
         except Exception as e:
-            print(f"❌ 设置音量失败: {e}")
+            self.logger.error(f"❌ 设置音量失败: {e}")
             return False
     
     def _get_duration(self) -> float:
@@ -272,7 +277,7 @@ class AudioPlayer:
                 return 0.0
                 
         except Exception as e:
-            print(f"❌ 获取时长失败: {e}")
+            self.logger.error(f"❌ 获取时长失败: {e}")
             return 0.0
     
     def _get_current_position(self) -> float:
@@ -296,6 +301,7 @@ class AudioPlayer:
     
     def _start_progress_tracking(self):
         """启动播放进度跟踪定时器"""
+        self.logger.debug(f"🔄 [音频引擎] 即将启动进度跟踪定时器...")
         self._stop_progress_tracking()  # 先停止现有的定时器
         
         # 创建定时器，每0.1秒更新一次进度
@@ -307,14 +313,14 @@ class AudioPlayer:
             True  # 重复执行
         )
         
-        print("⏱️ 进度跟踪已启动")
+        self.logger.debug(f"⏱️ [音频引擎] 进度跟踪已启动 - 定时器ID: {id(self.progress_timer) if self.progress_timer else 'None'}")
     
     def _stop_progress_tracking(self):
         """停止播放进度跟踪定时器"""
         if self.progress_timer:
             self.progress_timer.invalidate()
             self.progress_timer = None
-            print("⏱️ 进度跟踪已停止")
+            self.logger.debug("⏱️ 进度跟踪已停止")
     
     @objc.signature(b'v@:@')
     def _update_progress(self, timer):
@@ -322,6 +328,7 @@ class AudioPlayer:
         try:
             current_position = self._get_current_position()
             self.app_state.position.value = current_position
+            self.logger.debug(f"🎵 [音频引擎] 更新后 app_state.position={self.app_state.position.value:.2f}s (确认)")
             
             # 计算播放进度百分比
             duration = self.app_state.duration.value
@@ -330,15 +337,15 @@ class AudioPlayer:
             else:
                 progress_percent = 0.0
                 
-            # 可以添加更详细的调试信息
-            # print(f"🎵 播放进度: {current_position:.1f}/{duration:.1f}秒 ({progress_percent:.1f}%)")
+            # 详细的播放进度日志
+            self.logger.debug(f"🎵 更新播放进度: {current_position:.2f}/{duration:.2f}s ({progress_percent:.1f}%)")
             
         except Exception as e:
-            print(f"❌ 更新进度失败: {e}")
+            self.logger.error(f"❌ 更新进度失败: {e}")
     
     def _on_playback_finished(self):
         """播放完成回调"""
-        print("🎵 歌曲播放完成，准备下一首")
+        self.logger.info("🎵 歌曲播放完成，准备下一首")
         
         # 更新状态
         self.app_state.is_playing.value = False
@@ -350,7 +357,7 @@ class AudioPlayer:
     
     def _on_playback_error(self, notification):
         """播放错误回调"""
-        print(f"❌ 播放出错: {notification}")
+        self.logger.error(f"❌ 播放出错: {notification}")
         
         # 更新状态
         self.app_state.is_playing.value = False
@@ -358,7 +365,7 @@ class AudioPlayer:
     
     def cleanup(self):
         """清理资源"""
-        print("🧹 清理 AudioPlayer 资源...")
+        self.logger.info("🧹 清理 AudioPlayer 资源...")
         
         self._stop_progress_tracking()
         
@@ -371,4 +378,4 @@ class AudioPlayer:
         # 移除通知监听
         NSNotificationCenter.defaultCenter().removeObserver_(self.delegate)
         
-        print("✅ AudioPlayer 资源清理完成")
+        self.logger.info("✅ AudioPlayer 资源清理完成")

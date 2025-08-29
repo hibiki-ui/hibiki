@@ -42,7 +42,9 @@ class MusicAppState:
     """
     
     def __init__(self):
-        print("🔄 初始化 MusicAppState...")
+        from .logging import get_logger
+        self.logger = get_logger("app_state")
+        self.logger.info("🔄 初始化 MusicAppState...")
         
         # ================================
         # 音频播放引擎
@@ -56,6 +58,12 @@ class MusicAppState:
         self.is_playing = Signal(False)
         self.position = Signal(0.0)       # 播放位置 (秒)
         self.duration = Signal(0.0)       # 总时长 (秒)
+        
+        # 音频播放器调试日志
+        from hibiki.ui import Effect
+        
+        Effect(lambda: self.logger.debug(f"🎯 播放位置变化: {self.position.value:.2f}秒"))
+        Effect(lambda: self.logger.debug(f"🎯 播放时长变化: {self.duration.value:.2f}秒"))
         self.volume = Signal(0.8)         # 音量 0.0-1.0
         self.shuffle = Signal(False)      # 随机播放
         self.repeat = Signal("none")      # "none" | "one" | "all"
@@ -102,14 +110,18 @@ class MusicAppState:
         # ================================
         self._setup_effects()
         
-        print("✅ MusicAppState 初始化完成")
+        self.logger.info("✅ MusicAppState 初始化完成")
     
     def init_audio_player(self):
         """初始化音频播放引擎 (延迟初始化)"""
         if self.audio_player is None:
+            self.logger.debug("🎵 [AppState] 开始导入 AudioPlayer...")
             from .player import AudioPlayer
+            self.logger.debug("🎵 [AppState] 创建 AudioPlayer 实例...")
             self.audio_player = AudioPlayer(self)
-            print("🎵 AudioPlayer 已初始化")
+            self.logger.debug("🎵 [AppState] AudioPlayer 已初始化")
+        else:
+            self.logger.debug("🎵 [AppState] AudioPlayer 已存在，跳过初始化")
         
     def _apply_filters(self) -> List[Song]:
         """应用当前筛选条件"""
@@ -134,16 +146,16 @@ class MusicAppState:
         """设置副作用监听"""
         
         # 播放状态变化日志
-        Effect(lambda: print(f"🎵 播放状态: {self.is_playing.value}"))
+        Effect(lambda: self.logger.debug(f"🎵 播放状态: {self.is_playing.value}"))
         
         # 当前歌曲变化日志
-        Effect(lambda: print(f"🎧 当前歌曲: {self.current_song.value.title if self.current_song.value else 'None'}"))
+        Effect(lambda: self.logger.debug(f"🎧 当前歌曲: {self.current_song.value.title if self.current_song.value else 'None'}"))
         
         # 筛选结果变化日志
-        Effect(lambda: print(f"🔍 筛选结果: {len(self.filtered_songs.value)} 首歌曲"))
+        Effect(lambda: self.logger.debug(f"🔍 筛选结果: {len(self.filtered_songs.value)} 首歌曲"))
         
         # 视图切换日志
-        Effect(lambda: print(f"📱 当前视图: {self.current_view.value}"))
+        Effect(lambda: self.logger.debug(f"📱 当前视图: {self.current_view.value}"))
         
     # ================================
     # 播放器控制方法
@@ -161,17 +173,21 @@ class MusicAppState:
         if self.audio_player.load_song(song):
             return self.audio_player.play()
         else:
-            print(f"❌ 无法播放歌曲: {song.title}")
+            self.logger.error(f"❌ 无法播放歌曲: {song.title}")
             return False
         
     def toggle_play_pause(self):
         """切换播放/暂停"""
+        self.logger.debug("🎵 [AppState] toggle_play_pause 被调用")
         # 确保音频播放器已初始化
+        self.logger.debug("🎵 [AppState] 正在初始化音频播放器...")
         self.init_audio_player()
         
         if self.audio_player:
+            self.logger.debug("🎵 [AppState] 音频播放器存在，调用 toggle_play_pause")
             return self.audio_player.toggle_play_pause()
         else:
+            self.logger.error("❌ [AppState] 音频播放器为 None！")
             return False
         
     def next_song(self):

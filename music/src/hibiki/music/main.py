@@ -32,7 +32,9 @@ class HibikiMusicApp:
     """
     
     def __init__(self):
-        print("🎵 初始化 Hibiki Music v0.3...")
+        from hibiki.music.core.logging import get_logger
+        self.logger = get_logger("main")
+        self.logger.info("🎵 初始化 Hibiki Music v0.3...")
         
         # 初始化应用状态
         self.state = MusicAppState()
@@ -48,7 +50,7 @@ class HibikiMusicApp:
     
     def _load_music_library(self):
         """加载音乐库"""
-        print("🔍 加载音乐库...")
+        self.logger.info("🔍 加载音乐库...")
         
         # 获取当前目录的music/data路径
         current_dir = Path(__file__).parent.parent.parent.parent  # music目录
@@ -56,12 +58,12 @@ class HibikiMusicApp:
         
         # 首次扫描 - 如果data目录存在就扫描
         if data_dir.exists():
-            print(f"📁 扫描目录: {data_dir}")
+            self.logger.info(f"📁 扫描目录: {data_dir}")
             try:
                 scan_music_library(str(data_dir))
-                print("✅ 音乐库扫描完成")
+                self.logger.info("✅ 音乐库扫描完成")
             except Exception as e:
-                print(f"⚠️ 扫描失败: {e}")
+                self.logger.warning(f"⚠️ 扫描失败: {e}")
         
         # 从数据库加载所有歌曲
         try:
@@ -86,18 +88,28 @@ class HibikiMusicApp:
                 self.state.add_songs(app_songs)
                 self.state.set_playlist(app_songs)
                 self.songs_list.value = app_songs  # 更新UI歌曲列表
-                print(f"✅ 从数据库加载了 {len(app_songs)} 首歌曲")
+                self.logger.info(f"✅ 从数据库加载了 {len(app_songs)} 首歌曲")
                 
-                # 如果有歌曲，默认选中第一首
+                # 如果有歌曲，默认选中第一首并开始播放以测试进度条
                 if app_songs:
                     self.state.current_song.value = app_songs[0]
+                    self.logger.info("🎵 自动开始播放第一首歌曲进行测试...")
+                    # 延迟2秒后自动开始播放
+                    import threading
+                    def auto_play():
+                        import time
+                        time.sleep(2)  # 等待UI初始化完成
+                        if self.state.current_song.value:
+                            self.logger.info(f"🎵 开始播放: {self.state.current_song.value.title}")
+                            self.state.toggle_play_pause()
+                    threading.Thread(target=auto_play).start()
                     
             else:
-                print("📋 数据库中暂无歌曲")
+                self.logger.info("📋 数据库中暂无歌曲")
                 self._add_fallback_songs()
                 
         except Exception as e:
-            print(f"❌ 加载音乐库失败: {e}")
+            self.logger.error(f"❌ 加载音乐库失败: {e}")
             self._add_fallback_songs()
     
     def _add_fallback_songs(self):
@@ -105,7 +117,7 @@ class HibikiMusicApp:
         from hibiki.music.core.app_state import Song
         import os
         
-        print("🎵 添加备用测试歌曲...")
+        self.logger.info("🎵 添加备用测试歌曲...")
         
         test_songs = [
             Song(
@@ -132,9 +144,9 @@ class HibikiMusicApp:
             self.state.set_playlist(valid_songs)
             self.state.current_song.value = valid_songs[0]
             self.songs_list.value = valid_songs
-            print(f"✅ 添加了 {len(valid_songs)} 首备用歌曲")
+            self.logger.info(f"✅ 添加了 {len(valid_songs)} 首备用歌曲")
         else:
-            print("⚠️ 没有找到有效的备用音频文件")
+            self.logger.warning("⚠️ 没有找到有效的备用音频文件")
     
     def _format_time(self, seconds: float) -> str:
         """格式化时间显示"""
@@ -190,7 +202,7 @@ class HibikiMusicApp:
         album_art = AlbumArtView(
             image_path=self.current_album_art,
             size=180,
-            on_click=lambda: print("🖼️ 点击专辑封面")
+            on_click=lambda: self.logger.debug("🖼️ 点击专辑封面")
         )
         
         # 当前歌曲信息
@@ -383,7 +395,7 @@ class HibikiMusicApp:
     
     def on_seek_to_position(self, position: float):
         """跳转到指定播放位置"""
-        print(f"🎯 跳转到位置: {position:.1f}秒")
+        self.logger.info(f"🎯 跳转到位置: {position:.1f}秒")
         self.state.position.value = position
         
         # 如果有音频播放器，实际跳转
@@ -392,7 +404,7 @@ class HibikiMusicApp:
     
     def on_volume_change(self, volume: float):
         """音量变化处理"""
-        print(f"🔊 音量调节: {int(volume*100)}%")
+        self.logger.info(f"🔊 音量调节: {int(volume*100)}%")
         self.state.volume.value = volume
         
         # 如果有音频播放器，设置实际音量
@@ -403,7 +415,7 @@ class HibikiMusicApp:
         """选择歌曲"""
         if 0 <= index < len(self.songs_list.value):
             self.selected_song_index.value = index
-            print(f"🎵 选择歌曲: {self.songs_list.value[index].title}")
+            self.logger.info(f"🎵 选择歌曲: {self.songs_list.value[index].title}")
     
     def play_song(self, index: int):
         """播放歌曲"""
@@ -411,12 +423,12 @@ class HibikiMusicApp:
             song = self.songs_list.value[index]
             self.selected_song_index.value = index
             self.state.play_song(song)
-            print(f"▶️ 播放歌曲: {song.title} - {song.artist}")
+            self.logger.info(f"▶️ 播放歌曲: {song.title} - {song.artist}")
     
     def run(self):
         """运行应用程序"""
         try:
-            print("🚀 启动 Hibiki Music v0.3...")
+            self.logger.info("🚀 启动 Hibiki Music v0.3...")
             
             # 加载音乐库数据
             self._load_music_library()
@@ -435,21 +447,21 @@ class HibikiMusicApp:
             main_ui = self.create_ui()
             self.window.set_content(main_ui)
             
-            print("✅ Hibiki Music v0.3 已启动！")
-            print("🎯 新功能:")
-            print("  🎚️ 自定义播放进度条 (可点击跳转)")
-            print("  🔊 音量控制滑块")
-            print("  🖼️ 专辑封面显示")
-            print("  📋 专业歌曲列表 (点击选择，双击播放)")
-            print("  📱 完整响应式界面")
+            self.logger.info("✅ Hibiki Music v0.3 已启动！")
+            self.logger.info("🎯 新功能:")
+            self.logger.info("  🎚️ 自定义播放进度条 (可点击跳转)")
+            self.logger.info("  🔊 音量控制滑块")
+            self.logger.info("  🖼️ 专辑封面显示")
+            self.logger.info("  📋 专业歌曲列表 (点击选择，双击播放)")
+            self.logger.info("  📱 完整响应式界面")
             
             # 运行应用
             self.app_manager.run()
             
         except Exception as e:
-            print(f"❌ 启动失败: {e}")
+            self.logger.error(f"❌ 启动失败: {e}")
             import traceback
-            traceback.print_exc()
+            self.logger.error(traceback.format_exc())
 
 if __name__ == "__main__":
     # 可以直接运行此文件进行测试

@@ -100,6 +100,7 @@ class CustomNSView(NSView):
     # === 绘制方法 ===
     def drawRect_(self, rect):
         """自定义绘制"""
+        print(f"🖌️ [CustomNSView] drawRect_ 被调用! - ID: {id(self)}")
         if self._draw_callback:
             # 获取当前绘制上下文
             context = NSGraphicsContext.currentContext().CGContext()
@@ -258,7 +259,8 @@ class CustomView(UIComponent):
 
     def _create_nsview(self):
         """创建自定义NSView"""
-        logger.info("🎨 创建CustomView组件")
+        logger.info(f"🎨 创建CustomView组件 - ID: {id(self)}")
+        print(f"🎨 [CustomView] 创建组件 - ID: {id(self)}")
 
         # 创建自定义NSView
         custom_view = CustomNSView.alloc().initWithFrame_(NSMakeRect(0, 0, 200, 200))
@@ -286,6 +288,12 @@ class CustomView(UIComponent):
             custom_view.setKeyUpCallback_(self.on_key_up)
 
         logger.info("✅ CustomView组件创建成功")
+        print(f"🎨 [CustomView] NSView创建成功 - NSView ID: {id(custom_view)}")
+        
+        # 立即触发一次绘制
+        custom_view.setNeedsDisplay_(True)
+        print(f"🎨 [CustomView] 已调用 setNeedsDisplay_(True)")
+        
         return custom_view
 
     def setup_auto_redraw(self, *signals):
