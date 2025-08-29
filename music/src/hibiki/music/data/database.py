@@ -20,6 +20,7 @@ from .models import (
     Playlist, PlaylistCreate, PlaylistUpdate, PlaylistPublic,
     PlayHistory, PlayHistoryCreate, PlayHistoryPublic,
     LanguageVersion, LanguageVersionCreate, LanguageVersionPublic,
+    UserAction, UserActionCreate, UserActionPublic, UserActionType, ActionTrigger, PlaySource,
     SongFilter, SearchQuery, LibraryStats,
     SongTagLink, PlaylistSongLink
 )
@@ -346,9 +347,10 @@ class SongService:
             conditions.append(Song.user_rating >= filters.min_rating)
         
         # 年份范围
-        if filters.year_range:
-            start_year, end_year = filters.year_range
-            conditions.append(and_(Song.year >= start_year, Song.year <= end_year))
+        if filters.year_start is not None:
+            conditions.append(Song.year >= filters.year_start)
+        if filters.year_end is not None:
+            conditions.append(Song.year <= filters.year_end)
         
         # 应用条件
         if conditions:
@@ -429,3 +431,191 @@ class TagService:
                 select(Tag).where(Tag.category == category).order_by(Tag.name)
             ).all()
             return [TagPublic.model_validate(tag) for tag in tags]
+
+class UserActionService:
+    """用户行为记录服务层"""
+    
+    def __init__(self):
+        self.db = DatabaseManager()
+    
+    def record_action(self, action_data: UserActionCreate) -> UserActionPublic:
+        """记录用户行为"""
+        with self.db.get_session() as session:
+            action = UserAction.model_validate(action_data)
+            session.add(action)
+            session.commit()
+            session.refresh(action)
+            
+            return self._action_to_public(action, session)
+    
+    def record_play_start(self, song_id: int, session_id: str, 
+                         playlist_id: Optional[int] = None,
+                         play_source: PlaySource = PlaySource.LIBRARY,
+                         trigger: ActionTrigger = ActionTrigger.MANUAL) -> UserActionPublic:
+        """记录播放开始"""
+        action_data = UserActionCreate(
+            action_type=UserActionType.PLAY_START,
+            song_id=song_id,
+            session_id=session_id,
+            playlist_id=playlist_id,
+            play_source=play_source,
+            trigger=trigger,
+            from_position=0.0
+        )
+        return self.record_action(action_data)
+    
+    def record_play_complete(self, song_id: int, session_id: str,
+                           play_duration: float, completion_rate: float = 1.0,
+                           playlist_id: Optional[int] = None,
+                           play_source: PlaySource = PlaySource.LIBRARY,
+                           trigger: ActionTrigger = ActionTrigger.AUTOMATIC) -> UserActionPublic:
+        """记录完整播放"""
+        action_data = UserActionCreate(
+            action_type=UserActionType.PLAY_COMPLETE,
+            song_id=song_id,
+            session_id=session_id,
+            playlist_id=playlist_id,
+            play_source=play_source,
+            trigger=trigger,
+            play_duration=play_duration,
+            completion_rate=completion_rate
+        )
+        return self.record_action(action_data)
+    
+    def record_play_interrupt(self, song_id: int, session_id: str,
+                            from_position: float, play_duration: float,
+                            completion_rate: float,
+                            playlist_id: Optional[int] = None,
+                            play_source: PlaySource = PlaySource.LIBRARY,
+                            trigger: ActionTrigger = ActionTrigger.MANUAL) -> UserActionPublic:
+        """记录播放中断"""
+        action_data = UserActionCreate(
+            action_type=UserActionType.PLAY_INTERRUPT,
+            song_id=song_id,
+            session_id=session_id,
+            playlist_id=playlist_id,
+            play_source=play_source,
+            trigger=trigger,
+            from_position=from_position,
+            play_duration=play_duration,
+            completion_rate=completion_rate
+        )
+        return self.record_action(action_data)
+    
+    def record_song_switch(self, from_song_id: int, to_song_id: int, 
+                          session_id: str, from_position: float,
+                          playlist_id: Optional[int] = None,
+                          play_source: PlaySource = PlaySource.LIBRARY,
+                          trigger: ActionTrigger = ActionTrigger.MANUAL) -> UserActionPublic:
+        """记录歌曲切换"""
+        action_data = UserActionCreate(
+            action_type=UserActionType.SONG_SWITCH,
+            song_id=from_song_id,
+            related_song_id=to_song_id,
+            session_id=session_id,
+            playlist_id=playlist_id,
+            play_source=play_source,
+            trigger=trigger,
+            from_position=from_position
+        )
+        return self.record_action(action_data)
+    
+    def record_seek_operation(self, song_id: int, session_id: str,
+                            from_position: float, to_position: float,
+                            playlist_id: Optional[int] = None,
+                            play_source: PlaySource = PlaySource.LIBRARY) -> UserActionPublic:
+        """记录拖拽跳转操作"""
+        action_data = UserActionCreate(
+            action_type=UserActionType.SEEK_OPERATION,
+            song_id=song_id,
+            session_id=session_id,
+            playlist_id=playlist_id,
+            play_source=play_source,
+            trigger=ActionTrigger.MANUAL,
+            from_position=from_position,
+            to_position=to_position
+        )
+        return self.record_action(action_data)
+    
+    def record_play_pause(self, song_id: int, session_id: str,
+                         from_position: float,
+                         playlist_id: Optional[int] = None,
+                         play_source: PlaySource = PlaySource.LIBRARY) -> UserActionPublic:
+        """记录暂停操作"""
+        action_data = UserActionCreate(
+            action_type=UserActionType.PLAY_PAUSE,
+            song_id=song_id,
+            session_id=session_id,
+            playlist_id=playlist_id,
+            play_source=play_source,
+            trigger=ActionTrigger.MANUAL,
+            from_position=from_position
+        )
+        return self.record_action(action_data)
+    
+    def record_play_resume(self, song_id: int, session_id: str,
+                          from_position: float,
+                          playlist_id: Optional[int] = None,
+                          play_source: PlaySource = PlaySource.LIBRARY) -> UserActionPublic:
+        """记录恢复播放"""
+        action_data = UserActionCreate(
+            action_type=UserActionType.PLAY_RESUME,
+            song_id=song_id,
+            session_id=session_id,
+            playlist_id=playlist_id,
+            play_source=play_source,
+            trigger=ActionTrigger.MANUAL,
+            from_position=from_position
+        )
+        return self.record_action(action_data)
+    
+    def get_user_actions(self, song_id: Optional[int] = None, 
+                        session_id: Optional[str] = None,
+                        action_type: Optional[UserActionType] = None,
+                        limit: int = 100, offset: int = 0) -> List[UserActionPublic]:
+        """获取用户行为记录"""
+        with self.db.get_session() as session:
+            statement = select(UserAction).order_by(UserAction.timestamp.desc())
+            
+            if song_id:
+                statement = statement.where(UserAction.song_id == song_id)
+            if session_id:
+                statement = statement.where(UserAction.session_id == session_id)
+            if action_type:
+                statement = statement.where(UserAction.action_type == action_type)
+                
+            statement = statement.limit(limit).offset(offset)
+            
+            actions = session.exec(statement).all()
+            return [self._action_to_public(action, session) for action in actions]
+    
+    def _action_to_public(self, action: UserAction, session: Session) -> UserActionPublic:
+        """将数据库模型转换为公开模型"""
+        if not action:
+            return None
+        
+        # 获取歌曲信息
+        song_title = action.song.title if action.song else ""
+        song_artist = action.song.artist if action.song else ""
+        related_song_title = action.related_song.title if action.related_song else ""
+        
+        return UserActionPublic(
+            id=action.id,
+            action_type=action.action_type,
+            trigger=action.trigger,
+            song_id=action.song_id,
+            related_song_id=action.related_song_id,
+            from_position=action.from_position,
+            to_position=action.to_position,
+            play_duration=action.play_duration,
+            completion_rate=action.completion_rate,
+            session_id=action.session_id,
+            playlist_id=action.playlist_id,
+            play_source=action.play_source,
+            extra_data=action.extra_data,
+            notes=action.notes,
+            timestamp=action.timestamp,
+            song_title=song_title,
+            song_artist=song_artist,
+            related_song_title=related_song_title
+        )

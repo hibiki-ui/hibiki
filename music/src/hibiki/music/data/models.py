@@ -36,6 +36,21 @@ class PlaySource(str, Enum):
     SEARCH = "search"
     RECOMMENDATION = "recommendation"
 
+class UserActionType(str, Enum):
+    """用户操作行为类型"""
+    PLAY_START = "play_start"           # 开始播放
+    PLAY_COMPLETE = "play_complete"     # 完整播放完成  
+    PLAY_INTERRUPT = "play_interrupt"   # 播放中断/停止
+    SONG_SWITCH = "song_switch"         # 歌曲切换
+    SEEK_OPERATION = "seek_operation"   # 进度条拖拽/跳转
+    PLAY_PAUSE = "play_pause"           # 暂停操作
+    PLAY_RESUME = "play_resume"         # 恢复播放
+
+class ActionTrigger(str, Enum):
+    """操作触发方式"""
+    MANUAL = "manual"       # 用户手动操作
+    AUTOMATIC = "automatic" # 系统自动操作
+
 # ================================
 # 关联表模型 (多对多关系)
 # ================================
@@ -321,6 +336,74 @@ class LanguageVersionPublic(LanguageVersionBase):
     related_song_title: str = ""
 
 # ================================
+# 用户行为记录模型 ⭐ 核心创新
+# ================================
+
+class UserActionBase(SQLModel):
+    """用户操作行为基础模型"""
+    action_type: UserActionType = Field(index=True)
+    trigger: ActionTrigger = Field(default=ActionTrigger.MANUAL)
+    
+    # 歌曲信息
+    song_id: Optional[int] = Field(default=None, foreign_key="songs.id")
+    related_song_id: Optional[int] = Field(default=None, foreign_key="songs.id")  # 切歌时的目标歌曲
+    
+    # 位置信息(秒)
+    from_position: Optional[float] = Field(default=None, ge=0.0)  # 开始位置
+    to_position: Optional[float] = Field(default=None, ge=0.0)    # 结束/目标位置
+    
+    # 播放统计
+    play_duration: Optional[float] = Field(default=None, ge=0.0)  # 实际播放时长
+    completion_rate: Optional[float] = Field(default=None, ge=0.0, le=1.0)  # 完成度
+    
+    # 上下文信息
+    session_id: Optional[str] = Field(default=None, max_length=100)  # 播放会话ID
+    playlist_id: Optional[int] = Field(default=None, foreign_key="playlists.id")
+    play_source: Optional[PlaySource] = Field(default=PlaySource.LIBRARY)
+    
+    # 元数据 (重命名避免与SQLModel父类冲突)
+    extra_data: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    notes: Optional[str] = Field(default=None, max_length=500)
+
+class UserActionCreate(UserActionBase):
+    """创建用户行为记录数据模型"""
+    action_type: UserActionType
+    song_id: int  # 必须指定歌曲
+
+class UserAction(UserActionBase, table=True):
+    """用户操作行为记录完整模型"""
+    __tablename__ = "user_actions"
+    
+    # 主键
+    id: Optional[int] = Field(default=None, primary_key=True)
+    
+    # 时间戳
+    timestamp: datetime = Field(default_factory=datetime.utcnow, index=True)
+    
+    # 关系 - 明确指定外键避免歧义
+    song: Optional[Song] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "UserAction.song_id"}
+    )
+    related_song: Optional[Song] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "UserAction.related_song_id"}
+    )
+    
+    # 数据库约束和索引
+    __table_args__ = (
+        Index('idx_user_action_type_time', 'action_type', 'timestamp'),
+        Index('idx_user_action_session', 'session_id', 'timestamp'),
+        Index('idx_user_action_song_time', 'song_id', 'timestamp'),
+    )
+
+class UserActionPublic(UserActionBase):
+    """用户行为记录公开数据模型"""
+    id: int
+    timestamp: datetime
+    song_title: Optional[str] = None
+    song_artist: Optional[str] = None
+    related_song_title: Optional[str] = None
+
+# ================================
 # 搜索和筛选模型
 # ================================
 
@@ -334,7 +417,8 @@ class SongFilter(SQLModel):
     tags: Optional[List[str]] = Field(default=None)
     favorite_only: bool = Field(default=False)
     min_rating: Optional[int] = Field(default=None, ge=1, le=10)
-    year_range: Optional[tuple[int, int]] = Field(default=None)
+    year_start: Optional[int] = Field(default=None, ge=1900, le=2100)
+    year_end: Optional[int] = Field(default=None, ge=1900, le=2100)
     logic_operator: str = Field(default="AND", regex=r"^(AND|OR)$")
 
 class SearchQuery(SQLModel):

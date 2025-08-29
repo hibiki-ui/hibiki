@@ -52,9 +52,8 @@ class HibikiMusicApp:
         """加载音乐库"""
         self.logger.info("🔍 加载音乐库...")
         
-        # 获取当前目录的music/data路径
-        current_dir = Path(__file__).parent.parent.parent.parent  # music目录
-        data_dir = current_dir / "data"
+        # 使用绝对路径，避免不同启动方式的路径问题
+        data_dir = Path("/Users/david/david/app/hibiki-ui/music/data")
         
         # 首次扫描 - 如果data目录存在就扫描
         if data_dir.exists():
@@ -463,7 +462,11 @@ class HibikiMusicApp:
             import traceback
             self.logger.error(traceback.format_exc())
 
-if __name__ == "__main__":
-    # 可以直接运行此文件进行测试
+def main():
+    """主入口函数 - uv tool install 的console script入口"""
     app = HibikiMusicApp()
     app.run()
+
+if __name__ == "__main__":
+    # 可以直接运行此文件进行测试
+    main()

@@ -9,6 +9,8 @@
 import os
 from typing import Optional, Callable
 import objc
+import uuid
+from datetime import datetime
 from Foundation import NSObject, NSURL, NSTimer, NSRunLoop, NSDefaultRunLoopMode
 from AVFoundation import (
     AVPlayer, AVPlayerItem, AVAudioSession, AVAudioSessionCategoryPlayback,
@@ -20,6 +22,8 @@ import time
 
 # 导入应用状态
 from ...core.app_state import MusicAppState, Song
+# 导入数据模型和服务
+from ...data.database import UserActionService, UserActionType, ActionTrigger, PlaySource
 
 class AudioPlayerDelegate(NSObject):
     """音频播放器事件委托"""
@@ -72,6 +76,14 @@ class AudioPlayer:
         
         # 进度跟踪观察者
         self.time_observer = None
+        
+        # 用户行为记录服务
+        self.action_service = UserActionService()
+        
+        # 播放会话管理
+        self.current_session_id: Optional[str] = None
+        self.session_start_time: Optional[datetime] = None
+        self.last_position: float = 0.0
         
         # 设置音频会话
         self._setup_audio_session()
@@ -142,6 +154,10 @@ class AudioPlayer:
             return False
         
         try:
+            # 记录歌曲切换行为
+            previous_song = self.app_state.current_song.value
+            current_position = self._get_current_position()
+            
             self.logger.info(f"🎵 加载歌曲: {song.title} - {song.artist}")
             
             # 创建播放项
@@ -162,6 +178,37 @@ class AudioPlayer:
             self.app_state.current_song.value = song
             self.app_state.position.value = 0.0
             
+            # 记录歌曲切换行为（如果之前有歌曲在播放）
+            if previous_song and hasattr(previous_song, 'id'):
+                try:
+                    # 先记录上一首歌的中断
+                    if current_position > 0:
+                        duration = self.app_state.duration.value
+                        completion_rate = current_position / duration if duration > 0 else 0.0
+                        self._record_action_safe(
+                            UserActionType.PLAY_INTERRUPT,
+                            from_position=current_position,
+                            play_duration=current_position,
+                            completion_rate=completion_rate,
+                            trigger=ActionTrigger.AUTOMATIC
+                        )
+                    
+                    # 记录歌曲切换
+                    if hasattr(song, 'id'):
+                        prev_song_id = int(previous_song.id) if isinstance(previous_song.id, str) and previous_song.id.isdigit() else previous_song.id
+                        new_song_id = int(song.id) if isinstance(song.id, str) and song.id.isdigit() else song.id
+                        
+                        if isinstance(prev_song_id, int) and isinstance(new_song_id, int):
+                            self.action_service.record_song_switch(
+                                from_song_id=prev_song_id,
+                                to_song_id=new_song_id,
+                                session_id=self.current_session_id or self._start_new_session(),
+                                from_position=current_position,
+                                trigger=ActionTrigger.MANUAL
+                            )
+                except Exception as e:
+                    self.logger.error(f"❌ 记录歌曲切换失败: {e}")
+            
             # 使用标准的AVPlayer异步加载机制
             self._load_media_info_async()
             
@@ -179,10 +226,28 @@ class AudioPlayer:
             return False
         
         try:
+            current_position = self._get_current_position()
+            is_resume = current_position > 0.1  # 如果当前位置大于0.1秒，认为是恢复播放
+            
             self.logger.debug("🎵 [音频引擎] 调用 av_player.play()...")
             self.av_player.play()
             self.logger.debug("🎵 [音频引擎] 设置播放状态为 True...")
             self.app_state.is_playing.value = True
+            
+            # 记录播放行为
+            if is_resume:
+                self._record_action_safe(
+                    UserActionType.PLAY_RESUME,
+                    from_position=current_position,
+                    trigger=ActionTrigger.MANUAL
+                )
+            else:
+                # 开始新的播放会话
+                self._start_new_session()
+                self._record_action_safe(
+                    UserActionType.PLAY_START,
+                    trigger=ActionTrigger.MANUAL
+                )
             
             # 启动进度跟踪
             self.logger.debug("🎵 [音频引擎] 调用启动进度跟踪...")
@@ -201,8 +266,17 @@ class AudioPlayer:
             return False
         
         try:
+            current_position = self._get_current_position()
+            
             self.av_player.pause()
             self.app_state.is_playing.value = False
+            
+            # 记录暂停行为
+            self._record_action_safe(
+                UserActionType.PLAY_PAUSE,
+                from_position=current_position,
+                trigger=ActionTrigger.MANUAL
+            )
             
             # 停止进度跟踪
             self._stop_progress_tracking()
@@ -227,8 +301,23 @@ class AudioPlayer:
             return False
         
         try:
+            current_position = self._get_current_position()
+            was_playing = self.app_state.is_playing.value
+            
             self.av_player.pause()
             self.seek_to_position(0.0)
+            
+            # 如果正在播放，记录播放中断
+            if was_playing and current_position > 0:
+                duration = self.app_state.duration.value
+                completion_rate = current_position / duration if duration > 0 else 0.0
+                self._record_action_safe(
+                    UserActionType.PLAY_INTERRUPT,
+                    from_position=current_position,
+                    play_duration=current_position,
+                    completion_rate=completion_rate,
+                    trigger=ActionTrigger.MANUAL
+                )
             
             self.app_state.is_playing.value = False
             self.app_state.position.value = 0.0
@@ -248,6 +337,9 @@ class AudioPlayer:
             return False
         
         try:
+            # 记录原位置
+            from_position = self._get_current_position()
+            
             # 确保位置在有效范围内 - 使用app_state中的时长，它由异步加载更新
             duration = self.app_state.duration.value
             if duration <= 0:
@@ -263,6 +355,13 @@ class AudioPlayer:
             
             self.av_player.seekToTime_(target_time)
             self.app_state.position.value = position
+            
+            # 记录跳转操作
+            self._record_action_safe(
+                UserActionType.SEEK_OPERATION,
+                from_position=from_position,
+                to_position=position
+            )
             
             self.logger.info(f"⏭️ 跳转到位置: {position:.1f}秒")
             return True
@@ -376,6 +475,55 @@ class AudioPlayer:
         )
         self.logger.debug("✅ AVURLAsset异步加载已启动")
     
+    def _start_new_session(self) -> str:
+        """开始新的播放会话"""
+        self.current_session_id = str(uuid.uuid4())
+        self.session_start_time = datetime.utcnow()
+        self.logger.debug(f"📝 开始新播放会话: {self.current_session_id}")
+        return self.current_session_id
+    
+    def _get_current_song_id(self) -> Optional[int]:
+        """获取当前歌曲ID"""
+        current_song = self.app_state.current_song.value
+        if current_song and hasattr(current_song, 'id'):
+            # 如果是数据库Song对象，直接返回ID
+            if isinstance(current_song.id, int):
+                return current_song.id
+            # 如果是字符串ID，尝试转换为int
+            elif isinstance(current_song.id, str) and current_song.id.isdigit():
+                return int(current_song.id)
+        return None
+    
+    def _record_action_safe(self, action_type: UserActionType, **kwargs):
+        """安全记录用户行为，忽略数据库错误"""
+        try:
+            song_id = self._get_current_song_id()
+            if not song_id:
+                self.logger.warning(f"⚠️ 无法记录行为 {action_type}: 当前歌曲无有效ID")
+                return
+            
+            session_id = self.current_session_id or self._start_new_session()
+            
+            # 根据action_type调用相应的记录方法
+            if action_type == UserActionType.PLAY_START:
+                self.action_service.record_play_start(song_id, session_id, **kwargs)
+            elif action_type == UserActionType.PLAY_COMPLETE:
+                self.action_service.record_play_complete(song_id, session_id, **kwargs)
+            elif action_type == UserActionType.PLAY_INTERRUPT:
+                self.action_service.record_play_interrupt(song_id, session_id, **kwargs)
+            elif action_type == UserActionType.SONG_SWITCH:
+                self.action_service.record_song_switch(song_id, kwargs.get('to_song_id'), session_id, kwargs.get('from_position', 0.0), **{k: v for k, v in kwargs.items() if k not in ['to_song_id', 'from_position']})
+            elif action_type == UserActionType.SEEK_OPERATION:
+                self.action_service.record_seek_operation(song_id, session_id, **kwargs)
+            elif action_type == UserActionType.PLAY_PAUSE:
+                self.action_service.record_play_pause(song_id, session_id, **kwargs)
+            elif action_type == UserActionType.PLAY_RESUME:
+                self.action_service.record_play_resume(song_id, session_id, **kwargs)
+            
+            self.logger.debug(f"📝 已记录用户行为: {action_type.value}")
+        except Exception as e:
+            self.logger.error(f"❌ 记录用户行为失败 {action_type}: {e}")
+    
     def _get_current_position(self) -> float:
         """获取当前播放位置"""
         if not self.av_player:
@@ -445,6 +593,15 @@ class AudioPlayer:
     def _on_playback_finished(self):
         """播放完成回调"""
         self.logger.info("🎵 歌曲播放完成，准备下一首")
+        
+        # 记录完整播放
+        duration = self.app_state.duration.value
+        self._record_action_safe(
+            UserActionType.PLAY_COMPLETE,
+            play_duration=duration,
+            completion_rate=1.0,
+            trigger=ActionTrigger.AUTOMATIC
+        )
         
         # 更新状态
         self.app_state.is_playing.value = False
