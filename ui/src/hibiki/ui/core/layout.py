@@ -1475,6 +1475,47 @@ class LayoutEngine:
             node.update_style(component.style)
             logger.debug(f"🎨 更新组件样式: {component.__class__.__name__}")
 
+    def recalculate_all_layouts(self):
+        """响应窗口大小变化，重新计算所有布局
+        
+        这是响应式布局的核心方法：
+        1. 获取最新的窗口尺寸信息
+        2. 重新计算所有布局节点
+        3. 触发UI刷新
+        """
+        logger.info("🔄 开始全局布局重新计算...")
+        
+        try:
+            # 获取ViewportManager来获取最新窗口尺寸
+            from .managers import ManagerFactory
+            viewport_mgr = ManagerFactory.get_viewport_manager()
+            window_size = viewport_mgr.get_viewport_size()
+            
+            logger.info(f"📐 窗口尺寸: {window_size[0]} x {window_size[1]}")
+            
+            # 重新计算所有根节点（通常是容器）
+            recalculated_count = 0
+            for component, node in self._component_nodes.items():
+                if self._is_root_node(node):
+                    logger.debug(f"🔄 重新计算根节点: {component.__class__.__name__}")
+                    self.compute_layout_for_component(component)
+                    recalculated_count += 1
+                    
+            logger.info(f"✅ 全局布局重新计算完成，处理了 {recalculated_count} 个根节点")
+            
+        except Exception as e:
+            logger.error(f"❌ 全局布局重新计算失败: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _is_root_node(self, node):
+        """判断是否为根节点（没有父节点的节点）"""
+        try:
+            return not hasattr(node, 'parent') or node.parent is None
+        except:
+            # 保险起见，如果判断失败就当作根节点处理
+            return True
+
     def cleanup_component(self, component):
         """清理组件的布局节点"""
         if component in self._component_nodes:

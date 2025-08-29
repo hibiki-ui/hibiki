@@ -53,7 +53,8 @@ class ViewportManager:
 
     def set_window(self, window: NSWindow):
         """设置关联的窗口"""
-        self._window_ref = weakref.ref(window)
+        # PyObjC对象不能直接使用weakref，直接保存引用
+        self._window = window
         self._update_viewport_info()
         logger.info(f"📱 ViewportManager绑定窗口: {self._viewport_size}")
 
@@ -84,8 +85,8 @@ class ViewportManager:
 
     def _update_viewport_info(self):
         """更新视口信息"""
-        if self._window_ref and self._window_ref():
-            window = self._window_ref()
+        if hasattr(self, '_window') and self._window:
+            window = self._window
             frame = window.frame()
             self._viewport_size = (frame.size.width, frame.size.height)
             self._scale_factor = window.backingScaleFactor()
@@ -537,6 +538,41 @@ class MaskManager:
 # ================================
 
 
+class AppWindowDelegate:
+    """窗口事件代理 - 监听窗口大小变化"""
+    
+    def __init__(self, app_window: 'AppWindow'):
+        from Foundation import NSObject
+        super(AppWindowDelegate, self).__init__()
+        self.app_window = app_window
+        
+    def windowDidResize_(self, notification):
+        """窗口大小改变回调"""
+        print(f"🔄 窗口大小改变事件触发")
+        
+        # 通知ViewportManager更新
+        viewport_mgr = ManagerFactory.get_viewport_manager()
+        viewport_mgr._window = self.app_window.nswindow
+        viewport_mgr._update_viewport_info()
+        
+        # 触发布局引擎重新计算
+        self._trigger_layout_recalculation()
+        
+    def _trigger_layout_recalculation(self):
+        """触发布局重新计算"""
+        try:
+            from .layout import get_layout_engine
+            engine = get_layout_engine()
+            
+            # 获取根容器并触发重新计算
+            if self.app_window._content:
+                print(f"📐 开始布局重新计算...")
+                engine.recalculate_all_layouts()
+                print(f"✅ 布局重新计算完成")
+        except Exception as e:
+            print(f"❌ 布局重新计算失败: {e}")
+
+
 class AppWindow:
     """应用程序窗口包装器"""
 
@@ -566,6 +602,14 @@ class AppWindow:
         self.nswindow.setTitle_(title)
         self.nswindow.makeKeyAndOrderFront_(None)
         self._content = None
+        
+        # 🔥 关键修复: 设置窗口代理来监听大小变化
+        self.delegate = AppWindowDelegate(self)
+        self.nswindow.setDelegate_(self.delegate)
+        
+        # 初始化时设置ViewportManager
+        viewport_mgr = ManagerFactory.get_viewport_manager()
+        viewport_mgr.set_window(self.nswindow)
 
     def set_content(self, component):
         """设置窗口内容"""
