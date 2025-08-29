@@ -29,6 +29,10 @@ class AudioPlayerDelegate(NSObject):
         if self is None:
             return None
         self.audio_player = None
+        
+        # 初始化日志器
+        from ..logging import get_logger
+        self.logger = get_logger("player.delegate")
         return self
     
     def playerItemDidPlayToEnd_(self, notification):
