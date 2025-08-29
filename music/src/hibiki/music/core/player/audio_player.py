@@ -248,9 +248,14 @@ class AudioPlayer:
             return False
         
         try:
-            # 确保位置在有效范围内
-            duration = self._get_duration()
+            # 确保位置在有效范围内 - 使用app_state中的时长，它由异步加载更新
+            duration = self.app_state.duration.value
+            if duration <= 0:
+                # 如果app_state中的时长还没更新，尝试直接获取
+                duration = self._get_duration()
+            
             position = max(0.0, min(position_seconds, duration))
+            self.logger.debug(f"🎯 Seek: 目标={position_seconds:.1f}s, 时长={duration:.1f}s, 实际={position:.1f}s")
             
             # CMTime 创建 (时间值, 时间基数)
             from CoreMedia import CMTimeMakeWithSeconds
@@ -321,18 +326,49 @@ class AudioPlayer:
             self.logger.debug("📡 媒体属性加载完成回调")
             
             # 检查duration属性的加载状态
-            from AVFoundation import AVKeyValueStatusLoaded, AVKeyValueStatusFailed
-            duration_status, error = asset.statusOfValueForKey_error_("duration", None)
+            from AVFoundation import AVKeyValueStatusLoaded, AVKeyValueStatusFailed, AVKeyValueStatusUnknown, AVKeyValueStatusLoading, AVKeyValueStatusCancelled
+            duration_status = asset.statusOfValueForKey_("duration")
+            
+            # 详细状态日志
+            status_names = {
+                AVKeyValueStatusUnknown: "Unknown",
+                AVKeyValueStatusLoading: "Loading", 
+                AVKeyValueStatusLoaded: "Loaded",
+                AVKeyValueStatusFailed: "Failed",
+                AVKeyValueStatusCancelled: "Cancelled"
+            }
+            status_name = status_names.get(duration_status, f"Unknown({duration_status})")
+            self.logger.debug(f"📊 Duration状态: {status_name} ({duration_status})")
             
             if duration_status == AVKeyValueStatusLoaded:
-                duration = self._get_duration()
-                self.app_state.duration.value = duration
-                self.logger.info(f"✅ 异步获取媒体时长: {duration:.1f}秒")
+                # 直接从asset获取时长，而不是从current_item
+                try:
+                    from CoreMedia import CMTimeGetSeconds, CMTIME_IS_VALID
+                    asset_duration = asset.duration()
+                    self.logger.debug(f"🔍 Asset duration CMTime: {asset_duration}")
+                    
+                    if CMTIME_IS_VALID(asset_duration):
+                        duration = CMTimeGetSeconds(asset_duration)
+                        self.logger.debug(f"🔍 Asset duration seconds: {duration}")
+                        self.app_state.duration.value = duration
+                        self.logger.info(f"✅ 异步获取媒体时长: {duration:.1f}秒")
+                    else:
+                        self.logger.warning("⚠️ Asset duration CMTime 无效")
+                        self.app_state.duration.value = 0.0
+                except Exception as e:
+                    self.logger.error(f"❌ 获取asset时长失败: {e}")
+                    # 备用：使用原有方法
+                    duration = self._get_duration()
+                    self.app_state.duration.value = duration
+                    self.logger.info(f"✅ 备用方法获取媒体时长: {duration:.1f}秒")
             elif duration_status == AVKeyValueStatusFailed:
-                self.logger.warning(f"⚠️ 媒体时长获取失败: {error}")
+                self.logger.warning("⚠️ 媒体时长获取失败")
                 self.app_state.duration.value = 0.0
             else:
-                self.logger.debug(f"🔄 媒体时长状态: {duration_status}")
+                self.logger.debug(f"🔄 媒体时长状态: {status_name}")
+                # 如果还在加载，给一个默认值，但不要设为0
+                if duration_status == AVKeyValueStatusLoading:
+                    self.logger.debug("⏳ 媒体属性仍在加载中...")
         
         # 使用AVURLAsset的标准异步加载方法
         asset.loadValuesAsynchronouslyForKeys_completionHandler_(
