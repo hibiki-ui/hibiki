@@ -81,12 +81,29 @@ class AudioPlayer:
         """设置系统音频会话"""
         try:
             audio_session = AVAudioSession.sharedInstance()
-            success = audio_session.setCategory_error_(AVAudioSessionCategoryPlayback, None)
-            if success[0]:
-                audio_session.setActive_error_(True, None)
-                self.logger.info("✅ 音频会话配置成功")
-            else:
-                self.logger.warning("⚠️ 音频会话配置失败")
+            # PyObjC方法可能返回不同的值，先尝试直接调用
+            try:
+                # 尝试新版本API (返回元组)
+                success, error = audio_session.setCategory_error_(AVAudioSessionCategoryPlayback, None)
+                if success:
+                    active_success, active_error = audio_session.setActive_error_(True, None)
+                    if active_success:
+                        self.logger.info("✅ 音频会话配置成功")
+                    else:
+                        self.logger.warning(f"⚠️ 音频会话激活失败: {active_error}")
+                else:
+                    self.logger.warning(f"⚠️ 音频会话类别设置失败: {error}")
+            except (TypeError, ValueError):
+                # 尝试旧版本API (直接返回布尔值)
+                success = audio_session.setCategory_error_(AVAudioSessionCategoryPlayback, None)
+                if success:
+                    active_success = audio_session.setActive_error_(True, None)
+                    if active_success:
+                        self.logger.info("✅ 音频会话配置成功")
+                    else:
+                        self.logger.warning("⚠️ 音频会话激活失败")
+                else:
+                    self.logger.warning("⚠️ 音频会话类别设置失败")
         except Exception as e:
             self.logger.error(f"❌ 音频会话设置错误: {e}")
     
@@ -139,10 +156,12 @@ class AudioPlayer:
             
             # 更新应用状态
             self.app_state.current_song.value = song
-            self.app_state.duration.value = self._get_duration()
             self.app_state.position.value = 0.0
             
-            self.logger.info(f"✅ 歌曲加载成功，时长: {self.app_state.duration.value:.1f}秒")
+            # 使用标准的AVPlayer异步加载机制
+            self._load_media_info_async()
+            
+            self.logger.info("✅ 歌曲加载启动，正在异步获取媒体信息...")
             return True
             
         except Exception as e:
@@ -279,6 +298,43 @@ class AudioPlayer:
         except Exception as e:
             self.logger.error(f"❌ 获取时长失败: {e}")
             return 0.0
+    
+    def _load_media_info_async(self):
+        """使用标准的AVURLAsset异步加载媒体信息"""
+        if not self.current_item:
+            return
+            
+        self.logger.debug("🔄 开始异步加载媒体属性...")
+        
+        # 获取AVURLAsset (实现了AVAsynchronousKeyValueLoading协议)
+        asset = self.current_item.asset()
+        
+        # 定义需要异步加载的媒体属性
+        keys = ["duration", "tracks", "playable"]
+        
+        # 异步加载完成回调
+        def completion_handler():
+            self.logger.debug("📡 媒体属性加载完成回调")
+            
+            # 检查duration属性的加载状态
+            from AVFoundation import AVKeyValueStatusLoaded, AVKeyValueStatusFailed
+            duration_status, error = asset.statusOfValueForKey_error_("duration", None)
+            
+            if duration_status == AVKeyValueStatusLoaded:
+                duration = self._get_duration()
+                self.app_state.duration.value = duration
+                self.logger.info(f"✅ 异步获取媒体时长: {duration:.1f}秒")
+            elif duration_status == AVKeyValueStatusFailed:
+                self.logger.warning(f"⚠️ 媒体时长获取失败: {error}")
+                self.app_state.duration.value = 0.0
+            else:
+                self.logger.debug(f"🔄 媒体时长状态: {duration_status}")
+        
+        # 使用AVURLAsset的标准异步加载方法
+        asset.loadValuesAsynchronouslyForKeys_completionHandler_(
+            keys, completion_handler
+        )
+        self.logger.debug("✅ AVURLAsset异步加载已启动")
     
     def _get_current_position(self) -> float:
         """获取当前播放位置"""

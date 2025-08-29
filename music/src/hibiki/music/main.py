@@ -92,16 +92,16 @@ class HibikiMusicApp:
                 
                 # 如果有歌曲，默认选中第一首并开始播放以测试进度条
                 if app_songs:
-                    self.state.current_song.value = app_songs[0]
                     self.logger.info("🎵 自动开始播放第一首歌曲进行测试...")
                     # 延迟2秒后自动开始播放
                     import threading
                     def auto_play():
                         import time
                         time.sleep(2)  # 等待UI初始化完成
-                        if self.state.current_song.value:
-                            self.logger.info(f"🎵 开始播放: {self.state.current_song.value.title}")
-                            self.state.toggle_play_pause()
+                        first_song = app_songs[0]
+                        self.logger.info(f"🎵 开始播放: {first_song.title}")
+                        # 使用play_song方法，它会先加载歌曲再播放
+                        self.state.play_song(first_song)
                     threading.Thread(target=auto_play).start()
                     
             else:
