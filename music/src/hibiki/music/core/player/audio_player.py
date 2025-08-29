@@ -70,8 +70,8 @@ class AudioPlayer:
         self.delegate = AudioPlayerDelegate.alloc().init()
         self.delegate.audio_player = self
         
-        # 进度跟踪定时器
-        self.progress_timer: Optional[NSTimer] = None
+        # 进度跟踪观察者
+        self.time_observer = None
         
         # 设置音频会话
         self._setup_audio_session()
@@ -396,48 +396,51 @@ class AudioPlayer:
             return 0.0
     
     def _start_progress_tracking(self):
-        """启动播放进度跟踪定时器"""
-        self.logger.debug(f"🔄 [音频引擎] 即将启动进度跟踪定时器...")
-        self._stop_progress_tracking()  # 先停止现有的定时器
+        """启动播放进度跟踪 - 使用官方AVPlayer API"""
+        if not self.av_player:
+            return
+            
+        self.logger.debug(f"🔄 [音频引擎] 即将启动官方进度观察者...")
+        self._stop_progress_tracking()  # 先停止现有的观察者
         
-        # 创建定时器，每0.1秒更新一次进度
-        self.progress_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-            0.1,  # 时间间隔
-            self,
-            objc.selector(self._update_progress, signature=b'v@:@'),
-            None,
-            True  # 重复执行
+        # 使用苹果官方推荐的 addPeriodicTimeObserver API
+        from CoreMedia import CMTimeMakeWithSeconds
+        
+        # 每0.1秒观察一次进度 (100毫秒)
+        time_interval = CMTimeMakeWithSeconds(0.1, 600)  # 0.1秒，时间基数600
+        
+        # 创建进度更新回调
+        def progress_callback(current_time):
+            try:
+                from CoreMedia import CMTimeGetSeconds, CMTIME_IS_VALID
+                if CMTIME_IS_VALID(current_time):
+                    position = CMTimeGetSeconds(current_time)
+                    position = position if position > 0 else 0.0
+                    
+                    # 更新应用状态
+                    self.app_state.position.value = position
+                    self.logger.debug(f"🎵 [官方API] 进度更新: {position:.2f}秒")
+                else:
+                    self.logger.debug("⚠️ [官方API] 收到无效时间")
+            except Exception as e:
+                self.logger.error(f"❌ [官方API] 进度回调错误: {e}")
+        
+        # 添加周期性时间观察者 - 使用正确的PyObjC方法名
+        self.time_observer = self.av_player.addPeriodicTimeObserverForInterval_queue_usingBlock_(
+            time_interval,
+            None,  # 使用主队列 (None = main queue)
+            progress_callback
         )
         
-        self.logger.debug(f"⏱️ [音频引擎] 进度跟踪已启动 - 定时器ID: {id(self.progress_timer) if self.progress_timer else 'None'}")
+        self.logger.debug(f"⏱️ [音频引擎] 官方进度观察者已启动 - Observer: {self.time_observer}")
     
     def _stop_progress_tracking(self):
-        """停止播放进度跟踪定时器"""
-        if self.progress_timer:
-            self.progress_timer.invalidate()
-            self.progress_timer = None
-            self.logger.debug("⏱️ 进度跟踪已停止")
+        """停止播放进度跟踪观察者"""
+        if self.time_observer and self.av_player:
+            self.av_player.removeTimeObserver_(self.time_observer)
+            self.time_observer = None
+            self.logger.debug("⏱️ 官方进度观察者已停止")
     
-    @objc.signature(b'v@:@')
-    def _update_progress(self, timer):
-        """更新播放进度 (定时器回调)"""
-        try:
-            current_position = self._get_current_position()
-            self.app_state.position.value = current_position
-            self.logger.debug(f"🎵 [音频引擎] 更新后 app_state.position={self.app_state.position.value:.2f}s (确认)")
-            
-            # 计算播放进度百分比
-            duration = self.app_state.duration.value
-            if duration > 0:
-                progress_percent = (current_position / duration) * 100
-            else:
-                progress_percent = 0.0
-                
-            # 详细的播放进度日志
-            self.logger.debug(f"🎵 更新播放进度: {current_position:.2f}/{duration:.2f}s ({progress_percent:.1f}%)")
-            
-        except Exception as e:
-            self.logger.error(f"❌ 更新进度失败: {e}")
     
     def _on_playback_finished(self):
         """播放完成回调"""
