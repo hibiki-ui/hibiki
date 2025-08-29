@@ -23,7 +23,7 @@ from .binding import ReactiveBinding, FormDataBinding
 from .text_props import TextProps, TextStyles, text_props
 
 # 布局系统
-from .layout import get_layout_engine, LayoutNode, V4LayoutEngine
+from .layout import get_layout_engine, LayoutNode, LayoutEngine
 
 # 管理器系统
 from .managers import ManagerFactory
@@ -73,7 +73,7 @@ __all__ = [
     # 布局系统
     'get_layout_engine',
     'LayoutNode',
-    'V4LayoutEngine',
+    'LayoutEngine',
     
     # 管理器系统
     'ManagerFactory',

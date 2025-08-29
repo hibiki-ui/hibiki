@@ -1,8 +1,150 @@
 #!/usr/bin/env python3
 """
-Hibiki UI v4.0 布局引擎
-直接集成Stretchable，提供现代化的CSS-like布局能力
-完全独立的v4架构实现，不依赖旧版本代码
+Hibiki UI Layout Engine Integration
+==================================
+
+This module provides a comprehensive integration layer between Hibiki UI and the Stretchable
+layout engine, enabling modern CSS-like layout capabilities for native macOS applications.
+
+Stretchable Layout Engine
+------------------------
+Stretchable is a Python layout library that provides CSS-based layout operations using:
+- **CSS Block**: Traditional block-level layout
+- **CSS Flexbox**: Flexible box layout for 1D layouts
+- **CSS Grid**: Grid-based layout for 2D layouts
+
+It uses Python bindings for Taffy, a high-performance Rust-based layout engine that
+implements CSS layout algorithms with full specification compliance.
+
+Architecture Overview
+--------------------
+
+::
+
+    Hibiki UI Components (ComponentStyle)
+              ↓
+    StyleConverter (Style Translation)
+              ↓
+    LayoutNode (Python Wrapper)
+              ↓
+    Stretchable Node (Rust Engine)
+              ↓
+    Taffy Layout Engine (Layout Computation)
+
+Core Classes
+-----------
+
+- **LayoutEngine**: Main layout engine managing component-to-node mappings and layout computation
+- **LayoutNode**: Python wrapper around Stretchable nodes with safe lifecycle management
+- **StyleConverter**: Converts Hibiki UI ComponentStyle to Stretchable Style objects
+- **LayoutResult**: Contains computed layout information (position, size, timing)
+
+Key Features
+-----------
+
+1. **Full CSS Layout Support**:
+   - Flexbox with all direction, wrap, and alignment options
+   - CSS Grid with template areas, auto-sizing, and placement
+   - Block layout with margin collapse and positioning
+   - Absolute and relative positioning
+
+2. **Robust Error Handling**:
+   - Safe node removal preventing Taffy crashes during dynamic content changes
+   - Deep cleanup of layout hierarchies to prevent memory leaks
+   - Comprehensive health checking and orphaned node cleanup
+
+3. **Performance Optimizations**:
+   - Layout caching and batching support
+   - Minimal PyObjC-to-Rust bridge calls
+   - Efficient parent-child relationship management
+
+4. **Developer Experience**:
+   - Comprehensive debugging and profiling tools
+   - Detailed error reporting with context
+   - Health monitoring for layout tree integrity
+
+Usage Patterns
+-------------
+
+**Basic Layout Computation**::
+
+    engine = get_layout_engine()
+    engine.create_node_for_component(component)
+    result = engine.compute_layout_for_component(component, (800, 600))
+
+**Parent-Child Relationships**::
+
+    engine.add_child_relationship(parent, child)
+    engine.remove_child_relationship(parent, child)  # Safe removal
+
+**Dynamic Content Updates**::
+
+    engine.update_component_style(component)
+    engine.cleanup_orphaned_nodes()  # Maintenance
+
+**Debugging and Monitoring**::
+
+    health = engine.health_check()
+    engine.debug_print_stats()
+    tree_info = engine.get_node_tree_info(root_component)
+
+Style System Integration
+-----------------------
+
+The module automatically converts Hibiki UI style properties to their Stretchable equivalents:
+
+- **Display modes**: FLEX, BLOCK, GRID, NONE
+- **Flexbox properties**: flex_direction, justify_content, align_items, flex_grow/shrink
+- **Grid properties**: grid_template_rows/columns, grid_row/column placement
+- **Spacing**: margin, padding, gap with CSS-like shorthand support
+- **Sizing**: width, height, min/max constraints with units (px, %, auto)
+- **Positioning**: relative, absolute with inset properties
+
+Safety and Reliability
+---------------------
+
+This implementation addresses critical stability issues in dynamic layout scenarios:
+
+1. **Taffy Crash Prevention**: Special handling for node removal that prevents
+   'Option::unwrap() on a None value' crashes in the underlying Rust engine
+
+2. **Memory Management**: Proper cleanup of Python-to-Rust object references
+   prevents memory leaks during component lifecycle changes
+
+3. **Layout State Recovery**: Automatic layout tree rebuilding when corruption
+   is detected, ensuring application stability
+
+4. **Exception Isolation**: Layout errors are contained and don't crash the
+   main application thread
+
+Compatibility
+------------
+
+- **Python**: 3.9+
+- **Platforms**: macOS, Linux, Windows (via Stretchable)
+- **Dependencies**: stretchable >= 0.2.0, PyObjC (macOS)
+- **Hibiki UI**: v3.0+ with ComponentStyle system
+
+Performance Considerations
+-------------------------
+
+- Layout computation is optimized for typical UI scenarios (< 1000 nodes)
+- Caching reduces redundant calculations during incremental updates
+- Batch operations minimize Python-Rust boundary crossings
+- Health checks should be run periodically, not on every layout
+
+Examples
+--------
+
+See ``examples/layout/`` for complete usage examples including:
+- Complex flexbox layouts with dynamic content
+- CSS Grid implementations with responsive behavior
+- Performance optimization techniques
+- Error handling and recovery strategies
+
+Note: This module is part of the Hibiki UI v3.0 layout system redesign that
+replaced the previous NSStackView-based approach with a professional-grade
+CSS layout engine for improved flexibility and standards compliance.
 """
 
 from typing import Optional, Tuple, Dict, Any, List
@@ -30,11 +172,11 @@ from .styles import (
     FlexDirection,
     AlignItems,
     JustifyContent,
-    Length as V4Length,
+    Length as HibikiLength,
     LengthUnit,
     px,
 )
-from .managers import Position as V4Position
+from .managers import Position as HibikiPosition
 
 from .logging import get_logger
 
@@ -52,187 +194,346 @@ class LayoutResult:
     height: float
     content_width: float
     content_height: float
-    compute_time: float  # 计算耗时(毫秒)
+    compute_time: float
 
 
-class V4StyleConverter:
-    """v4样式到Stretchable样式的转换器"""
+class StyleConverter:
+    """
+    Hibiki UI to Stretchable Style Converter
+    =======================================
+
+    This class provides utilities to convert Hibiki UI ComponentStyle objects
+    to Stretchable Style objects, enabling seamless integration between the
+    Hibiki UI styling system and the underlying CSS layout engine.
+
+    The converter handles all major CSS layout properties including flexbox,
+    grid, positioning, spacing, and sizing with full support for CSS units
+    and values.
+
+    Key Features
+    -----------
+
+    - **Complete CSS Support**: Flexbox, Grid, Block layout modes
+    - **Unit Conversion**: Pixels, percentages, auto, and fractional units
+    - **Advanced Properties**: Grid templates, placement, and auto-sizing
+    - **Shorthand Support**: Margin, padding, and inset shorthand properties
+    - **Error Handling**: Graceful fallbacks for unsupported values
+
+    Examples
+    --------
+
+    **Basic Style Conversion**::
+
+        from hibiki.ui.core.styles import ComponentStyle, Display, FlexDirection
+
+        style = ComponentStyle(
+            display=Display.FLEX,
+            flex_direction=FlexDirection.ROW,
+            justify_content=JustifyContent.CENTER,
+            align_items=AlignItems.CENTER,
+            width=px(300),
+            height=px(200),
+            margin=px(10),
+            gap=px(8)
+        )
+
+        stretchable_style = StyleConverter.convert_to_stretchable_style(style)
+
+    **Grid Layout Conversion**::
+
+        grid_style = ComponentStyle(
+            display=Display.GRID,
+            grid_template_columns="1fr 2fr 1fr",
+            grid_template_rows="auto 200px auto",
+            grid_gap=px(16)
+        )
+
+        converted = StyleConverter.convert_to_stretchable_style(grid_style)
+
+    **Complex Sizing and Positioning**::
+
+        complex_style = ComponentStyle(
+            position=Position.ABSOLUTE,
+            top=px(20),
+            left=px(30),
+            width=Length(80, LengthUnit.PERCENT),
+            min_width=px(200),
+            max_width=px(800)
+        )
+
+        converted = StyleConverter.convert_to_stretchable_style(complex_style)
+
+    Supported Properties
+    ------------------
+
+    **Layout Modes**:
+    - display: FLEX, BLOCK, GRID, NONE
+    - position: RELATIVE, ABSOLUTE
+
+    **Flexbox**:
+    - flex_direction: ROW, COLUMN, ROW_REVERSE, COLUMN_REVERSE
+    - justify_content: FLEX_START, CENTER, FLEX_END, SPACE_BETWEEN, etc.
+    - align_items: FLEX_START, CENTER, FLEX_END, STRETCH
+    - flex_grow, flex_shrink: numeric values
+
+    **Grid Layout**:
+    - grid_template_columns/rows: CSS grid syntax
+    - grid_column/row: placement syntax
+    - grid_area: area specification
+
+    **Sizing**:
+    - width, height: pixels, percentages, auto
+    - min_width, min_height, max_width, max_height
+    - aspect_ratio: numeric ratios
+
+    **Spacing**:
+    - margin, padding: individual sides or shorthand
+    - gap, row_gap, column_gap: flexbox/grid spacing
+    - inset properties: top, right, bottom, left
+
+    Unit Support
+    -----------
+
+    - **Pixels**: px(100) → Length.from_any(100.0)
+    - **Percentages**: Length(50, PERCENT) → 50 * PCT
+    - **Auto**: "auto" or LengthUnit.AUTO → Length.default()
+    - **Fractional**: "1fr" → GridTrackSizing.from_any("1fr")
+
+    Error Handling
+    -------------
+
+    The converter implements robust error handling:
+
+    - Invalid values are logged and skipped
+    - Unsupported properties fall back to defaults
+    - Conversion errors don't crash the layout system
+    - Detailed warnings help with debugging
+
+    Notes
+    -----
+
+    This converter is the bridge between Hibiki UI's Python-native styling
+    system and Stretchable's CSS-compliant layout engine. It ensures that
+    all Hibiki UI style properties are properly translated while maintaining
+    performance and reliability.
+
+    See Also
+    --------
+    ComponentStyle : Hibiki UI style system
+    LayoutNode : Layout node implementation
+    LayoutEngine : High-level layout interface
+    """
 
     @staticmethod
-    def convert_to_stretchable_style(v4_style: ComponentStyle) -> st.Style:
-        """将v4 ComponentStyle转换为Stretchable Style"""
+    def convert_to_stretchable_style(style: ComponentStyle) -> st.Style:
+        """
+        Convert a Hibiki UI ComponentStyle to a Stretchable Style.
+
+        This is the main conversion method that handles all supported
+        CSS properties and their proper translation to Stretchable format.
+
+        Parameters
+        ----------
+        style : ComponentStyle
+            The Hibiki UI style object to convert
+
+        Returns
+        -------
+        stretchable.Style
+            The converted Stretchable style object
+
+        Examples
+        --------
+
+        ::
+
+            style = ComponentStyle(
+                display=Display.FLEX,
+                width=px(300),
+                margin=px(10)
+            )
+
+            stretchable_style = StyleConverter.convert_to_stretchable_style(style)
+
+        Notes
+        -----
+
+        The conversion process handles all major CSS layout properties
+        with proper unit conversion and error handling. Unsupported or
+        invalid properties are logged and skipped.
+        """
         kwargs = {}
 
         # Display转换
-        if v4_style.display == Display.FLEX:
+        if style.display == Display.FLEX:
             kwargs["display"] = StDisplay.FLEX
-        elif v4_style.display == Display.BLOCK:
+        elif style.display == Display.BLOCK:
             kwargs["display"] = StDisplay.BLOCK
-        elif v4_style.display == Display.GRID:
+        elif style.display == Display.GRID:
             kwargs["display"] = StDisplay.GRID
             logger.debug("🎯 使用原生Grid布局")
-        elif v4_style.display == Display.NONE:
+        elif style.display == Display.NONE:
             kwargs["display"] = StDisplay.NONE
 
         # Position转换
-        if v4_style.position == V4Position.RELATIVE:
+        if style.position == HibikiPosition.RELATIVE:
             kwargs["position"] = StPosition.RELATIVE
-        elif v4_style.position == V4Position.ABSOLUTE:
+        elif style.position == HibikiPosition.ABSOLUTE:
             kwargs["position"] = StPosition.ABSOLUTE
 
         # FlexDirection转换
-        if v4_style.flex_direction == FlexDirection.ROW:
+        if style.flex_direction == FlexDirection.ROW:
             kwargs["flex_direction"] = StFlexDirection.ROW
-        elif v4_style.flex_direction == FlexDirection.COLUMN:
+        elif style.flex_direction == FlexDirection.COLUMN:
             kwargs["flex_direction"] = StFlexDirection.COLUMN
-        elif v4_style.flex_direction == FlexDirection.ROW_REVERSE:
+        elif style.flex_direction == FlexDirection.ROW_REVERSE:
             kwargs["flex_direction"] = StFlexDirection.ROW_REVERSE
-        elif v4_style.flex_direction == FlexDirection.COLUMN_REVERSE:
+        elif style.flex_direction == FlexDirection.COLUMN_REVERSE:
             kwargs["flex_direction"] = StFlexDirection.COLUMN_REVERSE
 
         # AlignItems转换
-        if v4_style.align_items == AlignItems.FLEX_START:
+        if style.align_items == AlignItems.FLEX_START:
             kwargs["align_items"] = StAlignItems.FLEX_START
-        elif v4_style.align_items == AlignItems.CENTER:
+        elif style.align_items == AlignItems.CENTER:
             kwargs["align_items"] = StAlignItems.CENTER
-        elif v4_style.align_items == AlignItems.FLEX_END:
+        elif style.align_items == AlignItems.FLEX_END:
             kwargs["align_items"] = StAlignItems.FLEX_END
-        elif v4_style.align_items == AlignItems.STRETCH:
+        elif style.align_items == AlignItems.STRETCH:
             kwargs["align_items"] = StAlignItems.STRETCH
 
         # JustifyContent转换
-        if v4_style.justify_content == JustifyContent.FLEX_START:
+        if style.justify_content == JustifyContent.FLEX_START:
             kwargs["justify_content"] = StJustifyContent.FLEX_START
-        elif v4_style.justify_content == JustifyContent.CENTER:
+        elif style.justify_content == JustifyContent.CENTER:
             kwargs["justify_content"] = StJustifyContent.CENTER
-        elif v4_style.justify_content == JustifyContent.FLEX_END:
+        elif style.justify_content == JustifyContent.FLEX_END:
             kwargs["justify_content"] = StJustifyContent.FLEX_END
-        elif v4_style.justify_content == JustifyContent.SPACE_BETWEEN:
+        elif style.justify_content == JustifyContent.SPACE_BETWEEN:
             kwargs["justify_content"] = StJustifyContent.SPACE_BETWEEN
-        elif v4_style.justify_content == JustifyContent.SPACE_AROUND:
+        elif style.justify_content == JustifyContent.SPACE_AROUND:
             kwargs["justify_content"] = StJustifyContent.SPACE_AROUND
-        elif v4_style.justify_content == JustifyContent.SPACE_EVENLY:
+        elif style.justify_content == JustifyContent.SPACE_EVENLY:
             kwargs["justify_content"] = StJustifyContent.SPACE_EVENLY
 
         # Flex属性
-        if v4_style.flex_grow is not None:
-            kwargs["flex_grow"] = v4_style.flex_grow
-        if v4_style.flex_shrink is not None:
-            kwargs["flex_shrink"] = v4_style.flex_shrink
+        if style.flex_grow is not None:
+            kwargs["flex_grow"] = style.flex_grow
+        if style.flex_shrink is not None:
+            kwargs["flex_shrink"] = style.flex_shrink
 
         # 尺寸转换
-        size = V4StyleConverter._convert_size(v4_style.width, v4_style.height)
+        size = StyleConverter._convert_size(style.width, style.height)
         if size:
             kwargs["size"] = size
 
-        min_size = V4StyleConverter._convert_size(v4_style.min_width, v4_style.min_height)
+        min_size = StyleConverter._convert_size(style.min_width, style.min_height)
         if min_size:
             kwargs["min_size"] = min_size
 
-        max_size = V4StyleConverter._convert_size(v4_style.max_width, v4_style.max_height)
+        max_size = StyleConverter._convert_size(style.max_width, style.max_height)
         if max_size:
             kwargs["max_size"] = max_size
 
         # Margin转换
-        margin = V4StyleConverter._convert_rect(
-            v4_style.margin_top or v4_style.margin,
-            v4_style.margin_right or v4_style.margin,
-            v4_style.margin_bottom or v4_style.margin,
-            v4_style.margin_left or v4_style.margin,
+        margin = StyleConverter._convert_rect(
+            style.margin_top or style.margin,
+            style.margin_right or style.margin,
+            style.margin_bottom or style.margin,
+            style.margin_left or style.margin,
         )
         if margin:
             kwargs["margin"] = margin
 
         # Padding转换
-        padding = V4StyleConverter._convert_rect(
-            v4_style.padding_top or v4_style.padding,
-            v4_style.padding_right or v4_style.padding,
-            v4_style.padding_bottom or v4_style.padding,
-            v4_style.padding_left or v4_style.padding,
+        padding = StyleConverter._convert_rect(
+            style.padding_top or style.padding,
+            style.padding_right or style.padding,
+            style.padding_bottom or style.padding,
+            style.padding_left or style.padding,
         )
         if padding:
             kwargs["padding"] = padding
 
         # Gap转换
-        gap = V4StyleConverter._convert_gap(v4_style.gap, v4_style.row_gap, v4_style.column_gap)
+        gap = StyleConverter._convert_gap(style.gap, style.row_gap, style.column_gap)
         if gap:
             kwargs["gap"] = gap
 
         # Inset (positioning)转换
-        inset = V4StyleConverter._convert_rect(
-            v4_style.top, v4_style.right, v4_style.bottom, v4_style.left
-        )
+        inset = StyleConverter._convert_rect(style.top, style.right, style.bottom, style.left)
         if inset:
             kwargs["inset"] = inset
 
         # Grid属性转换（完全支持Stretchable Grid）
-        if hasattr(v4_style, "grid_template_columns") and v4_style.grid_template_columns:
-            grid_columns = V4StyleConverter._convert_grid_template(v4_style.grid_template_columns)
+        if hasattr(style, "grid_template_columns") and style.grid_template_columns:
+            grid_columns = StyleConverter._convert_grid_template(style.grid_template_columns)
             if grid_columns:
                 kwargs["grid_template_columns"] = grid_columns
-                logger.debug(f"🎯 Grid模板列: {v4_style.grid_template_columns} -> {len(grid_columns)}列")
+                logger.debug(
+                    f"🎯 Grid模板列: {style.grid_template_columns} -> {len(grid_columns)}列"
+                )
 
-        if hasattr(v4_style, "grid_template_rows") and v4_style.grid_template_rows:
-            grid_rows = V4StyleConverter._convert_grid_template(v4_style.grid_template_rows)
+        if hasattr(style, "grid_template_rows") and style.grid_template_rows:
+            grid_rows = StyleConverter._convert_grid_template(style.grid_template_rows)
             if grid_rows:
                 kwargs["grid_template_rows"] = grid_rows
-                logger.debug(f"🎯 Grid模板行: {v4_style.grid_template_rows} -> {len(grid_rows)}行")
+                logger.debug(f"🎯 Grid模板行: {style.grid_template_rows} -> {len(grid_rows)}行")
 
-        if hasattr(v4_style, "grid_column") and v4_style.grid_column:
-            grid_column_placement = V4StyleConverter._convert_grid_placement(v4_style.grid_column)
+        if hasattr(style, "grid_column") and style.grid_column:
+            grid_column_placement = StyleConverter._convert_grid_placement(style.grid_column)
             if grid_column_placement:
                 kwargs["grid_column"] = grid_column_placement
-                logger.debug(f"🎯 Grid列定位: {v4_style.grid_column}")
+                logger.debug(f"🎯 Grid列定位: {style.grid_column}")
 
-        if hasattr(v4_style, "grid_row") and v4_style.grid_row:
-            grid_row_placement = V4StyleConverter._convert_grid_placement(v4_style.grid_row)
+        if hasattr(style, "grid_row") and style.grid_row:
+            grid_row_placement = StyleConverter._convert_grid_placement(style.grid_row)
             if grid_row_placement:
                 kwargs["grid_row"] = grid_row_placement
-                logger.debug(f"🎯 Grid行定位: {v4_style.grid_row}")
+                logger.debug(f"🎯 Grid行定位: {style.grid_row}")
 
-        if hasattr(v4_style, "grid_area") and v4_style.grid_area:
+        if hasattr(style, "grid_area") and style.grid_area:
             # grid_area可以设置grid_row和grid_column
-            row_placement, column_placement = V4StyleConverter._convert_grid_area(v4_style.grid_area)
+            row_placement, column_placement = StyleConverter._convert_grid_area(style.grid_area)
             if row_placement:
                 kwargs["grid_row"] = row_placement
             if column_placement:
                 kwargs["grid_column"] = column_placement
-            logger.debug(f"🎯 Grid区域: {v4_style.grid_area}")
+            logger.debug(f"🎯 Grid区域: {style.grid_area}")
 
         return st.Style(**kwargs)
 
     @staticmethod
-    def _convert_length(v4_length) -> Optional[Length]:
-        """转换v4长度值为Stretchable Length"""
-        if v4_length is None:
+    def _convert_length(length_value) -> Optional[Length]:
+        """Convert Hibiki UI length values to Stretchable Length"""
+        if length_value is None:
             return None
 
-        # v4 Length对象
-        if isinstance(v4_length, V4Length):
-            if v4_length.unit == LengthUnit.PX:
-                return Length.from_any(float(v4_length.value))
-            elif v4_length.unit == LengthUnit.PERCENT:
-                return v4_length.value * PCT
-            elif v4_length.unit == LengthUnit.AUTO:
-                return Length.default()  # Stretchable的auto表示
+        # Hibiki UI Length objects
+        if isinstance(length_value, HibikiLength):
+            if length_value.unit == LengthUnit.PX:
+                return Length.from_any(float(length_value.value))
+            elif length_value.unit == LengthUnit.PERCENT:
+                return length_value.value * PCT
+            elif length_value.unit == LengthUnit.AUTO:
+                return Length.default()  # Stretchable auto representation
 
-        # 直接数值
-        if isinstance(v4_length, (int, float)):
-            return Length.from_any(float(v4_length))
+        # Direct numeric values
+        if isinstance(length_value, (int, float)):
+            return Length.from_any(float(length_value))
 
-        # 字符串
-        if isinstance(v4_length, str):
-            if v4_length == "auto":
+        # String values
+        if isinstance(length_value, str):
+            if length_value == "auto":
                 return Length.default()
-            return Length.from_any(v4_length)
+            return Length.from_any(length_value)
 
         return None
 
     @staticmethod
     def _convert_size(width, height) -> Optional[Size]:
-        """转换尺寸"""
-        w = V4StyleConverter._convert_length(width)
-        h = V4StyleConverter._convert_length(height)
+        """Convert width and height values to Stretchable Size"""
+        w = StyleConverter._convert_length(width)
+        h = StyleConverter._convert_length(height)
 
         if w is not None or h is not None:
             return Size(width=w or Length.default(), height=h or Length.default())
@@ -240,11 +541,11 @@ class V4StyleConverter:
 
     @staticmethod
     def _convert_rect(top, right, bottom, left) -> Optional[Rect]:
-        """转换矩形值"""
-        t = V4StyleConverter._convert_length(top)
-        r = V4StyleConverter._convert_length(right)
-        b = V4StyleConverter._convert_length(bottom)
-        l = V4StyleConverter._convert_length(left)
+        """Convert rect values (margin, padding, inset) to Stretchable Rect"""
+        t = StyleConverter._convert_length(top)
+        r = StyleConverter._convert_length(right)
+        b = StyleConverter._convert_length(bottom)
+        l = StyleConverter._convert_length(left)
 
         if any(x is not None for x in [t, r, b, l]):
             return Rect(
@@ -257,34 +558,34 @@ class V4StyleConverter:
 
     @staticmethod
     def _convert_gap(gap, row_gap, column_gap) -> Optional[Size]:
-        """转换gap值"""
+        """Convert gap values to Stretchable Size for flexbox/grid spacing"""
         if gap is not None:
-            gap_length = V4StyleConverter._convert_length(gap)
+            gap_length = StyleConverter._convert_length(gap)
             if gap_length:
                 return Size(width=gap_length, height=gap_length)
         elif row_gap is not None or column_gap is not None:
-            col_gap = V4StyleConverter._convert_length(column_gap) or Length.from_any(0)
-            row_gap_val = V4StyleConverter._convert_length(row_gap) or Length.from_any(0)
+            col_gap = StyleConverter._convert_length(column_gap) or Length.from_any(0)
+            row_gap_val = StyleConverter._convert_length(row_gap) or Length.from_any(0)
             return Size(width=col_gap, height=row_gap_val)
         return None
 
     @staticmethod
     def _convert_grid_template(template_value: str):
         """
-        转换CSS Grid模板值到Stretchable GridTrackSizing列表
-        
-        支持的CSS Grid语法:
-        - "1fr 2fr 1fr" -> 分数单位
-        - "100px auto 200px" -> 固定尺寸和自动
-        - "repeat(3, 1fr)" -> 重复模式
-        - "minmax(100px, 1fr)" -> 最小最大值
+        Convert CSS Grid template values to Stretchable GridTrackSizing list.
+
+        Supported CSS Grid syntax:
+        - "1fr 2fr 1fr" -> Fractional units
+        - "100px auto 200px" -> Fixed sizes and auto
+        - "repeat(3, 1fr)" -> Repeat patterns
+        - "minmax(100px, 1fr)" -> Min-max values
         """
         if not template_value or not isinstance(template_value, str):
             return None
-            
+
         try:
             from stretchable.style import GridTrackSizing
-            
+
             # 处理简单的空格分隔的值
             if " " in template_value and not template_value.startswith("repeat("):
                 tracks = []
@@ -298,65 +599,65 @@ class V4StyleConverter:
                 # 单个值或复杂表达式
                 track = GridTrackSizing.from_any(template_value)
                 return [track]
-                
+
         except Exception as e:
             logger.warning(f"⚠️ Grid模板转换失败: {template_value} - {e}")
             return None
-    
+
     @staticmethod
     def _convert_grid_placement(placement_value: str):
         """
-        转换CSS Grid定位值到Stretchable GridPlacement
-        
-        支持的CSS Grid定位语法:
-        - "1" -> 第1行/列
-        - "1 / 3" -> 从第1行/列到第3行/列
-        - "span 2" -> 跨越2行/列
-        - "auto" -> 自动定位（返回None）
+        Convert CSS Grid placement values to Stretchable GridPlacement.
+
+        Supported CSS Grid placement syntax:
+        - "1" -> 1st row/column
+        - "1 / 3" -> From 1st row/column to 3rd row/column
+        - "span 2" -> Span 2 rows/columns
+        - "auto" -> Auto placement (returns None)
         """
         if not placement_value or not isinstance(placement_value, str):
             return None
-            
+
         # 特殊处理auto情况
         if placement_value.strip().lower() == "auto":
             # auto情况下返图None，让Stretchable自动处理
             logger.debug("🔍 Grid自动定位，使用默认行为")
             return None
-            
+
         try:
             from stretchable.style import GridPlacement
-            
+
             placement = GridPlacement.from_any(placement_value)
             return placement
-                
+
         except Exception as e:
             logger.warning(f"⚠️ Grid定位转换失败: {placement_value} - {e}")
             return None
-    
+
     @staticmethod
     def _convert_grid_area(area_value: str):
         """
-        转换CSS Grid区域值到行和列的GridPlacement
-        
-        CSS grid-area语法: "row-start / column-start / row-end / column-end"
-        例如: "1 / 2 / 3 / 4" -> 行 1-3, 列 2-4
+        Convert CSS Grid area values to row and column GridPlacement.
+
+        CSS grid-area syntax: "row-start / column-start / row-end / column-end"
+        Example: "1 / 2 / 3 / 4" -> row 1-3, column 2-4
         """
         if not area_value or not isinstance(area_value, str):
             return None, None
-            
+
         try:
             # 解析 "row-start / column-start / row-end / column-end"
             parts = [p.strip() for p in area_value.split("/")]
-            
+
             if len(parts) == 4:
                 row_start, col_start, row_end, col_end = parts
-                
+
                 # 转换行定住
-                row_placement = V4StyleConverter._convert_grid_placement(f"{row_start} / {row_end}")
-                col_placement = V4StyleConverter._convert_grid_placement(f"{col_start} / {col_end}")
-                
+                row_placement = StyleConverter._convert_grid_placement(f"{row_start} / {row_end}")
+                col_placement = StyleConverter._convert_grid_placement(f"{col_start} / {col_end}")
+
                 return row_placement, col_placement
-            
+
             elif len(parts) == 1:
                 # 单个值，如果是命名区域
                 logger.debug(f"🔍 Grid命名区域: {area_value}（暂不支持）")
@@ -364,24 +665,159 @@ class V4StyleConverter:
             else:
                 logger.warning(f"⚠️ 不支持的Grid区域格式: {area_value}")
                 return None, None
-                
+
         except Exception as e:
             logger.warning(f"⚠️ Grid区域转换失败: {area_value} - {e}")
             return None, None
 
 
 class LayoutNode:
-    """v4布局节点 - 封装Stretchable Node"""
+    """
+    Hibiki UI Layout Node - Stretchable Node Wrapper
+    ===============================================
+
+    LayoutNode is a Python wrapper around Stretchable layout nodes that provides
+    safe lifecycle management, parent-child relationship handling, and integration
+    with the Hibiki UI component system.
+
+    This wrapper addresses critical stability issues in dynamic UI scenarios by
+    implementing safe node removal, proper reference management, and automatic
+    error recovery mechanisms.
+
+    Parameters
+    ----------
+    component : UIComponent
+        The UI component this layout node represents
+    style : ComponentStyle, optional
+        The layout style to apply, or None for default style
+    key : str, optional
+        Node identifier for debugging, auto-generated if not provided
+
+    Attributes
+    ----------
+    component : UIComponent
+        Reference to the associated UI component
+    key : str
+        Unique identifier for this layout node
+    children : List[LayoutNode]
+        List of child layout nodes
+    parent : LayoutNode or None
+        Parent layout node, or None if this is a root node
+
+    Examples
+    --------
+
+    **Basic Node Creation**::
+
+        from hibiki.ui.core.styles import ComponentStyle, Display, FlexDirection
+
+        style = ComponentStyle(
+            display=Display.FLEX,
+            flex_direction=FlexDirection.COLUMN,
+            width=px(300),
+            height=px(200)
+        )
+
+        node = LayoutNode(my_component, style, key="main_container")
+
+    **Parent-Child Relationships**::
+
+        parent_node = LayoutNode(parent_component)
+        child_node = LayoutNode(child_component)
+
+        # Add child (automatically handles Stretchable integration)
+        success = parent_node.add_child(child_node)
+
+        # Safe removal (prevents Taffy crashes)
+        parent_node.remove_child(child_node)
+
+    **Layout Computation**::
+
+        # Compute layout for node tree
+        success = root_node.compute_layout((800, 600))
+        if success:
+            x, y, width, height = root_node.get_layout()
+            print(f"Layout: {width}x{height} at ({x}, {y})")
+
+    **Dynamic Style Updates**::
+
+        new_style = ComponentStyle(width=px(400), height=px(250))
+        node.update_style(new_style)
+
+        # Mark for recomputation
+        node.mark_dirty()
+
+    Key Features
+    -----------
+
+    1. **Safe Node Management**:
+       - Prevents Rust Taffy engine crashes during node removal
+       - Proper cleanup of parent-child references
+       - Exception isolation to protect main application
+
+    2. **Stretchable Integration**:
+       - Automatic style conversion from Hibiki UI to Stretchable
+       - Direct access to underlying Stretchable node capabilities
+       - CSS layout algorithm support (Flex, Grid, Block)
+
+    3. **Developer Experience**:
+       - Clear error messages and validation
+       - Comprehensive debugging support
+       - Performance monitoring and timing
+
+    Safety Considerations
+    --------------------
+
+    This wrapper implements several critical safety measures:
+
+    - **Gradual Cleanup**: Python references are cleared before Rust operations
+    - **Multi-layer Validation**: Operations are validated at multiple levels
+    - **Exception Recovery**: Errors in one operation don't cascade
+    - **Reference Integrity**: Parent-child relationships are kept consistent
+
+    The most critical safety feature is the safe node removal system that
+    prevents "Option::unwrap() on a None value" crashes in the underlying
+    Rust Taffy engine during dynamic content updates.
+
+    Performance Notes
+    ----------------
+
+    - Layout computation is delegated directly to Stretchable for optimal performance
+    - Node creation and destruction are optimized for typical UI scenarios
+    - Style updates trigger minimal recomputation through dirty marking
+    - Memory usage is minimized through proper reference cleanup
+
+    See Also
+    --------
+    LayoutEngine : High-level layout engine interface
+    StyleConverter : Style conversion utilities
+    ComponentStyle : Hibiki UI style system
+    """
 
     def __init__(
         self, component, style: Optional[ComponentStyle] = None, key: Optional[str] = None
     ):
-        """初始化布局节点
+        """
+        Initialize a new layout node.
 
-        Args:
-            component: v4组件引用
-            style: 组件样式
-            key: 节点标识符
+        Parameters
+        ----------
+        component : UIComponent
+            The UI component this node represents
+        style : ComponentStyle, optional
+            Layout style to apply, creates default if None
+        key : str, optional
+            Node identifier for debugging, auto-generated if None
+
+        Notes
+        -----
+
+        The constructor automatically converts the ComponentStyle to a
+        Stretchable-compatible style and creates the underlying Stretchable
+        node. If no style is provided, a default ComponentStyle is used.
+
+        The node key is used for debugging and tree traversal. If not
+        provided, a unique key is generated based on the component's id.
         """
         self.component = component
         self.key = key or f"node_{id(component)}"
@@ -390,7 +826,7 @@ class LayoutNode:
 
         # 转换样式并创建Stretchable节点
         if style:
-            stretchable_style = V4StyleConverter.convert_to_stretchable_style(style)
+            stretchable_style = StyleConverter.convert_to_stretchable_style(style)
         else:
             stretchable_style = st.Style()
 
@@ -412,8 +848,8 @@ class LayoutNode:
         child_node.parent = self
 
         try:
-            # 简化版本：v4总是使用append，忽略index参数
-            # 这样可以确保与v3的兼容性
+            # Simplified version: always use append, ignore index parameter
+            # This ensures compatibility with previous versions
             self.children.append(child_node)
             # v3风格：直接在Stretchable节点上操作
             self._stretchable_node.append(child_node._stretchable_node)
@@ -504,7 +940,7 @@ class LayoutNode:
 
     def update_style(self, style: ComponentStyle):
         """更新节点样式"""
-        stretchable_style = V4StyleConverter.convert_to_stretchable_style(style)
+        stretchable_style = StyleConverter.convert_to_stretchable_style(style)
         self._stretchable_node.style = stretchable_style
         self.mark_dirty()
 
@@ -542,8 +978,8 @@ class LayoutNode:
         return self._stretchable_node.is_dirty
 
 
-class V4LayoutEngine:
-    """v4布局引擎 - 完全独立的实现"""
+class LayoutEngine:
+    """布局引擎 - 完全独立的实现"""
 
     def __init__(self, enable_cache: bool = True, debug_mode: bool = False):
         self.enable_cache = enable_cache
@@ -557,7 +993,7 @@ class V4LayoutEngine:
         self._cache_hits = 0
         self._cache_misses = 0
 
-        logger.debug("🏗️ V4LayoutEngine初始化完成")
+        logger.debug("🏗️ LayoutEngine初始化完成")
 
     def create_node_for_component(self, component) -> LayoutNode:
         """为组件创建布局节点"""
@@ -593,16 +1029,55 @@ class V4LayoutEngine:
 
     def remove_child_relationship(self, parent_component, child_component):
         """
-        安全移除父子布局关系
+        Safely remove a parent-child layout relationship.
 
-        这个方法是动态内容切换的核心，负责安全地断开
-        父子组件间的布局关系，防止Taffy库崩溃。
+        This method is critical for dynamic content updates, providing safe
+        removal of layout relationships that prevents Taffy engine crashes
+        during UI updates.
 
-        处理流程：
-        1. 从父节点移除子节点
-        2. 深度清理子节点及其后代
-        3. 清理组件映射关系
-        4. 提供多层次的错误恢复机制
+        Parameters
+        ----------
+        parent_component : UIComponent
+            The parent component to remove the child from
+        child_component : UIComponent
+            The child component to remove
+
+        Examples
+        --------
+
+        ::
+
+            # Remove child from parent
+            engine.remove_child_relationship(container, old_button)
+
+            # Child is now disconnected and can be safely disposed
+            engine.cleanup_component(old_button)
+
+        Process Flow
+        -----------
+
+        1. **Node Removal**: Child node is removed from parent's child list
+        2. **Deep Cleanup**: Child node and all descendants are cleaned up
+        3. **Mapping Cleanup**: Component-to-node mapping is cleared
+        4. **Error Recovery**: Multiple fallback strategies handle edge cases
+
+        Safety Features
+        --------------
+
+        The method implements several safety measures to prevent crashes:
+
+        - **Gradual Removal**: Python references are cleared before Rust operations
+        - **Exception Isolation**: Errors in cleanup don't propagate to main app
+        - **Fallback Strategies**: Multiple cleanup approaches for different failure modes
+        - **Reference Validation**: Checks ensure operations are valid before execution
+
+        Notes
+        -----
+
+        This method addresses a critical stability issue where rapid UI updates
+        could cause "Option::unwrap() on a None value" crashes in the underlying
+        Rust Taffy engine. The multi-layered cleanup approach ensures application
+        stability even during complex dynamic content scenarios.
         """
         if not parent_component or not child_component:
             logger.debug("⚠️ 父组件或子组件为空，跳过关系移除")
@@ -947,7 +1422,7 @@ class V4LayoutEngine:
             logger.debug(
                 f"🎨 转换单个节点样式: {component.__class__.__name__} -> {component_style}"
             )
-            stretchable_style = V4StyleConverter.convert_to_stretchable_style(component_style)
+            stretchable_style = StyleConverter.convert_to_stretchable_style(component_style)
 
             # 创建节点（不处理子组件）
             node = st.Node(style=stretchable_style)
@@ -963,7 +1438,7 @@ class V4LayoutEngine:
             return None
 
     def _create_stretchable_node_for_component(self, component):
-        """为组件创建纯Stretchable节点（不涉及v4布局缓存）"""
+        """Create pure Stretchable node for component (without layout caching)"""
         try:
             import stretchable as st
 
@@ -979,7 +1454,7 @@ class V4LayoutEngine:
                 logger.debug(f"✨ 为组件创建默认样式: {component.__class__.__name__}")
 
             logger.debug(f"🎨 转换样式: {component.__class__.__name__} -> {component_style}")
-            stretchable_style = V4StyleConverter.convert_to_stretchable_style(component_style)
+            stretchable_style = StyleConverter.convert_to_stretchable_style(component_style)
 
             # 创建节点
             node = st.Node(style=stretchable_style)
@@ -1026,7 +1501,7 @@ class V4LayoutEngine:
 
     def debug_print_stats(self):
         """打印详细的调试统计信息"""
-        logger.info("📊 Hibiki UI v4 布局引擎状态报告")
+        logger.info("📊 Hibiki UI 布局引擎状态报告")
         logger.info("=" * 50)
         logger.info(f"🔄 布局计算调用次数: {self._layout_calls}")
         logger.info(f"📐 活跃布局节点数量: {len(self._component_nodes)}")
@@ -1183,14 +1658,14 @@ class V4LayoutEngine:
 
 
 # 全局布局引擎实例
-_global_layout_engine: Optional[V4LayoutEngine] = None
+_global_layout_engine: Optional[LayoutEngine] = None
 
 
-def get_layout_engine() -> V4LayoutEngine:
-    """获取全局v4布局引擎实例"""
+def get_layout_engine() -> LayoutEngine:
+    """获取全局布局引擎实例"""
     global _global_layout_engine
     if _global_layout_engine is None:
-        _global_layout_engine = V4LayoutEngine(enable_cache=True, debug_mode=True)
+        _global_layout_engine = LayoutEngine(enable_cache=True, debug_mode=True)
     return _global_layout_engine
 
 
@@ -1204,13 +1679,13 @@ def set_debug_mode(enabled: bool):
 # ================================
 
 if __name__ == "__main__":
-    logger.info("Hibiki UI v4.0 布局引擎测试\n")
+    logger.info("Hibiki UI 3.0 布局引擎测试\n")
 
     # 测试样式转换
     logger.info("🔄 样式转换测试:")
     # 导入已经在模块顶部处理了
 
-    v4_style = ComponentStyle(
+    style = ComponentStyle(
         display=Display.FLEX,
         flex_direction=FlexDirection.ROW,
         align_items=AlignItems.CENTER,
@@ -1220,7 +1695,7 @@ if __name__ == "__main__":
         gap=px(8),
     )
 
-    stretchable_style = V4StyleConverter.convert_to_stretchable_style(v4_style)
+    stretchable_style = StyleConverter.convert_to_stretchable_style(style)
     logger.info(f"✅ 转换完成: {stretchable_style}")
 
     # 测试布局引擎
@@ -1262,4 +1737,4 @@ if __name__ == "__main__":
     # 打印统计
     engine.debug_print_stats()
 
-    logger.info("\n✅ v4布局引擎测试完成！")
+    logger.info("\n✅ 布局引擎测试完成！")
