@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Hibiki UI v4.0 样式系统
+Hibiki UI 样式系统
 统一的样式定义，支持所有布局和视觉属性
 """
 
@@ -9,14 +9,10 @@ from typing import Optional, Union, Tuple, Any
 from enum import Enum
 
 # 导入管理器中定义的枚举
-import sys
-import os
-sys.path.append(os.path.dirname(__file__))
 from .managers import Position, ZLayer, OverflowBehavior
 
 from .logging import get_logger
 logger = get_logger('core.styles')
-
 
 # ================================
 # 1. 单位和长度系统
@@ -129,7 +125,7 @@ class Display(Enum):
 class ComponentStyle:
     """组件样式定义 - 涵盖所有布局和视觉属性
     
-    这是Hibiki UI v4.0的核心样式系统，支持：
+    这是Hibiki UI的核心样式系统，支持：
     - 完整的定位系统 (static, relative, absolute, fixed)
     - Z-Index层级管理
     - Flexbox和Grid布局
@@ -164,12 +160,12 @@ class ComponentStyle:
     flex_basis: Optional[Union[int, float, str, Length]] = None
     flex: Optional[Union[str, int, float]] = None  # CSS flex shorthand "1", "auto", etc.
     
-    # Grid属性（预留）
-    grid_template_columns: Optional[str] = None
-    grid_template_rows: Optional[str] = None
-    grid_column: Optional[str] = None
-    grid_row: Optional[str] = None
-    grid_area: Optional[str] = None
+    # Grid属性
+    grid_template_columns: Optional[str] = None  # 网格列模板 "1fr 2fr 1fr"
+    grid_template_rows: Optional[str] = None     # 网格行模板 "auto 200px auto"
+    grid_column: Optional[str] = None            # 网格列定位 "1 / 3"
+    grid_row: Optional[str] = None               # 网格行定位 "2 / span 2" 
+    grid_area: Optional[str] = None              # 网格区域 "1 / 2 / 3 / 4"
     
     # ================================
     # 尺寸
@@ -431,7 +427,7 @@ class StyleUtils:
 # ================================
 
 if __name__ == "__main__":
-    logger.info("Hibiki UI v4.0 样式系统测试\n")
+    logger.info("Hibiki UI 样式系统测试\n")
     
     # 测试基础样式创建
     logger.info("🎨 基础样式测试:")

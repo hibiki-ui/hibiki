@@ -1,150 +1,150 @@
 #!/usr/bin/env python3
 """
-Hibiki UI Layout Engine Integration
-==================================
+Hibiki UI 布局引擎集成
+==================
 
-This module provides a comprehensive integration layer between Hibiki UI and the Stretchable
-layout engine, enabling modern CSS-like layout capabilities for native macOS applications.
+本模块提供了 Hibiki UI 和 Stretchable 布局引擎之间的完整集成层，
+为原生 macOS 应用程序启用现代化的类似 CSS 的布局功能。
 
-Stretchable Layout Engine
-------------------------
-Stretchable is a Python layout library that provides CSS-based layout operations using:
-- **CSS Block**: Traditional block-level layout
-- **CSS Flexbox**: Flexible box layout for 1D layouts
-- **CSS Grid**: Grid-based layout for 2D layouts
+Stretchable 布局引擎
+------------------
+Stretchable 是一个提供基于 CSS 布局操作的 Python 库，使用：
+- **CSS Block**: 传统块级布局
+- **CSS Flexbox**: 用于一维布局的弹性盒子布局  
+- **CSS Grid**: 用于二维布局的网格布局
 
-It uses Python bindings for Taffy, a high-performance Rust-based layout engine that
-implements CSS layout algorithms with full specification compliance.
+它使用 Taffy 的 Python 绑定，Taffy 是一个高性能的基于 Rust 的布局引擎，
+实现了完全符合规范的 CSS 布局算法。
 
-Architecture Overview
---------------------
+架构概览
+-------
 
 ::
 
-    Hibiki UI Components (ComponentStyle)
+    Hibiki UI 组件 (ComponentStyle)
               ↓
-    StyleConverter (Style Translation)
+    StyleConverter (样式转换)
               ↓
-    LayoutNode (Python Wrapper)
+    LayoutNode (Python 包装器)
               ↓
-    Stretchable Node (Rust Engine)
+    Stretchable Node (Rust 引擎)
               ↓
-    Taffy Layout Engine (Layout Computation)
+    Taffy 布局引擎 (布局计算)
 
-Core Classes
------------
+核心类
+-----
 
-- **LayoutEngine**: Main layout engine managing component-to-node mappings and layout computation
-- **LayoutNode**: Python wrapper around Stretchable nodes with safe lifecycle management
-- **StyleConverter**: Converts Hibiki UI ComponentStyle to Stretchable Style objects
-- **LayoutResult**: Contains computed layout information (position, size, timing)
+- **LayoutEngine**: 主要布局引擎，管理组件到节点的映射和布局计算
+- **LayoutNode**: Stretchable 节点的 Python 包装器，具有安全的生命周期管理
+- **StyleConverter**: 将 Hibiki UI ComponentStyle 转换为 Stretchable Style 对象
+- **LayoutResult**: 包含计算后的布局信息（位置、大小、时间）
 
-Key Features
------------
+关键特性
+-------
 
-1. **Full CSS Layout Support**:
-   - Flexbox with all direction, wrap, and alignment options
-   - CSS Grid with template areas, auto-sizing, and placement
-   - Block layout with margin collapse and positioning
-   - Absolute and relative positioning
+1. **完整的 CSS 布局支持**:
+   - Flexbox，包含所有方向、换行和对齐选项
+   - CSS Grid，包含模板区域、自动调整大小和放置
+   - Block 布局，包含外边距折叠和定位
+   - 绝对定位和相对定位
 
-2. **Robust Error Handling**:
-   - Safe node removal preventing Taffy crashes during dynamic content changes
-   - Deep cleanup of layout hierarchies to prevent memory leaks
-   - Comprehensive health checking and orphaned node cleanup
+2. **强健的错误处理**:
+   - 安全的节点移除，防止动态内容更改时 Taffy 崩溃
+   - 深度清理布局层次结构以防止内存泄漏
+   - 全面的健康检查和孤立节点清理
 
-3. **Performance Optimizations**:
-   - Layout caching and batching support
-   - Minimal PyObjC-to-Rust bridge calls
-   - Efficient parent-child relationship management
+3. **性能优化**:
+   - 布局缓存和批处理支持
+   - 最小化 PyObjC 到 Rust 桥接调用
+   - 高效的父子关系管理
 
-4. **Developer Experience**:
-   - Comprehensive debugging and profiling tools
-   - Detailed error reporting with context
-   - Health monitoring for layout tree integrity
+4. **开发者体验**:
+   - 全面的调试和分析工具
+   - 带上下文的详细错误报告
+   - 布局树完整性的健康监控
 
-Usage Patterns
--------------
+使用模式
+-------
 
-**Basic Layout Computation**::
+**基本布局计算**::
 
     engine = get_layout_engine()
     engine.create_node_for_component(component)
     result = engine.compute_layout_for_component(component, (800, 600))
 
-**Parent-Child Relationships**::
+**父子关系**::
 
     engine.add_child_relationship(parent, child)
-    engine.remove_child_relationship(parent, child)  # Safe removal
+    engine.remove_child_relationship(parent, child)  # 安全移除
 
-**Dynamic Content Updates**::
+**动态内容更新**::
 
     engine.update_component_style(component)
-    engine.cleanup_orphaned_nodes()  # Maintenance
+    engine.cleanup_orphaned_nodes()  # 维护
 
-**Debugging and Monitoring**::
+**调试和监控**::
 
     health = engine.health_check()
     engine.debug_print_stats()
     tree_info = engine.get_node_tree_info(root_component)
 
-Style System Integration
------------------------
+样式系统集成
+----------
 
-The module automatically converts Hibiki UI style properties to their Stretchable equivalents:
+本模块自动将 Hibiki UI 样式属性转换为对应的 Stretchable 属性：
 
-- **Display modes**: FLEX, BLOCK, GRID, NONE
-- **Flexbox properties**: flex_direction, justify_content, align_items, flex_grow/shrink
-- **Grid properties**: grid_template_rows/columns, grid_row/column placement
-- **Spacing**: margin, padding, gap with CSS-like shorthand support
-- **Sizing**: width, height, min/max constraints with units (px, %, auto)
-- **Positioning**: relative, absolute with inset properties
+- **显示模式**: FLEX, BLOCK, GRID, NONE
+- **Flexbox 属性**: flex_direction, justify_content, align_items, flex_grow/shrink
+- **Grid 属性**: grid_template_rows/columns, grid_row/column 放置
+- **间距**: margin, padding, gap 支持类似 CSS 的简写
+- **尺寸**: width, height, min/max 约束，支持单位（px, %, auto）
+- **定位**: relative, absolute 带 inset 属性
 
-Safety and Reliability
----------------------
+安全性和可靠性
+-----------
 
-This implementation addresses critical stability issues in dynamic layout scenarios:
+此实现解决了动态布局场景中的关键稳定性问题：
 
-1. **Taffy Crash Prevention**: Special handling for node removal that prevents
-   'Option::unwrap() on a None value' crashes in the underlying Rust engine
+1. **Taffy 崩溃预防**: 特殊处理节点移除，防止底层 Rust 引擎出现
+   'Option::unwrap() on a None value' 崩溃
 
-2. **Memory Management**: Proper cleanup of Python-to-Rust object references
-   prevents memory leaks during component lifecycle changes
+2. **内存管理**: 正确清理 Python 到 Rust 对象引用，
+   防止组件生命周期更改期间的内存泄漏
 
-3. **Layout State Recovery**: Automatic layout tree rebuilding when corruption
-   is detected, ensuring application stability
+3. **布局状态恢复**: 检测到损坏时自动重建布局树，
+   确保应用程序稳定性
 
-4. **Exception Isolation**: Layout errors are contained and don't crash the
-   main application thread
+4. **异常隔离**: 布局错误被包含并且不会使
+   主应用程序线程崩溃
 
-Compatibility
-------------
+兼容性
+-----
 
 - **Python**: 3.9+
-- **Platforms**: macOS, Linux, Windows (via Stretchable)
-- **Dependencies**: stretchable >= 0.2.0, PyObjC (macOS)
-- **Hibiki UI**: v3.0+ with ComponentStyle system
+- **平台**: macOS, Linux, Windows（通过 Stretchable）
+- **依赖项**: stretchable >= 0.2.0, PyObjC（macOS）
+- **Hibiki UI**: v3.0+ 带 ComponentStyle 系统
 
-Performance Considerations
--------------------------
+性能考虑
+-------
 
-- Layout computation is optimized for typical UI scenarios (< 1000 nodes)
-- Caching reduces redundant calculations during incremental updates
-- Batch operations minimize Python-Rust boundary crossings
-- Health checks should be run periodically, not on every layout
+- 布局计算针对典型 UI 场景进行了优化（< 1000 个节点）
+- 缓存减少了增量更新期间的冗余计算
+- 批处理操作最小化 Python-Rust 边界交叉
+- 健康检查应该定期运行，而不是在每次布局时运行
 
-Examples
---------
+示例
+----
 
-See ``examples/layout/`` for complete usage examples including:
-- Complex flexbox layouts with dynamic content
-- CSS Grid implementations with responsive behavior
-- Performance optimization techniques
-- Error handling and recovery strategies
+参见 ``examples/layout/`` 获取完整的使用示例，包括：
+- 带动态内容的复杂 flexbox 布局
+- 带响应式行为的 CSS Grid 实现
+- 性能优化技术
+- 错误处理和恢复策略
 
-Note: This module is part of the Hibiki UI v3.0 layout system redesign that
-replaced the previous NSStackView-based approach with a professional-grade
-CSS layout engine for improved flexibility and standards compliance.
+注意：此模块是 Hibiki UI v3.0 布局系统重新设计的一部分，
+该系统用专业级 CSS 布局引擎替换了之前基于 NSStackView 的方法，
+以提高灵活性和标准合规性。
 """
 
 from typing import Optional, Tuple, Dict, Any, List
@@ -199,30 +199,28 @@ class LayoutResult:
 
 class StyleConverter:
     """
-    Hibiki UI to Stretchable Style Converter
-    =======================================
+    Hibiki UI 到 Stretchable 样式转换器
+    ================================
 
-    This class provides utilities to convert Hibiki UI ComponentStyle objects
-    to Stretchable Style objects, enabling seamless integration between the
-    Hibiki UI styling system and the underlying CSS layout engine.
+    此类提供将 Hibiki UI ComponentStyle 对象转换为 Stretchable Style 对象的实用工具，
+    实现 Hibiki UI 样式系统与底层 CSS 布局引擎之间的无缝集成。
 
-    The converter handles all major CSS layout properties including flexbox,
-    grid, positioning, spacing, and sizing with full support for CSS units
-    and values.
+    转换器处理所有主要的 CSS 布局属性，包括 flexbox、grid、定位、间距和尺寸，
+    完全支持 CSS 单位和值。
 
-    Key Features
-    -----------
+    关键特性
+    -------
 
-    - **Complete CSS Support**: Flexbox, Grid, Block layout modes
-    - **Unit Conversion**: Pixels, percentages, auto, and fractional units
-    - **Advanced Properties**: Grid templates, placement, and auto-sizing
-    - **Shorthand Support**: Margin, padding, and inset shorthand properties
-    - **Error Handling**: Graceful fallbacks for unsupported values
+    - **完整的 CSS 支持**: Flexbox、Grid、Block 布局模式
+    - **单位转换**: 像素、百分比、auto 和分数单位
+    - **高级属性**: Grid 模板、放置和自动调整大小
+    - **简写支持**: Margin、padding 和 inset 简写属性
+    - **错误处理**: 对不支持的值进行优雅回退
 
-    Examples
-    --------
+    示例
+    ----
 
-    **Basic Style Conversion**::
+    **基本样式转换**::
 
         from hibiki.ui.core.styles import ComponentStyle, Display, FlexDirection
 
@@ -239,7 +237,7 @@ class StyleConverter:
 
         stretchable_style = StyleConverter.convert_to_stretchable_style(style)
 
-    **Grid Layout Conversion**::
+    **Grid 布局转换**::
 
         grid_style = ComponentStyle(
             display=Display.GRID,
@@ -250,7 +248,7 @@ class StyleConverter:
 
         converted = StyleConverter.convert_to_stretchable_style(grid_style)
 
-    **Complex Sizing and Positioning**::
+    **复杂尺寸和定位**::
 
         complex_style = ComponentStyle(
             position=Position.ABSOLUTE,
@@ -263,10 +261,10 @@ class StyleConverter:
 
         converted = StyleConverter.convert_to_stretchable_style(complex_style)
 
-    Supported Properties
-    ------------------
+    支持的属性
+    --------
 
-    **Layout Modes**:
+    **布局模式**:
     - display: FLEX, BLOCK, GRID, NONE
     - position: RELATIVE, ABSOLUTE
 
@@ -274,76 +272,74 @@ class StyleConverter:
     - flex_direction: ROW, COLUMN, ROW_REVERSE, COLUMN_REVERSE
     - justify_content: FLEX_START, CENTER, FLEX_END, SPACE_BETWEEN, etc.
     - align_items: FLEX_START, CENTER, FLEX_END, STRETCH
-    - flex_grow, flex_shrink: numeric values
+    - flex_grow, flex_shrink: 数值
 
-    **Grid Layout**:
-    - grid_template_columns/rows: CSS grid syntax
-    - grid_column/row: placement syntax
-    - grid_area: area specification
+    **Grid 布局**:
+    - grid_template_columns/rows: CSS grid 语法
+    - grid_column/row: 放置语法
+    - grid_area: 区域规范
 
-    **Sizing**:
-    - width, height: pixels, percentages, auto
+    **尺寸**:
+    - width, height: 像素、百分比、auto
     - min_width, min_height, max_width, max_height
-    - aspect_ratio: numeric ratios
+    - aspect_ratio: 数值比率
 
-    **Spacing**:
-    - margin, padding: individual sides or shorthand
-    - gap, row_gap, column_gap: flexbox/grid spacing
-    - inset properties: top, right, bottom, left
+    **间距**:
+    - margin, padding: 单边或简写
+    - gap, row_gap, column_gap: flexbox/grid 间距
+    - inset 属性: top, right, bottom, left
 
-    Unit Support
-    -----------
+    单位支持
+    -------
 
-    - **Pixels**: px(100) → Length.from_any(100.0)
-    - **Percentages**: Length(50, PERCENT) → 50 * PCT
-    - **Auto**: "auto" or LengthUnit.AUTO → Length.default()
-    - **Fractional**: "1fr" → GridTrackSizing.from_any("1fr")
+    - **像素**: px(100) → Length.from_any(100.0)
+    - **百分比**: Length(50, PERCENT) → 50 * PCT
+    - **Auto**: "auto" 或 LengthUnit.AUTO → Length.default()
+    - **分数**: "1fr" → GridTrackSizing.from_any("1fr")
 
-    Error Handling
-    -------------
+    错误处理
+    -------
 
-    The converter implements robust error handling:
+    转换器实现了强健的错误处理：
 
-    - Invalid values are logged and skipped
-    - Unsupported properties fall back to defaults
-    - Conversion errors don't crash the layout system
-    - Detailed warnings help with debugging
+    - 无效值被记录并跳过
+    - 不支持的属性回退到默认值
+    - 转换错误不会使布局系统崩溃
+    - 详细警告有助于调试
 
-    Notes
-    -----
+    注意
+    ----
 
-    This converter is the bridge between Hibiki UI's Python-native styling
-    system and Stretchable's CSS-compliant layout engine. It ensures that
-    all Hibiki UI style properties are properly translated while maintaining
-    performance and reliability.
+    此转换器是 Hibiki UI 的 Python 原生样式系统和 Stretchable 的符合 CSS 标准的
+    布局引擎之间的桥梁。它确保所有 Hibiki UI 样式属性都得到正确转换，
+    同时保持性能和可靠性。
 
-    See Also
-    --------
-    ComponentStyle : Hibiki UI style system
-    LayoutNode : Layout node implementation
-    LayoutEngine : High-level layout interface
+    另请参阅
+    -------
+    ComponentStyle : Hibiki UI 样式系统
+    LayoutNode : 布局节点实现
+    LayoutEngine : 高级布局接口
     """
 
     @staticmethod
     def convert_to_stretchable_style(style: ComponentStyle) -> st.Style:
         """
-        Convert a Hibiki UI ComponentStyle to a Stretchable Style.
+        将 Hibiki UI ComponentStyle 转换为 Stretchable Style。
 
-        This is the main conversion method that handles all supported
-        CSS properties and their proper translation to Stretchable format.
+        这是处理所有支持的 CSS 属性及其正确转换为 Stretchable 格式的主要转换方法。
 
-        Parameters
-        ----------
+        参数
+        ----
         style : ComponentStyle
-            The Hibiki UI style object to convert
+            要转换的 Hibiki UI 样式对象
 
-        Returns
-        -------
+        返回值
+        ------
         stretchable.Style
-            The converted Stretchable style object
+            转换后的 Stretchable 样式对象
 
-        Examples
-        --------
+        示例
+        ----
 
         ::
 
@@ -355,12 +351,11 @@ class StyleConverter:
 
             stretchable_style = StyleConverter.convert_to_stretchable_style(style)
 
-        Notes
-        -----
+        注意
+        ----
 
-        The conversion process handles all major CSS layout properties
-        with proper unit conversion and error handling. Unsupported or
-        invalid properties are logged and skipped.
+        转换过程处理所有主要的 CSS 布局属性，具有正确的单位转换和错误处理。
+        不支持或无效的属性被记录并跳过。
         """
         kwargs = {}
 
@@ -504,7 +499,7 @@ class StyleConverter:
 
     @staticmethod
     def _convert_length(length_value) -> Optional[Length]:
-        """Convert Hibiki UI length values to Stretchable Length"""
+        """将 Hibiki UI 长度值转换为 Stretchable Length"""
         if length_value is None:
             return None
 
@@ -531,7 +526,7 @@ class StyleConverter:
 
     @staticmethod
     def _convert_size(width, height) -> Optional[Size]:
-        """Convert width and height values to Stretchable Size"""
+        """将宽度和高度值转换为 Stretchable Size"""
         w = StyleConverter._convert_length(width)
         h = StyleConverter._convert_length(height)
 
@@ -541,7 +536,7 @@ class StyleConverter:
 
     @staticmethod
     def _convert_rect(top, right, bottom, left) -> Optional[Rect]:
-        """Convert rect values (margin, padding, inset) to Stretchable Rect"""
+        """将矩形值（margin、padding、inset）转换为 Stretchable Rect"""
         t = StyleConverter._convert_length(top)
         r = StyleConverter._convert_length(right)
         b = StyleConverter._convert_length(bottom)
@@ -558,7 +553,7 @@ class StyleConverter:
 
     @staticmethod
     def _convert_gap(gap, row_gap, column_gap) -> Optional[Size]:
-        """Convert gap values to Stretchable Size for flexbox/grid spacing"""
+        """将间距值转换为用于 flexbox/grid 间距的 Stretchable Size"""
         if gap is not None:
             gap_length = StyleConverter._convert_length(gap)
             if gap_length:
@@ -572,13 +567,13 @@ class StyleConverter:
     @staticmethod
     def _convert_grid_template(template_value: str):
         """
-        Convert CSS Grid template values to Stretchable GridTrackSizing list.
+        将 CSS Grid 模板值转换为 Stretchable GridTrackSizing 列表。
 
-        Supported CSS Grid syntax:
-        - "1fr 2fr 1fr" -> Fractional units
-        - "100px auto 200px" -> Fixed sizes and auto
-        - "repeat(3, 1fr)" -> Repeat patterns
-        - "minmax(100px, 1fr)" -> Min-max values
+        支持的 CSS Grid 语法：
+        - "1fr 2fr 1fr" -> 分数单位
+        - "100px auto 200px" -> 固定尺寸和 auto
+        - "repeat(3, 1fr)" -> 重复模式
+        - "minmax(100px, 1fr)" -> 最小-最大值
         """
         if not template_value or not isinstance(template_value, str):
             return None
@@ -607,13 +602,13 @@ class StyleConverter:
     @staticmethod
     def _convert_grid_placement(placement_value: str):
         """
-        Convert CSS Grid placement values to Stretchable GridPlacement.
+        将 CSS Grid 放置值转换为 Stretchable GridPlacement。
 
-        Supported CSS Grid placement syntax:
-        - "1" -> 1st row/column
-        - "1 / 3" -> From 1st row/column to 3rd row/column
-        - "span 2" -> Span 2 rows/columns
-        - "auto" -> Auto placement (returns None)
+        支持的 CSS Grid 放置语法：
+        - "1" -> 第1行/列
+        - "1 / 3" -> 从第1行/列到第3行/列
+        - "span 2" -> 跨越2行/列
+        - "auto" -> 自动放置（返回 None）
         """
         if not placement_value or not isinstance(placement_value, str):
             return None
@@ -637,10 +632,10 @@ class StyleConverter:
     @staticmethod
     def _convert_grid_area(area_value: str):
         """
-        Convert CSS Grid area values to row and column GridPlacement.
+        将 CSS Grid 区域值转换为行和列的 GridPlacement。
 
-        CSS grid-area syntax: "row-start / column-start / row-end / column-end"
-        Example: "1 / 2 / 3 / 4" -> row 1-3, column 2-4
+        CSS grid-area 语法："row-start / column-start / row-end / column-end"
+        示例："1 / 2 / 3 / 4" -> 行 1-3，列 2-4
         """
         if not area_value or not isinstance(area_value, str):
             return None, None
@@ -684,30 +679,30 @@ class LayoutNode:
     implementing safe node removal, proper reference management, and automatic
     error recovery mechanisms.
 
-    Parameters
-    ----------
+    参数
+    ----
     component : UIComponent
-        The UI component this layout node represents
-    style : ComponentStyle, optional
-        The layout style to apply, or None for default style
-    key : str, optional
-        Node identifier for debugging, auto-generated if not provided
+        此布局节点表示的 UI 组件
+    style : ComponentStyle, 可选
+        要应用的布局样式，或为默认样式传入 None
+    key : str, 可选
+        用于调试的节点标识符，如果未提供则自动生成
 
-    Attributes
-    ----------
+    属性
+    ----
     component : UIComponent
-        Reference to the associated UI component
+        关联 UI 组件的引用
     key : str
-        Unique identifier for this layout node
+        此布局节点的唯一标识符
     children : List[LayoutNode]
-        List of child layout nodes
-    parent : LayoutNode or None
-        Parent layout node, or None if this is a root node
+        子布局节点列表
+    parent : LayoutNode 或 None
+        父布局节点，如果是根节点则为 None
 
-    Examples
-    --------
+    示例
+    ----
 
-    **Basic Node Creation**::
+    **基本节点创建**::
 
         from hibiki.ui.core.styles import ComponentStyle, Display, FlexDirection
 
@@ -720,104 +715,101 @@ class LayoutNode:
 
         node = LayoutNode(my_component, style, key="main_container")
 
-    **Parent-Child Relationships**::
+    **父子关系**::
 
         parent_node = LayoutNode(parent_component)
         child_node = LayoutNode(child_component)
 
-        # Add child (automatically handles Stretchable integration)
+        # 添加子节点（自动处理 Stretchable 集成）
         success = parent_node.add_child(child_node)
 
-        # Safe removal (prevents Taffy crashes)
+        # 安全移除（防止 Taffy 崩溃）
         parent_node.remove_child(child_node)
 
-    **Layout Computation**::
+    **布局计算**::
 
-        # Compute layout for node tree
+        # 为节点树计算布局
         success = root_node.compute_layout((800, 600))
         if success:
             x, y, width, height = root_node.get_layout()
             print(f"Layout: {width}x{height} at ({x}, {y})")
 
-    **Dynamic Style Updates**::
+    **动态样式更新**::
 
         new_style = ComponentStyle(width=px(400), height=px(250))
         node.update_style(new_style)
 
-        # Mark for recomputation
+        # 标记为需要重新计算
         node.mark_dirty()
 
-    Key Features
-    -----------
+    关键特性
+    -------
 
-    1. **Safe Node Management**:
-       - Prevents Rust Taffy engine crashes during node removal
-       - Proper cleanup of parent-child references
-       - Exception isolation to protect main application
+    1. **安全的节点管理**:
+       - 防止节点移除期间 Rust Taffy 引擎崩溃
+       - 正确清理父子引用
+       - 异常隔离以保护主应用程序
 
-    2. **Stretchable Integration**:
-       - Automatic style conversion from Hibiki UI to Stretchable
-       - Direct access to underlying Stretchable node capabilities
-       - CSS layout algorithm support (Flex, Grid, Block)
+    2. **Stretchable 集成**:
+       - 从 Hibiki UI 到 Stretchable 的自动样式转换
+       - 直接访问底层 Stretchable 节点功能
+       - CSS 布局算法支持（Flex、Grid、Block）
 
-    3. **Developer Experience**:
-       - Clear error messages and validation
-       - Comprehensive debugging support
-       - Performance monitoring and timing
+    3. **开发者体验**:
+       - 清晰的错误信息和验证
+       - 全面的调试支持
+       - 性能监控和计时
 
-    Safety Considerations
-    --------------------
+    安全考虑
+    -------
 
-    This wrapper implements several critical safety measures:
+    此包装器实现了几个关键的安全措施：
 
-    - **Gradual Cleanup**: Python references are cleared before Rust operations
-    - **Multi-layer Validation**: Operations are validated at multiple levels
-    - **Exception Recovery**: Errors in one operation don't cascade
-    - **Reference Integrity**: Parent-child relationships are kept consistent
+    - **渐进式清理**: Python 引用在 Rust 操作之前被清除
+    - **多层验证**: 操作在多个级别进行验证
+    - **异常恢复**: 一个操作中的错误不会级联
+    - **引用完整性**: 父子关系保持一致
 
-    The most critical safety feature is the safe node removal system that
-    prevents "Option::unwrap() on a None value" crashes in the underlying
+    最关键的安全功能是安全节点移除系统，它可以防止底层出现
     Rust Taffy engine during dynamic content updates.
 
-    Performance Notes
-    ----------------
+    性能注意事项
+    -----------
 
-    - Layout computation is delegated directly to Stretchable for optimal performance
-    - Node creation and destruction are optimized for typical UI scenarios
-    - Style updates trigger minimal recomputation through dirty marking
-    - Memory usage is minimized through proper reference cleanup
+    - 布局计算直接委托给 Stretchable 以获得最佳性能
+    - 节点创建和销毁针对典型 UI 场景进行了优化
+    - 样式更新通过脏标记触发最小的重新计算
+    - 通过适当的引用清理最小化内存使用
 
-    See Also
-    --------
-    LayoutEngine : High-level layout engine interface
-    StyleConverter : Style conversion utilities
-    ComponentStyle : Hibiki UI style system
+    另请参阅
+    -------
+    LayoutEngine : 高级布局引擎接口
+    StyleConverter : 样式转换实用工具
+    ComponentStyle : Hibiki UI 样式系统
     """
 
     def __init__(
         self, component, style: Optional[ComponentStyle] = None, key: Optional[str] = None
     ):
         """
-        Initialize a new layout node.
+        初始化一个新的布局节点。
 
-        Parameters
-        ----------
+        参数
+        ----
         component : UIComponent
-            The UI component this node represents
-        style : ComponentStyle, optional
-            Layout style to apply, creates default if None
-        key : str, optional
-            Node identifier for debugging, auto-generated if None
+            此节点表示的 UI 组件
+        style : ComponentStyle, 可选
+            要应用的布局样式，如果为 None 则创建默认样式
+        key : str, 可选
+            用于调试的节点标识符，如果为 None 则自动生成
 
-        Notes
-        -----
+        注意
+        ----
 
-        The constructor automatically converts the ComponentStyle to a
-        Stretchable-compatible style and creates the underlying Stretchable
-        node. If no style is provided, a default ComponentStyle is used.
+        构造函数自动将 ComponentStyle 转换为 Stretchable 兼容的样式
+        并创建底层的 Stretchable 节点。如果未提供样式，则使用默认的 ComponentStyle。
 
-        The node key is used for debugging and tree traversal. If not
-        provided, a unique key is generated based on the component's id.
+        节点键用于调试和树遍历。如果未提供，则基于组件的 id 生成唯一键。
         """
         self.component = component
         self.key = key or f"node_{id(component)}"
@@ -1525,7 +1517,7 @@ class LayoutEngine:
         """
         执行布局引擎健康检查
 
-        Returns:
+        返回值:
             dict: 包含健康状态信息的字典
         """
         health_status = {
@@ -1576,7 +1568,7 @@ class LayoutEngine:
         """
         清理孤立的布局节点
 
-        Returns:
+        返回值:
             int: 清理的节点数量
         """
         cleaned_count = 0
@@ -1619,7 +1611,7 @@ class LayoutEngine:
         """
         获取组件的布局树信息（用于调试）
 
-        Returns:
+        返回值:
             dict: 包含树结构信息的字典
         """
         node = self.get_node_for_component(component)
@@ -1679,7 +1671,7 @@ def set_debug_mode(enabled: bool):
 # ================================
 
 if __name__ == "__main__":
-    logger.info("Hibiki UI 3.0 布局引擎测试\n")
+    logger.info("Hibiki UI 布局引擎测试\n")
 
     # 测试样式转换
     logger.info("🔄 样式转换测试:")

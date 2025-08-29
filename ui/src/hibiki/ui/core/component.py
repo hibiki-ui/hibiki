@@ -648,6 +648,84 @@ class UIComponent(Component):
         if not self.style.visible:
             self._nsview.setHidden_(True)
             
+        # 设置背景色
+        if self.style.background_color:
+            from AppKit import NSColor
+            from .binding import ReactiveBinding
+            
+            # 解析颜色值
+            color = self._parse_color(self.style.background_color)
+            if color:
+                # 启用图层并设置背景色
+                self._nsview.setWantsLayer_(True)
+                self._nsview.layer().setBackgroundColor_(color.CGColor())
+        
+        # 设置边框
+        if self.style.border_color or self.style.border_width:
+            self._apply_border_style()
+    
+    def _parse_color(self, color_str: str):
+        """解析颜色字符串为NSColor"""
+        from AppKit import NSColor
+        
+        if not color_str:
+            return None
+            
+        # 处理十六进制颜色 #RRGGBB
+        if color_str.startswith('#') and len(color_str) == 7:
+            try:
+                r = int(color_str[1:3], 16) / 255.0
+                g = int(color_str[3:5], 16) / 255.0
+                b = int(color_str[5:7], 16) / 255.0
+                return NSColor.colorWithRed_green_blue_alpha_(r, g, b, 1.0)
+            except ValueError:
+                logger.warning(f"无法解析颜色: {color_str}")
+                return None
+        
+        # 处理简单颜色名称
+        color_map = {
+            'red': NSColor.redColor(),
+            'green': NSColor.greenColor(),
+            'blue': NSColor.blueColor(),
+            'white': NSColor.whiteColor(),
+            'black': NSColor.blackColor(),
+            'gray': NSColor.grayColor(),
+            'yellow': NSColor.yellowColor(),
+        }
+        return color_map.get(color_str.lower())
+    
+    def _apply_border_style(self):
+        """应用边框样式"""
+        if not self._nsview:
+            return
+            
+        self._nsview.setWantsLayer_(True)
+        layer = self._nsview.layer()
+        
+        # 边框宽度
+        if self.style.border_width:
+            from .styles import Length
+            if isinstance(self.style.border_width, Length):
+                width = self.style.border_width.value
+            else:
+                width = self.style.border_width
+            layer.setBorderWidth_(float(width))
+        
+        # 边框颜色
+        if self.style.border_color:
+            color = self._parse_color(self.style.border_color)
+            if color:
+                layer.setBorderColor_(color.CGColor())
+                
+        # 圆角
+        if self.style.border_radius:
+            from .styles import Length
+            if isinstance(self.style.border_radius, Length):
+                radius = self.style.border_radius.value
+            else:
+                radius = self.style.border_radius
+            layer.setCornerRadius_(float(radius))
+            
     
     # ================================
     # 便捷方法
