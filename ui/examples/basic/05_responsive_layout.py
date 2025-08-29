@@ -39,45 +39,59 @@ def create_responsive_card(title: str, content: str, color_scheme: tuple):
     """
     bg_color, border_color, text_color = color_scheme
     
-    # 🎯 响应式样式定义
+    # 🎯 响应式样式定义 - 优化尺寸避免重叠
     card_responsive_style = (
         responsive_style(
             # 基础样式（所有尺寸通用）
             ComponentStyle(
                 display=Display.FLEX,
                 flex_direction=FlexDirection.COLUMN,
-                padding=px(15),
+                justify_content=JustifyContent.CENTER,
+                align_items=AlignItems.CENTER,
+                padding=px(20),
                 background_color=bg_color,
                 border_color=border_color,
                 border_width=px(2),
                 border_radius=px(8),
-                margin=px(10)
+                margin=px(5),
+                min_height=px(120)  # 确保最小高度
             )
         )
         # 📱 小屏幕 (xs: 0-575px) - 移动设备
         .at_breakpoint(BreakpointName.XS, ComponentStyle(
-            width=percent(100),
+            width=percent(90),  # 稍微留边距
             margin_bottom=px(15),
-            padding=px(12)
+            padding=px(15),
+            min_height=px(100)
         ))
-        # 📺 中屏幕 (md: 768-991px) - 平板横屏
+        # 📱 小屏幕 (sm: 576-767px)
+        .at_breakpoint(BreakpointName.SM, ComponentStyle(
+            width=percent(85),
+            margin_bottom=px(15),
+            padding=px(18),
+            min_height=px(110)
+        ))
+        # 📺 中屏幕 (md: 768-991px) - 平板横屏，开始2列布局
         .at_breakpoint(BreakpointName.MD, ComponentStyle(
-            width=percent(45),
-            margin=px(15),
-            padding=px(18)
+            width=px(220),  # 固定宽度避免计算问题
+            margin=px(10),
+            padding=px(20),
+            min_height=px(140)
         ))
         # 🖥️ 大屏幕 (lg: 992-1199px) - 桌面
         .at_breakpoint(BreakpointName.LG, ComponentStyle(
-            width=percent(30),
-            margin=px(20),
-            padding=px(25)
+            width=px(250),
+            margin=px(15),
+            padding=px(25),
+            min_height=px(160)
         ))
         # 🖥️ 超大屏幕 (xl: 1200px+) - 大桌面
         .at_breakpoint(BreakpointName.XL, ComponentStyle(
-            width=percent(22),
-            margin=px(25),
+            width=px(280),
+            margin=px(20),
             padding=px(30),
-            border_width=px(3)
+            border_width=px(3),
+            min_height=px(180)
         ))
     )
     
@@ -476,22 +490,43 @@ def main():
         ),
     ]
     
-    # 卡片容器的响应式样式
+    # 卡片容器的响应式样式 - 优化布局避免重叠
     cards_container_style = (
         responsive_style(
             ComponentStyle(
                 display=Display.FLEX,
-                flex_direction=FlexDirection.ROW,
+                flex_direction=FlexDirection.COLUMN,  # 默认垂直排列
                 justify_content=JustifyContent.CENTER,
-                gap=px(10),
-                padding=px(20)
+                align_items=AlignItems.CENTER,
+                gap=px(20),
+                padding=px(20),
+                width=percent(100)
             )
         )
         .at_breakpoint(BreakpointName.XS, ComponentStyle(
-            flex_direction=FlexDirection.COLUMN  # 小屏幕垂直排列
+            flex_direction=FlexDirection.COLUMN,
+            gap=px(15),
+            padding=px(15)
+        ))
+        .at_breakpoint(BreakpointName.SM, ComponentStyle(
+            flex_direction=FlexDirection.COLUMN,
+            gap=px(20)
         ))
         .at_breakpoint(BreakpointName.MD, ComponentStyle(
-            flex_direction=FlexDirection.ROW
+            flex_direction=FlexDirection.ROW,  # 中屏幕开始横向排列
+            justify_content=JustifyContent.SPACE_AROUND,
+            align_items=AlignItems.FLEX_START,
+            gap=px(15)
+        ))
+        .at_breakpoint(BreakpointName.LG, ComponentStyle(
+            flex_direction=FlexDirection.ROW,
+            justify_content=JustifyContent.SPACE_BETWEEN,
+            gap=px(20)
+        ))
+        .at_breakpoint(BreakpointName.XL, ComponentStyle(
+            flex_direction=FlexDirection.ROW,
+            justify_content=JustifyContent.SPACE_BETWEEN,
+            gap=px(30)
         ))
     )
     
@@ -506,7 +541,45 @@ def main():
     grid_demo = create_responsive_grid_demo()
     info_panel = create_breakpoint_info_panel()
     
-    # 主容器
+    # 主容器 - 响应式样式，充分利用窗口空间
+    main_container_style = (
+        responsive_style(
+            ComponentStyle(
+                display=Display.FLEX,
+                flex_direction=FlexDirection.COLUMN,
+                padding=px(20),
+                background_color="#ffffff",
+                width=px(960),  # 🔥 固定基础宽度，避免百分比计算问题
+                min_height=px(700)  # 🔥 固定基础高度
+            )
+        )
+        .at_breakpoint(BreakpointName.XS, ComponentStyle(
+            padding=px(15),
+            width=px(350),  # 小屏幕适配
+            min_height=px(600)
+        ))
+        .at_breakpoint(BreakpointName.SM, ComponentStyle(
+            padding=px(20),
+            width=px(500),
+            min_height=px(650)
+        ))
+        .at_breakpoint(BreakpointName.MD, ComponentStyle(
+            padding=px(30),
+            width=px(700),
+            min_height=px(700)
+        ))
+        .at_breakpoint(BreakpointName.LG, ComponentStyle(
+            padding=px(40),
+            width=px(1000),  # 大屏幕更宽
+            min_height=px(750)
+        ))
+        .at_breakpoint(BreakpointName.XL, ComponentStyle(
+            padding=px(50),
+            width=px(1200),  # 超大屏幕最宽
+            min_height=px(800)
+        ))
+    )
+    
     main_container = Container(
         children=[
             header,
@@ -518,8 +591,8 @@ def main():
                 color="#333",
                 text_align="center",
                 style=ComponentStyle(
-                    margin_bottom=px(10),
-                    margin_top=px(20)
+                    margin_bottom=px(20),
+                    margin_top=px(30)
                 )
             ),
             cards_container,
@@ -530,8 +603,8 @@ def main():
                 color="#333",
                 text_align="center",
                 style=ComponentStyle(
-                    margin_bottom=px(10),
-                    margin_top=px(30)
+                    margin_bottom=px(20),
+                    margin_top=px(40)
                 )
             ),
             media_query_demo,
@@ -542,19 +615,19 @@ def main():
                 color="#333",
                 text_align="center",
                 style=ComponentStyle(
-                    margin_bottom=px(10),
-                    margin_top=px(30)
+                    margin_bottom=px(20),
+                    margin_top=px(40)
                 )
             ),
             grid_demo,
         ],
-        style=ComponentStyle(
-            display=Display.FLEX,
-            flex_direction=FlexDirection.COLUMN,
-            padding=px(20),
-            background_color="#ffffff"
-        )
+        style=ComponentStyle(),
+        responsive_style=main_container_style
     )
+    
+    # 🔥 确保主容器注册到响应式管理器
+    responsive_mgr = get_responsive_manager()
+    responsive_mgr.register_component(main_container)
     
     # 设置窗口内容
     window.set_content(main_container)
