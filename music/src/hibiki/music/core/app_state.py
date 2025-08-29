@@ -148,7 +148,16 @@ class MusicAppState:
         Effect(lambda: self.logger.debug(f"🎵 播放状态: {self.is_playing.value}"))
         
         # 当前歌曲变化日志
-        Effect(lambda: self.logger.debug(f"🎧 当前歌曲: {self.current_song.value.title if self.current_song.value else 'None'}"))
+        def log_current_song():
+            if self.current_song.value:
+                if isinstance(self.current_song.value, dict):
+                    title = self.current_song.value.get('title', 'Unknown')
+                else:
+                    title = getattr(self.current_song.value, 'title', 'Unknown')
+                self.logger.debug(f"🎧 当前歌曲: {title}")
+            else:
+                self.logger.debug("🎧 当前歌曲: None")
+        Effect(log_current_song)
         
         # 筛选结果变化日志
         Effect(lambda: self.logger.debug(f"🔍 筛选结果: {len(self.filtered_songs.value)} 首歌曲"))

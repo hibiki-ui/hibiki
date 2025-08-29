@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pauseGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1db954;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1ed760;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 圆形按钮背景 -->
+  <circle cx="24" cy="24" r="22" fill="url(#pauseGradient)" stroke="#ffffff" stroke-width="2"/>
+  
+  <!-- 暂停双竖线 -->
+  <rect x="17" y="15" width="4" height="18" fill="#ffffff" rx="1"/>
+  <rect x="27" y="15" width="4" height="18" fill="#ffffff" rx="1"/>
+</svg>

@@ -5,6 +5,7 @@
 基于 Hibiki UI 框架的音乐播放器专用组件
 """
 
+import os
 from typing import Optional, Callable, List
 from hibiki.ui import (
     UIComponent,
@@ -166,15 +167,25 @@ class AlbumArtView(UIComponent):
             height = bounds.size.height
 
             if self.loaded_image.value:
-                # 绘制实际图片 (需要实现图片加载逻辑)
-                DrawingUtils.fill_rect(context, 0, 0, width, height, (0.8, 0.8, 0.8, 1.0))
+                # 绘制实际图片
+                try:
+                    from Foundation import NSMakeRect
+                    image = self.loaded_image.value
+                    image_rect = NSMakeRect(0, 0, width, height)
+                    image.drawInRect_fromRect_operation_fraction_(
+                        image_rect, NSMakeRect(0, 0, 0, 0), 0, 1.0
+                    )
+                except Exception as e:
+                    logger.debug(f"图片绘制错误: {e}")
+                    # 绘制备用背景
+                    DrawingUtils.fill_rect(context, 0, 0, width, height, (0.8, 0.8, 0.8, 1.0))
             else:
-                # 占位图
-                DrawingUtils.fill_rect(context, 0, 0, width, height, (0.95, 0.95, 0.95, 1.0))
+                # 占位图 - 深色主题兼容
+                DrawingUtils.fill_rect(context, 0, 0, width, height, (0.2, 0.2, 0.2, 1.0))
 
                 # 绘制音符图标 (简化版)
                 center_x, center_y = width / 2, height / 2
-                DrawingUtils.fill_circle(context, center_x, center_y, 20, (0.7, 0.7, 0.7, 1.0))
+                DrawingUtils.fill_circle(context, center_x, center_y, 30, (0.12, 0.73, 0.33, 1.0))  # Spotify绿色
 
         def on_click_handler(x, y, event):
             """点击处理"""
@@ -188,11 +199,21 @@ class AlbumArtView(UIComponent):
         # 监听图片路径变化
         def load_image():
             path = self.image_path.value
-            if path:
-                self.is_loading.value = True
-                # TODO: 实现异步图片加载
-                # self.loaded_image.value = load_image_from_path(path)
-                self.is_loading.value = False
+            if path and os.path.exists(path):
+                try:
+                    self.is_loading.value = True
+                    # 使用 NSImage 加载图片
+                    from AppKit import NSImage
+                    ns_image = NSImage.alloc().initWithContentsOfFile_(path)
+                    if ns_image:
+                        self.loaded_image.value = ns_image
+                        logger.info(f"✅ 成功加载图片: {path}")
+                    else:
+                        logger.warning(f"⚠️ 图片加载失败: {path}")
+                except Exception as e:
+                    logger.error(f"❌ 图片加载错误: {path} - {e}")
+                finally:
+                    self.is_loading.value = False
 
         Effect(load_image)
         custom_view.setup_auto_redraw(self.loaded_image, self.is_loading)
