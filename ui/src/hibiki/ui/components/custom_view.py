@@ -304,7 +304,7 @@ class CustomView(UIComponent):
                         _ = sig.value
                         # 触发重绘
                         if self._nsview:
-                            logger.info(f"🔄 信号变化触发重绘")
+                            # 重绘触发日志已移除，避免大量打印
                             self._nsview.setNeedsDisplay_(True)
 
                     return Effect(redraw_on_change)

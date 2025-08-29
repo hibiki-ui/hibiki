@@ -419,7 +419,7 @@ class AudioPlayer:
                     
                     # 更新应用状态
                     self.app_state.position.value = position
-                    self.logger.debug(f"🎵 [官方API] 进度更新: {position:.2f}秒")
+                    # 进度更新日志已移除，避免大量打印
                 else:
                     self.logger.debug("⚠️ [官方API] 收到无效时间")
             except Exception as e:

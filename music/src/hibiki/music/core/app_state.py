@@ -62,8 +62,7 @@ class MusicAppState:
         # 音频播放器调试日志
         from hibiki.ui import Effect
         
-        Effect(lambda: self.logger.debug(f"🎯 播放位置变化: {self.position.value:.2f}秒"))
-        Effect(lambda: self.logger.debug(f"🎯 播放时长变化: {self.duration.value:.2f}秒"))
+        # 播放位置和时长变化的调试日志已移除，避免大量打印
         self.volume = Signal(0.8)         # 音量 0.0-1.0
         self.shuffle = Signal(False)      # 随机播放
         self.repeat = Signal("none")      # "none" | "one" | "all"
