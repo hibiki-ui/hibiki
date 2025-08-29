@@ -189,6 +189,39 @@ class WindowController(NSObject):
         self.components = None  # Strong reference
 ```
 
+### Apple System API Development Guidelines
+
+**CRITICAL RULE**: Always query Apple official documentation via MCP tools before implementing any macOS/iOS system APIs.
+
+**Required Process**:
+1. **Research First**: Use `mcp__apple-docs__search_apple_docs` to find official API documentation
+2. **Read Documentation**: Use `mcp__apple-docs__get_apple_doc_content` for detailed implementation guides  
+3. **Follow Best Practices**: Implement using Apple's recommended patterns and methods
+4. **Test Thoroughly**: Verify the implementation works as expected
+
+**Common Mistakes to Avoid**:
+- ❌ Using custom timers for media playback progress (use `AVPlayer.addPeriodicTimeObserver`)
+- ❌ Guessing PyObjC method names (always verify with Apple docs)
+- ❌ Implementing workarounds instead of using official APIs
+- ❌ Skipping error handling for system API calls
+
+**Example - Progress Tracking (Fixed)**:
+```python
+# ❌ WRONG: Custom timer approach
+self.timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(...)
+
+# ✅ CORRECT: Official Apple API
+self.time_observer = self.av_player.addPeriodicTimeObserverForInterval_queue_usingBlock_(
+    time_interval, None, progress_callback
+)
+```
+
+**MCP Tools Available**:
+- `mcp__apple-docs__search_apple_docs` - Search API documentation  
+- `mcp__apple-docs__get_apple_doc_content` - Get detailed API docs
+- `mcp__apple-docs__list_technologies` - Browse available frameworks
+- `mcp__apple-docs__search_framework_symbols` - Explore framework APIs
+
 ## Framework Status
 
 ### ✅ Core Framework (v3.0)
