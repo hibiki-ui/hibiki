@@ -10,7 +10,7 @@ Stretchable 布局引擎
 ------------------
 Stretchable 是一个提供基于 CSS 布局操作的 Python 库，使用：
 - **CSS Block**: 传统块级布局
-- **CSS Flexbox**: 用于一维布局的弹性盒子布局  
+- **CSS Flexbox**: 用于一维布局的弹性盒子布局
 - **CSS Grid**: 用于二维布局的网格布局
 
 它使用 Taffy 的 Python 绑定，Taffy 是一个高性能的基于 Rust 的布局引擎，
@@ -181,7 +181,7 @@ from .managers import Position as HibikiPosition
 from .logging import get_logger
 
 logger = get_logger("layout")
-logger.setLevel("INFO")
+logger.setLevel("DEBUG")
 
 
 @dataclass
@@ -581,8 +581,31 @@ class StyleConverter:
         try:
             from stretchable.style import GridTrackSizing
 
+            # 🔥 特殊处理 repeat() 语法
+            if template_value.startswith("repeat("):
+                # 手动解析 repeat() 语法: repeat(4, 1fr) -> 4个1fr
+                try:
+                    import re
+                    match = re.match(r'repeat\(\s*(\d+)\s*,\s*(.+?)\s*\)', template_value)
+                    if match:
+                        count = int(match.group(1))
+                        track_pattern = match.group(2).strip()
+                        
+                        tracks = []
+                        for _ in range(count):
+                            track = GridTrackSizing.from_any(track_pattern)
+                            tracks.append(track)
+                        
+                        logger.debug(f"🎯 解析repeat(): {template_value} -> {count}列 x {track_pattern}")
+                        return tracks
+                    else:
+                        logger.warning(f"⚠️ repeat()语法解析失败: {template_value}")
+                        return None
+                except Exception as e:
+                    logger.warning(f"⚠️ repeat()解析异常: {template_value} - {e}")
+                    return None
             # 处理简单的空格分隔的值
-            if " " in template_value and not template_value.startswith("repeat("):
+            elif " " in template_value:
                 tracks = []
                 for track_str in template_value.split():
                     track_str = track_str.strip()
@@ -591,7 +614,7 @@ class StyleConverter:
                         tracks.append(track)
                 return tracks
             else:
-                # 单个值或复杂表达式
+                # 单个值
                 track = GridTrackSizing.from_any(template_value)
                 return [track]
 
@@ -1331,6 +1354,22 @@ class LayoutEngine:
             logger.debug(
                 f"✅ 布局计算完成: {component.__class__.__name__} -> {width:.1f}x{height:.1f} @ ({x:.1f}, {y:.1f}) [{compute_time:.2f}ms]"
             )
+            
+            # 🔥 Grid布局调试：打印所有子组件的位置
+            if hasattr(component, 'style') and component.style and component.style.display == Display.GRID:
+                logger.info(f"🔲 Grid布局调试 - 容器: {component.__class__.__name__} ({width:.1f}x{height:.1f})")
+                if hasattr(component, 'children') and component.children:
+                    for i, child in enumerate(component.children):
+                        child_node = self.get_node_for_component(child)
+                        if child_node:
+                            try:
+                                child_x, child_y, child_width, child_height = child_node.get_layout()
+                                logger.info(f"  项目 {i+1}: {child_width:.1f}x{child_height:.1f} @ ({child_x:.1f}, {child_y:.1f})")
+                            except Exception as e:
+                                logger.info(f"  项目 {i+1}: 布局获取失败 - {e}")
+                    logger.info(f"🔲 Grid项目总数: {len(component.children)}")
+                else:
+                    logger.info("🔲 Grid无子组件")
 
         return result
 
@@ -1469,30 +1508,46 @@ class LayoutEngine:
             return None
 
     def update_component_style(self, component):
-        """更新组件样式"""
+        """更新组件样式并重新应用布局"""
         node = self.get_node_for_component(component)
         if node and hasattr(component, "style"):
+            # 1. 更新节点样式
             node.update_style(component.style)
             logger.debug(f"🎨 更新组件样式: {component.__class__.__name__}")
+            
+            # 2. 重新计算这个组件的布局
+            layout_result = self.compute_layout_for_component(component)
+            logger.debug(f"📐 重新计算组件布局: {component.__class__.__name__}")
+            
+            # 🔥 3. 关键修复：将布局结果应用到NSView上
+            if layout_result and hasattr(component, '_apply_layout_result'):
+                component._apply_layout_result(layout_result)
+                logger.debug(f"🎯 应用布局结果到NSView: {component.__class__.__name__}")
+                
+                # 🔥 4. 应用子组件的布局（Grid项目的位置）
+                if hasattr(component, '_apply_children_layout'):
+                    component._apply_children_layout(self)
+                    logger.debug(f"🔲 应用子组件布局: {component.__class__.__name__}")
 
     def recalculate_all_layouts(self):
         """响应窗口大小变化，重新计算所有布局
-        
+
         这是响应式布局的核心方法：
         1. 获取最新的窗口尺寸信息
         2. 重新计算所有布局节点
         3. 触发UI刷新
         """
         logger.info("🔄 开始全局布局重新计算...")
-        
+
         try:
             # 获取ViewportManager来获取最新窗口尺寸
             from .managers import ManagerFactory
+
             viewport_mgr = ManagerFactory.get_viewport_manager()
             window_size = viewport_mgr.get_viewport_size()
-            
+
             logger.info(f"📐 窗口尺寸: {window_size[0]} x {window_size[1]}")
-            
+
             # 重新计算所有根节点（通常是容器）
             recalculated_count = 0
             for component, node in self._component_nodes.items():
@@ -1500,18 +1555,19 @@ class LayoutEngine:
                     logger.debug(f"🔄 重新计算根节点: {component.__class__.__name__}")
                     self.compute_layout_for_component(component)
                     recalculated_count += 1
-                    
-            logger.info(f"✅ 全局布局重新计算完成，处理了 {recalculated_count} 个根节点")
-            
+
+            logger.debug(f"✅ 全局布局重新计算完成，处理了 {recalculated_count} 个根节点")
+
         except Exception as e:
             logger.error(f"❌ 全局布局重新计算失败: {e}")
             import traceback
+
             traceback.print_exc()
-    
+
     def _is_root_node(self, node):
         """判断是否为根节点（没有父节点的节点）"""
         try:
-            return not hasattr(node, 'parent') or node.parent is None
+            return not hasattr(node, "parent") or node.parent is None
         except:
             # 保险起见，如果判断失败就当作根节点处理
             return True

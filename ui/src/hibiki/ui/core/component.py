@@ -235,6 +235,14 @@ class Component(ABC):
             except Exception as e:
                 logger.error(f"层级管理器注销错误: {e}")
         
+        # 清理响应式管理器注册
+        if hasattr(self, 'responsive_manager') and hasattr(self, 'responsive_style') and self.responsive_style:
+            try:
+                self.responsive_manager.unregister_component(self)
+                logger.debug(f"📱 注销响应式组件: {self.__class__.__name__}")
+            except Exception as e:
+                logger.error(f"响应式管理器注销错误: {e}")
+        
         # 清空状态
         self._signals.clear()
         self._computed.clear()
@@ -257,11 +265,12 @@ class UIComponent(Component):
     这是所有UI组件的直接基类，提供完整的布局和视觉功能。
     """
     
-    def __init__(self, style: Optional[ComponentStyle] = None, **style_kwargs):
+    def __init__(self, style: Optional[ComponentStyle] = None, responsive_style: Optional['ResponsiveStyle'] = None, **style_kwargs):
         """🏗️ CORE METHOD: UI component initialization
         
         Args:
             style: 完整的布局样式对象
+            responsive_style: 响应式样式规则（可选）
             **style_kwargs: 样式快捷参数（会被合并到style中）
         """
         # 初始化基类
@@ -272,6 +281,9 @@ class UIComponent(Component):
             self.style = style
         else:
             self.style = ComponentStyle(**style_kwargs)
+        
+        # 🔥 响应式样式支持
+        self.responsive_style = responsive_style
             
         # 管理器引用 - 使用工厂模式获取单例
         self.viewport_manager = ManagerFactory.get_viewport_manager()
@@ -280,6 +292,7 @@ class UIComponent(Component):
         self.transform_manager = ManagerFactory.get_transform_manager()
         self.scroll_manager = ManagerFactory.get_scroll_manager()
         self.mask_manager = ManagerFactory.get_mask_manager()
+        self.responsive_manager = ManagerFactory.get_responsive_manager()
         
         # 视图状态
         self._nsview: Optional[NSView] = None
@@ -344,7 +357,12 @@ class UIComponent(Component):
             # 8. 设置基础样式
             self._apply_basic_style()
             
-            # 9. 设置挂载状态
+            # 9. 注册到响应式管理器（如果有响应式样式）
+            if self.responsive_style:
+                self.responsive_manager.register_component(self)
+                logger.debug(f"📱 注册响应式组件: {self.__class__.__name__}")
+            
+            # 10. 设置挂载状态
             self._mounted = True
             
         

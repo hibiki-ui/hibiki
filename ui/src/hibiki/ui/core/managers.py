@@ -562,15 +562,29 @@ class AppWindowDelegate:
         """触发布局重新计算"""
         try:
             from .layout import get_layout_engine
+            from .responsive import get_responsive_manager
+            
             engine = get_layout_engine()
+            responsive_mgr = get_responsive_manager()
+            
+            # 获取当前窗口尺寸
+            viewport_mgr = ManagerFactory.get_viewport_manager()
+            width, height = viewport_mgr.get_viewport_size()
+            
+            # 🔥 关键更新：先通知响应式管理器，再重新计算布局
+            print(f"📱 更新响应式系统: {width}x{height}")
+            responsive_mgr.update_viewport(width, height)
             
             # 获取根容器并触发重新计算
             if self.app_window._content:
                 print(f"📐 开始布局重新计算...")
                 engine.recalculate_all_layouts()
                 print(f"✅ 布局重新计算完成")
+                
         except Exception as e:
             print(f"❌ 布局重新计算失败: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 class AppWindow:
@@ -704,6 +718,7 @@ class ManagerFactory:
     _transform_manager: Optional[TransformManager] = None
     _scroll_manager: Optional[ScrollManager] = None
     _mask_manager: Optional[MaskManager] = None
+    _responsive_manager: Optional['ResponsiveManager'] = None
 
     @classmethod
     def get_app_manager(cls) -> AppManager:
@@ -749,6 +764,13 @@ class ManagerFactory:
         return cls._mask_manager
 
     @classmethod
+    def get_responsive_manager(cls) -> 'ResponsiveManager':
+        if cls._responsive_manager is None:
+            from .responsive import ResponsiveManager
+            cls._responsive_manager = ResponsiveManager()
+        return cls._responsive_manager
+
+    @classmethod
     def initialize_all(cls):
         """初始化所有管理器"""
         logger.info("🏭 ManagerFactory: 初始化所有管理器...")
@@ -759,6 +781,7 @@ class ManagerFactory:
         cls.get_transform_manager()
         cls.get_scroll_manager()
         cls.get_mask_manager()
+        cls.get_responsive_manager()
         logger.info("✅ 所有管理器初始化完成！")
 
 

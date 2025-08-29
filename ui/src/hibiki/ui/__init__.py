@@ -204,6 +204,13 @@ from .core import (
     animate, fade_in, fade_out, bounce
 )
 
+# 响应式布局系统
+from .core.responsive import (
+    ResponsiveStyle, ResponsiveManager, BreakpointManager, BreakpointName,
+    responsive_style, breakpoint_style, media_query_style,
+    get_responsive_manager
+)
+
 # 组件系统
 from .components import (
     # 基础组件
@@ -241,6 +248,11 @@ __all__ = [
     'Animation', 'AnimationGroup', 'AnimationManager',
     'AnimationCurve', 'AnimationProperty', 'AnimationState',
     'animate', 'fade_in', 'fade_out', 'bounce',
+    
+    # 响应式布局系统
+    'ResponsiveStyle', 'ResponsiveManager', 'BreakpointManager', 'BreakpointName',
+    'responsive_style', 'breakpoint_style', 'media_query_style',
+    'get_responsive_manager',
     
     # 组件系统
     'Label', 'Button', 'TextField', 'Slider', 'Switch',
