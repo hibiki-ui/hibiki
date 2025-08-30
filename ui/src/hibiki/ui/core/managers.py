@@ -448,10 +448,10 @@ class ScrollManager:
             # 🔧 关键修复：不要在创建时设置frame
             # NSScrollView的frame将完全由布局系统通过_apply_layout_result控制
             # 这里只需要设置ScrollView的基本属性即可
-            
+
             # 设置文档视图
             scroll_view.setDocumentView_(content_view)
-            
+
             # 🔧 documentView的尺寸调整将完全由布局系统处理
             # 这里只需要确保基本的ScrollView设置即可
             logger.debug(f"📋 创建NSScrollView，documentView: {content_view}")
@@ -463,7 +463,7 @@ class ScrollManager:
 
             # 设置边框样式
             scroll_view.setBorderType_(0)  # 无边框
-            
+
             # 🔧 确保NSScrollView禁用Auto Layout，依赖布局引擎控制
             scroll_view.setTranslatesAutoresizingMaskIntoConstraints_(True)
 
@@ -553,47 +553,47 @@ class MaskManager:
 
 class AppWindowDelegate:
     """窗口事件代理 - 监听窗口大小变化"""
-    
+
     def __init__(self, app_window: 'AppWindow'):
         from Foundation import NSObject
         super(AppWindowDelegate, self).__init__()
         self.app_window = app_window
-        
+
     def windowDidResize_(self, notification):
         """窗口大小改变回调"""
         print(f"🔄 窗口大小改变事件触发")
-        
+
         # 通知ViewportManager更新
         viewport_mgr = ManagerFactory.get_viewport_manager()
         viewport_mgr._window = self.app_window.nswindow
         viewport_mgr._update_viewport_info()
-        
+
         # 触发布局引擎重新计算
         self._trigger_layout_recalculation()
-        
+
     def _trigger_layout_recalculation(self):
         """触发布局重新计算"""
         try:
             from .layout import get_layout_engine
             from .responsive import get_responsive_manager
-            
+
             engine = get_layout_engine()
             responsive_mgr = get_responsive_manager()
-            
+
             # 获取当前窗口尺寸
             viewport_mgr = ManagerFactory.get_viewport_manager()
             width, height = viewport_mgr.get_viewport_size()
-            
+
             # 🔥 关键更新：先通知响应式管理器，再重新计算布局
             print(f"📱 更新响应式系统: {width}x{height}")
             responsive_mgr.update_viewport(width, height)
-            
+
             # 获取根容器并触发重新计算
             if self.app_window._content:
                 print(f"📐 开始布局重新计算...")
                 engine.recalculate_all_layouts()
                 print(f"✅ 布局重新计算完成")
-                
+
         except Exception as e:
             print(f"❌ 布局重新计算失败: {e}")
             import traceback
@@ -627,7 +627,7 @@ class AppWindow:
         )
 
         self.nswindow.setTitle_(title)
-        
+
         # 🔧 新增：设置窗口共享属性，使CGWindowListCreateImage能够访问
         try:
             # 确保窗口可以被屏幕截图API访问
@@ -635,23 +635,23 @@ class AppWindow:
         except AttributeError:
             # 如果方法不存在，尝试其他方法
             pass
-        
+
         # 设置窗口层级，确保在正确层
         self.nswindow.setLevel_(0)  # NSNormalWindowLevel
-        
+
         self.nswindow.makeKeyAndOrderFront_(None)
-        
+
         # 🔧 关键修复：激活应用程序，确保成为前台应用
         from AppKit import NSApplication
         app = NSApplication.sharedApplication()
         app.activateIgnoringOtherApps_(True)  # 强制激活应用
-        
+
         self._content = None
-        
+
         # 🔥 关键修复: 设置窗口代理来监听大小变化
         self.delegate = AppWindowDelegate(self)
         self.nswindow.setDelegate_(self.delegate)
-        
+
         # 初始化时设置ViewportManager
         viewport_mgr = ManagerFactory.get_viewport_manager()
         viewport_mgr.set_window(self.nswindow)
@@ -662,22 +662,29 @@ class AppWindow:
         if hasattr(component, "mount"):
             # 🎯 最小化Flip策略：仅在窗口根容器使用FlippedView
             from .base_view import HibikiBaseView
-            
+
             # 创建flipped根容器作为窗口的contentView
             root_container = HibikiBaseView.alloc().init()
-            
+
+            wincontentsize = self.nswindow.contentRectForFrameRect_(self.nswindow.frame()).size
+            rc = NSMakeRect(0, 0, wincontentsize.width, wincontentsize.height)
+            root_container.setFrame_(rc)
+
             # 挂载用户组件并添加到根容器
             user_nsview = component.mount()
             root_container.addSubview_(user_nsview)
-            
+
             # 让用户组件填充整个根容器
-            user_nsview.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            user_nsview.setTranslatesAutoresizingMaskIntoConstraints_(True)
             user_nsview.setFrame_(root_container.bounds())
-            user_nsview.setAutoresizingMask_(0x3F)  # All flexible margins and size
-            
+
+            # user_nsview.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            # user_nsview.setFrame_(root_container.bounds())
+            # user_nsview.setAutoresizingMask_(0x3F)  # All flexible margins and size
+
             # 设置flipped根容器为窗口内容
             self.nswindow.setContentView_(root_container)
-            
+
             logger.info(f"🎯 已创建Flipped根容器，实现top-left坐标系")
         else:
             logger.warning(f"⚠️ Component {component} doesn't have mount() method")
