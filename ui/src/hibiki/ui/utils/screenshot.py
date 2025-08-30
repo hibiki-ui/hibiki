@@ -3,8 +3,15 @@
 应用内截屏工具
 ==============
 
-提供截屏功能用于调试和视觉验证UI布局问题。
-支持截取当前窗口或特定NSView的内容。
+提供多种截屏功能用于调试和视觉验证UI布局问题：
+
+功能特性：
+- 🖼️ NSView位图截图：使用NSBitmapImageRep截取View内容（高DPI支持）
+- 🪟 窗口内容截图：使用CGWindowListCreateImage截取窗口
+- 📺 显示器区域截图：使用CGDisplayCreateImageForRect截取屏幕区域
+- 🎯 坐标系转换：自动处理macOS坐标系转换
+- 📸 多格式支持：PNG/JPG格式输出
+- 🧵 线程安全：支持跨线程调用
 """
 
 import os
@@ -19,7 +26,9 @@ from Quartz import (
     CGWindowListCreateImage, CGRectNull, kCGWindowListOptionAll, 
     kCGWindowImageDefault, CGImageDestinationCreateWithURL, 
     CGImageDestinationAddImage, CGImageDestinationFinalize,
-    CGImageGetWidth, CGImageGetHeight
+    CGImageGetWidth, CGImageGetHeight,
+    CGDisplayCreateImage, CGDisplayCreateImageForRect, 
+    CGMainDisplayID, CGRectMake
 )
 from CoreFoundation import (
     CFURLCreateFromFileSystemRepresentation, kCFAllocatorDefault
@@ -31,7 +40,15 @@ from hibiki.ui.core.logging import get_logger
 logger = get_logger("screenshot")
 
 class ScreenshotTool:
-    """应用内截屏工具"""
+    """
+    应用内截屏工具
+    
+    提供多种截图方法：
+    1. capture_view_bitmap() - NSView位图截图（高DPI支持，需主线程）
+    2. capture_window_with_cg() - CGWindowListCreateImage窗口截图（跨线程）
+    3. capture_display_rect() - CGDisplayCreateImageForRect屏幕区域截图（新功能）
+    4. capture_window_screen_rect() - 窗口屏幕区域截图（组合方法）
+    """
     
     @staticmethod
     def capture_window(window: NSWindow, save_path: str, format: str = "png") -> bool:
@@ -74,9 +91,11 @@ class ScreenshotTool:
         """
         from AppKit import NSThread, NSScreen
         
-        # 主线程检查（警告但继续执行）
+        # 严格的主线程检查 - NSView操作必须在主线程
         if not NSThread.isMainThread():
-            logger.warning("⚠️  截屏建议在主线程中执行，当前在非主线程，可能出现问题")
+            logger.error("❌ NSView截屏必须在主线程中执行，当前在非主线程")
+            logger.warning("💡 建议使用 capture_window_with_cg() 方法进行跨线程截屏")
+            return False
         
         try:
             # 确保view已经完成布局
@@ -231,13 +250,14 @@ class ScreenshotTool:
             window_id = window.windowNumber()
             logger.debug(f"📸 窗口ID: {window_id}")
             
-            # 使用CGWindowListCreateImage截取窗口
-            # CGRectNull 表示使用窗口的完整边界
-            # kCGWindowListOptionIncludingWindow 包含指定窗口
+            # 🔧 修复：使用正确的CGWindowListOption参数
+            # 根据Apple文档，截取单个窗口应使用 optionIncludingWindow
+            from Quartz import kCGWindowListOptionIncludingWindow, kCGWindowListOptionOnScreenOnly
+            
             cg_image = CGWindowListCreateImage(
                 CGRectNull,  # screenBounds - 使用窗口边界
-                kCGWindowListOptionAll,  # listOption - 包含所有窗口层级
-                window_id,   # windowID - 指定窗口ID
+                kCGWindowListOptionIncludingWindow | kCGWindowListOptionOnScreenOnly,  # 只包含指定窗口
+                window_id,   # windowID - 指定窗口ID  
                 kCGWindowImageDefault  # imageOption - 默认图像选项
             )
             
@@ -300,7 +320,7 @@ class ScreenshotTool:
     @staticmethod
     def capture_current_window(save_path: str, format: str = "png") -> bool:
         """
-        截取当前活动窗口
+        截取当前应用的主窗口（修复焦点问题）
         
         Args:
             save_path: 保存路径  
@@ -311,17 +331,164 @@ class ScreenshotTool:
         """
         try:
             app = NSApplication.sharedApplication()
+            
+            # 🔧 修复：优先使用mainWindow而不是keyWindow
+            # keyWindow可能指向其他应用（如终端），mainWindow指向应用主窗口
+            main_window = app.mainWindow()
+            
+            if main_window:
+                logger.debug("📱 使用应用主窗口进行截屏")
+                return ScreenshotTool.capture_window_with_cg(main_window, save_path, format)
+            
+            # 备选方案：如果没有主窗口，尝试keyWindow
             key_window = app.keyWindow()
+            if key_window:
+                logger.debug("📱 使用键盘焦点窗口进行截屏（备选方案）")
+                return ScreenshotTool.capture_window_with_cg(key_window, save_path, format)
             
-            if not key_window:
-                logger.error("❌ 没有找到当前活动窗口")
-                return False
+            # 最后备选：遍历所有窗口，找第一个可见窗口
+            windows = app.windows()
+            for window in windows:
+                if window.isVisible() and not window.isMiniaturized():
+                    logger.debug("📱 使用第一个可见窗口进行截屏（最后备选）")
+                    return ScreenshotTool.capture_window_with_cg(window, save_path, format)
             
-            # 优先使用CoreGraphics方法
-            return ScreenshotTool.capture_window_with_cg(key_window, save_path, format)
+            logger.error("❌ 没有找到可用的窗口进行截屏")
+            return False
             
         except Exception as e:
             logger.error(f"❌ 截取当前窗口失败: {e}")
+            return False
+    
+    @staticmethod
+    def capture_display_rect(rect: tuple, save_path: str, format: str = "png", display_id: int = None) -> bool:
+        """
+        使用CGDisplayCreateImage截取显示器指定矩形区域
+        
+        Args:
+            rect: 要截取的矩形区域 (x, y, width, height)，屏幕坐标系
+            save_path: 保存路径
+            format: 图片格式 ("png" 或 "jpg")
+            display_id: 显示器ID，None为主显示器
+            
+        Returns:
+            bool: 是否成功保存
+        """
+        try:
+            # 如果没有指定显示器ID，使用主显示器
+            if display_id is None:
+                display_id = CGMainDisplayID()
+            
+            logger.debug(f"📸 截取显示器区域: {rect}, 显示器ID: {display_id}")
+            
+            # 创建CGRect
+            x, y, width, height = rect
+            cg_rect = CGRectMake(x, y, width, height)
+            
+            # 使用CGDisplayCreateImageForRect截取指定区域
+            cg_image = CGDisplayCreateImageForRect(display_id, cg_rect)
+            
+            if not cg_image:
+                logger.error("❌ CGDisplayCreateImage返回空图像")
+                return False
+            
+            # 确保保存目录存在
+            save_dir = os.path.dirname(save_path)
+            if save_dir and not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+            
+            # 创建文件URL
+            save_path_bytes = save_path.encode('utf-8')
+            file_url = CFURLCreateFromFileSystemRepresentation(
+                kCFAllocatorDefault, save_path_bytes, len(save_path_bytes), False
+            )
+            
+            if not file_url:
+                logger.error("❌ 无法创建文件URL")
+                return False
+            
+            # 选择图片格式
+            if format.lower() == "jpg" or format.lower() == "jpeg":
+                uti_type = kUTTypeJPEG
+            else:
+                uti_type = kUTTypePNG
+            
+            # 创建图像目标并保存
+            destination = CGImageDestinationCreateWithURL(file_url, uti_type, 1, None)
+            
+            if not destination:
+                logger.error("❌ 无法创建图像目标")
+                return False
+            
+            # 添加图像并完成保存
+            CGImageDestinationAddImage(destination, cg_image, None)
+            success = CGImageDestinationFinalize(destination)
+            
+            if success:
+                # 获取图像尺寸信息
+                width = CGImageGetWidth(cg_image)
+                height = CGImageGetHeight(cg_image)
+                
+                file_size = os.path.getsize(save_path) if os.path.exists(save_path) else 0
+                logger.info(f"📸 显示器区域截图已保存: {save_path} ({file_size} bytes)")
+                logger.info(f"📏 图片尺寸: {width}x{height}")
+                logger.info(f"📺 显示器ID: {display_id}")
+                return True
+            else:
+                logger.error(f"❌ 保存显示器截图失败: {save_path}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ CGDisplayCreateImageForRect截取失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    @staticmethod
+    def capture_window_screen_rect(window: NSWindow, save_path: str, format: str = "png") -> bool:
+        """
+        截取窗口在屏幕上的区域（使用CGDisplayCreateImage）
+        
+        Args:
+            window: 要截取的NSWindow
+            save_path: 保存路径
+            format: 图片格式 ("png" 或 "jpg")
+            
+        Returns:
+            bool: 是否成功保存
+        """
+        try:
+            # 获取窗口在屏幕上的frame
+            window_frame = window.frame()
+            
+            # 注意：macOS窗口坐标系是bottom-left，而CGDisplayCreateImage使用top-left
+            # 需要转换坐标系
+            from AppKit import NSScreen
+            main_screen = NSScreen.mainScreen()
+            if not main_screen:
+                logger.error("❌ 无法获取主屏幕信息")
+                return False
+                
+            screen_frame = main_screen.frame()
+            screen_height = screen_frame.size.height
+            
+            # 转换坐标系：bottom-left -> top-left
+            screen_x = int(window_frame.origin.x)
+            screen_y = int(screen_height - window_frame.origin.y - window_frame.size.height)
+            screen_width = int(window_frame.size.width)
+            screen_height = int(window_frame.size.height)
+            
+            logger.debug(f"📱 窗口屏幕坐标: ({screen_x}, {screen_y}, {screen_width}, {screen_height})")
+            
+            # 使用CGDisplayCreateImage截取对应区域
+            return ScreenshotTool.capture_display_rect(
+                (screen_x, screen_y, screen_width, screen_height),
+                save_path,
+                format
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ 截取窗口屏幕区域失败: {e}")
             return False
     
     @staticmethod
@@ -384,16 +551,16 @@ def capture_app_screenshot(save_path: str = "app_debug_screenshot.png") -> bool:
     Returns:
         bool: 是否成功
     """
-    from AppKit import NSThread
+    from AppKit import NSThread, NSApplication
+    import threading
     
     # 如果已经在主线程，直接执行
     if NSThread.isMainThread():
         return ScreenshotTool.capture_current_window(save_path)
     else:
-        # 从其他线程调用时，暂时禁用线程检查并尝试截屏
-        logger.warning("⚠️  从非主线程调用截屏，将尝试强制执行")
+        # 从其他线程调用时，使用CoreGraphics方法避免布局引擎问题
+        logger.warning("⚠️  从非主线程调用截屏，使用CoreGraphics方法")
         
-        # 临时移除线程检查，直接调用
         try:
             app = NSApplication.sharedApplication()
             key_window = app.keyWindow()
@@ -402,11 +569,48 @@ def capture_app_screenshot(save_path: str = "app_debug_screenshot.png") -> bool:
                 logger.error("❌ 没有找到当前活动窗口")
                 return False
             
-            return ScreenshotTool.capture_window(key_window, save_path)
+            # 使用CoreGraphics方法，避免NSView渲染问题
+            return ScreenshotTool.capture_window_with_cg(key_window, save_path)
             
         except Exception as e:
             logger.error(f"❌ 跨线程截屏失败: {e}")
             return False
+
+def capture_app_screenshot_display_method(save_path: str = "app_display_screenshot.png") -> bool:
+    """
+    便捷函数：使用CGDisplayCreateImage截取当前应用窗口
+    
+    这个方法截取窗口在屏幕上显示的实际内容，包括阴影、透明度等效果。
+    与capture_app_screenshot的区别：
+    - capture_app_screenshot: 使用CGWindowListCreateImage，截取窗口内容
+    - capture_app_screenshot_display_method: 使用CGDisplayCreateImage，截取屏幕区域
+    
+    Args:
+        save_path: 保存路径，默认为当前目录下的 app_display_screenshot.png
+        
+    Returns:
+        bool: 是否成功
+    """
+    try:
+        app = NSApplication.sharedApplication()
+        
+        # 获取主窗口
+        main_window = app.mainWindow()
+        if not main_window:
+            # 备选方案
+            key_window = app.keyWindow()
+            if key_window:
+                main_window = key_window
+            else:
+                logger.error("❌ 没有找到可用的窗口进行截屏")
+                return False
+        
+        logger.info("📸 使用CGDisplayCreateImage方法截取窗口屏幕区域")
+        return ScreenshotTool.capture_window_screen_rect(main_window, save_path)
+        
+    except Exception as e:
+        logger.error(f"❌ CGDisplayCreateImage截取应用失败: {e}")
+        return False
 
 def debug_view_layout(view: NSView, view_name: str = "Unknown") -> None:
     """

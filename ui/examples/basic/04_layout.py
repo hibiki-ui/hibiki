@@ -34,6 +34,8 @@ from hibiki.ui import (
     px,
     percent,
 )
+from hibiki.ui.utils.screenshot import capture_app_screenshot_display_method
+import time
 
 
 class ColoredBox:
@@ -216,12 +218,14 @@ def create_flex_demo():
                 from hibiki.ui.core.layout import get_layout_engine
                 engine = get_layout_engine()
                 engine.update_component_style(demo_container)
-                print(f"🔄 布局已更新: direction={current_direction.value}, justify={current_justify.value}")
+                print(f"🔄 布局已更新: direction={current_direction.value}, justify={current_justify.value}, align={current_align.value}")
             except Exception as e:
                 print(f"❌ 布局更新失败: {e}")
     
-    # 创建Effect来监听Signal变化
-    Effect(lambda: update_demo_layout())  # 监听所有相关Signal变化
+    # 创建Effect来监听Signal变化 - 监听每个Signal
+    Effect(lambda: current_direction.value and update_demo_layout())
+    Effect(lambda: current_justify.value and update_demo_layout())
+    Effect(lambda: current_align.value and update_demo_layout())
     
     return Container(
         children=[
@@ -607,18 +611,46 @@ def main():
     responsive_demo = create_responsive_demo()
     
     
+    # 截图按钮
+    def take_screenshot():
+        """截图功能 - 使用CGDisplayCreateImageForRect方法"""
+        timestamp = int(time.time())
+        filename = f"layout_demo_display_screenshot_{timestamp}.png"
+        
+        print("📸 使用CGDisplayCreateImageForRect截图方法...")
+        success = capture_app_screenshot_display_method(filename)
+        if success:
+            print(f"✅ 截图已保存: {filename}")
+            print("🔍 请检查截图以分析布局效果")
+        else:
+            print("❌ 截图失败")
+    
+    screenshot_btn = Button(
+        "📸 CGDisplayCreateImageForRect截图",
+        style=ComponentStyle(
+            background_color="#4caf50",
+            padding=px(12),
+            border_radius=px(6),
+            margin_bottom=px(20)
+        ),
+        on_click=take_screenshot
+    )
+    
     # 主容器
     main_container = Container(
         children=[
             # 标题
             Label(
                 "🎨 Hibiki UI 布局系统演示",
-                style=ComponentStyle(margin_bottom=px(30)),
+                style=ComponentStyle(margin_bottom=px(20)),
                 font_size=28,
                 font_weight="bold",
                 text_align="center",
                 color="#1976d2"
             ),
+            
+            # 截图按钮
+            screenshot_btn,
             
             # Flex 演示
             flex_demo,
