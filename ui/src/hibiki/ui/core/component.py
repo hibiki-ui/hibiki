@@ -222,9 +222,14 @@ class UIComponent(Component):
 
             if self.style.overflow in [OverflowBehavior.SCROLL, OverflowBehavior.AUTO]:
                 original_view = self._nsview
+                
                 self._nsview = self.scroll_manager.create_scroll_view(
                     original_view, self.style.overflow
                 )
+                
+                # 🔧 关键修复：不要在mount时设置frame
+                # NSScrollView的frame将在_apply_layout_result中正确设置
+                # 这里只需要创建ScrollView结构即可
 
             for configurator in self._raw_configurators:
                 try:
@@ -388,20 +393,10 @@ class UIComponent(Component):
         )
         self._nsview.setFrame_(frame)
 
-        # 根据布局类型决定是否使用Auto Layout
-        if self.style.position in [Position.ABSOLUTE, Position.FIXED]:
-            # 绝对定位禁用Auto Layout
-            self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(True)
-        else:
-            # 🔧 修复：对于有内容驱动尺寸的控件（如NSTextField），强制禁用Auto Layout
-            from AppKit import NSTextField
-            if isinstance(self._nsview, NSTextField):
-                # NSTextField需要禁用Auto Layout才能遵循布局系统的frame设置
-                self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(True)
-                self._nsview.setAutoresizingMask_(0)  # 禁用所有自动调整
-            else:
-                # 其他组件可以与Auto Layout协同
-                self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        # 🔧 关键修复：强制禁用Auto Layout，让手动frame设置生效
+        # Hibiki UI使用自己的布局引擎，不应与Auto Layout冲突
+        self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(True)
+        self._nsview.setAutoresizingMask_(0)  # 禁用所有自动调整行为
 
     def _apply_children_layout_from_stretchable(self, engine):
         """从Stretchable重建树应用子组件布局（简化版本）"""

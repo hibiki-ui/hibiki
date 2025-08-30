@@ -1553,7 +1553,21 @@ class LayoutEngine:
             for component, node in self._component_nodes.items():
                 if self._is_root_node(node):
                     logger.debug(f"🔄 重新计算根节点: {component.__class__.__name__}")
-                    self.compute_layout_for_component(component)
+                    
+                    # 🔧 关键修复：不仅计算布局，还要应用到NSView
+                    available_size = window_size
+                    layout_result = self.compute_layout_for_component(component, available_size)
+                    
+                    if layout_result and hasattr(component, '_apply_layout_result'):
+                        # 应用根容器布局
+                        component._apply_layout_result(layout_result)
+                        
+                        # 递归应用子组件布局
+                        if hasattr(component, '_apply_children_layout'):
+                            component._apply_children_layout(self)
+                        
+                        logger.debug(f"✅ 根节点布局已重新应用: {component.__class__.__name__}")
+                    
                     recalculated_count += 1
 
             logger.debug(f"✅ 全局布局重新计算完成，处理了 {recalculated_count} 个根节点")

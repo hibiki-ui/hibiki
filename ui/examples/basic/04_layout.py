@@ -34,8 +34,12 @@ from hibiki.ui import (
     px,
     percent,
 )
-from hibiki.ui.utils.screenshot import capture_app_screenshot_display_method
+from hibiki.ui.components.layout import ScrollableContainer
+from hibiki.ui.utils.screenshot import capture_app_screenshot_display_method, debug_view_layout
+from hibiki.ui.core.logging import get_logger
 import time
+
+logger = get_logger("04_layout_debug")
 
 
 class ColoredBox:
@@ -593,22 +597,50 @@ def create_responsive_demo():
     )
 
 
+def debug_component_tree(component, depth=0, name=""):
+    """调试组件树结构"""
+    indent = "  " * depth
+    comp_info = f"{indent}├─ {name} ({type(component).__name__})"
+    
+    if hasattr(component, '_nsview') and component._nsview:
+        nsview = component._nsview
+        frame = nsview.frame()
+        bounds = nsview.bounds()
+        comp_info += f" NSView[{frame.size.width}x{frame.size.height} @({frame.origin.x},{frame.origin.y})] bounds[{bounds.size.width}x{bounds.size.height}]"
+        comp_info += f" hidden={nsview.isHidden()} alpha={nsview.alphaValue()}"
+    else:
+        comp_info += " [NSView未创建]"
+    
+    logger.info(comp_info)
+    
+    if hasattr(component, 'children') and component.children:
+        for i, child in enumerate(component.children):
+            debug_component_tree(child, depth + 1, f"child_{i}")
+
 def main():
     """布局系统演示主程序"""
-    print("🚀 Starting Layout System Example...")
+    logger.info("🚀 启动布局系统演示...")
     
     # 创建应用管理器
     app_manager = ManagerFactory.get_app_manager()
     window = app_manager.create_window(
         title="Layout System Demo - Hibiki UI", 
-        width=800, 
-        height=900
+        width=1000,  # 增加宽度以更好展示Grid布局
+        height=700   # 减少高度，依靠滚动查看完整内容
     )
     
+    logger.info("📱 窗口创建完成")
+    
     # 创建各个演示区域
+    logger.info("🔧 开始创建演示组件...")
     flex_demo = create_flex_demo()
+    logger.info(f"✅ Flex demo 创建完成: {type(flex_demo).__name__}")
+    
     grid_demo = create_grid_demo()
+    logger.info(f"✅ Grid demo 创建完成: {type(grid_demo).__name__}")
+    
     responsive_demo = create_responsive_demo()
+    logger.info(f"✅ Responsive demo 创建完成: {type(responsive_demo).__name__}")
     
     
     # 截图按钮
@@ -636,8 +668,8 @@ def main():
         on_click=take_screenshot
     )
     
-    # 主容器
-    main_container = Container(
+    # 创建滚动内容容器
+    content_container = Container(
         children=[
             # 标题
             Label(
@@ -687,16 +719,56 @@ def main():
             display=Display.FLEX,
             flex_direction=FlexDirection.COLUMN,
             padding=px(40),
+            background_color="#ffffff",
+            width=percent(100),  # 确保内容容器有明确宽度
+            min_height=px(1200)  # 设置最小高度，确保内容可滚动
+        )
+    )
+    
+    # 使用ScrollableContainer包装内容
+    main_container = ScrollableContainer(
+        children=[content_container],
+        scroll_vertical=True,
+        scroll_horizontal=False,
+        show_scrollbars=True,
+        style=ComponentStyle(
+            width=percent(100),
+            height=percent(100),
             background_color="#ffffff"
         )
     )
     
+    logger.info("🏗️ 创建主容器...")
+    
     # 设置窗口内容
     window.set_content(main_container)
+    logger.info("📦 窗口内容设置完成")
     
-    print("✅ Layout System demo ready!")
-    print("🎯 Try the control buttons to see different flex layouts!")
-    print("📚 Next: Explore more advanced layout features")
+    # 等待NSView创建并调试组件树
+    def debug_after_mount():
+        logger.info("🔍 开始调试组件树结构...")
+        debug_component_tree(main_container, name="main_container")
+        
+        # 额外调试ScrollableContainer的NSView
+        if hasattr(main_container, '_nsview') and main_container._nsview:
+            debug_view_layout(main_container._nsview, "ScrollableContainer NSView")
+        
+        # 调试content_container
+        if hasattr(main_container, 'children') and main_container.children:
+            content_container = main_container.children[0]
+            logger.info(f"📋 content_container 类型: {type(content_container).__name__}")
+            logger.info(f"📋 content_container 子组件数: {len(content_container.children) if hasattr(content_container, 'children') else 'N/A'}")
+            
+            if hasattr(content_container, '_nsview') and content_container._nsview:
+                debug_view_layout(content_container._nsview, "content_container NSView")
+    
+    # 延迟调试以确保NSView已创建
+    # import threading
+    # threading.Timer(1.0, debug_after_mount).start()
+    
+    logger.info("✅ Layout System demo ready!")
+    logger.info("🎯 Try the control buttons to see different flex layouts!")
+    logger.info("📚 Next: Explore more advanced layout features")
     
     # 运行应用
     app_manager.run()

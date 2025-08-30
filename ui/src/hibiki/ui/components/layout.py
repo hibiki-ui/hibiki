@@ -623,12 +623,8 @@ class ScrollableContainer(Container):
         
         # 设置overflow属性
         from ..core.managers import OverflowBehavior
-        if scroll_horizontal and scroll_vertical:
+        if scroll_horizontal or scroll_vertical:
             style.overflow = OverflowBehavior.SCROLL
-        elif scroll_vertical:
-            style.overflow = OverflowBehavior.SCROLL_VERTICAL
-        elif scroll_horizontal:
-            style.overflow = OverflowBehavior.SCROLL_HORIZONTAL
         else:
             style.overflow = OverflowBehavior.HIDDEN
         
@@ -637,6 +633,30 @@ class ScrollableContainer(Container):
         self.show_scrollbars = show_scrollbars
         
         super().__init__(children=children, style=style, **kwargs)
+    
+    def _apply_layout_result(self, layout_result):
+        """重写布局应用，ScrollableContainer应保持容器尺寸而非内容尺寸"""
+        from AppKit import NSMakeRect, NSScrollView
+        
+        # 🔧 关键修复：ScrollableContainer必须保持固定的容器尺寸
+        # 而不是根据内容动态调整，否则NSScrollView无法正常工作
+        
+        if hasattr(self, '_nsview') and self._nsview:
+            frame = NSMakeRect(
+                layout_result.x, layout_result.y, 
+                layout_result.width, layout_result.height
+            )
+            
+            # 检查是否为NSScrollView，需要特殊处理
+            if isinstance(self._nsview, NSScrollView):
+                # 对于NSScrollView，直接设置frame
+                self._nsview.setFrame_(frame)
+            else:
+                # 普通情况，调用父类方法
+                super()._apply_layout_result(layout_result)
+        else:
+            # NSView未创建，调用父类方法
+            super()._apply_layout_result(layout_result)
 
 
 # ================================

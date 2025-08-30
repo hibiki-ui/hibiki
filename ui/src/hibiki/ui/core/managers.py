@@ -87,8 +87,10 @@ class ViewportManager:
         """更新视口信息"""
         if hasattr(self, '_window') and self._window:
             window = self._window
-            frame = window.frame()
-            self._viewport_size = (frame.size.width, frame.size.height)
+            # 🔧 关键修复：使用contentView而不是整个窗口frame
+            # 这确保了视口尺寸是实际可用的内容区域，不包含标题栏
+            content_frame = window.contentView().frame()
+            self._viewport_size = (content_frame.size.width, content_frame.size.height)
             self._scale_factor = window.backingScaleFactor()
 
 
@@ -443,8 +445,16 @@ class ScrollManager:
         if overflow in [OverflowBehavior.SCROLL, OverflowBehavior.AUTO]:
             scroll_view = NSScrollView.alloc().init()
 
+            # 🔧 关键修复：不要在创建时设置frame
+            # NSScrollView的frame将完全由布局系统通过_apply_layout_result控制
+            # 这里只需要设置ScrollView的基本属性即可
+            
             # 设置文档视图
             scroll_view.setDocumentView_(content_view)
+            
+            # 🔧 documentView的尺寸调整将完全由布局系统处理
+            # 这里只需要确保基本的ScrollView设置即可
+            logger.debug(f"📋 创建NSScrollView，documentView: {content_view}")
 
             # 配置滚动行为
             scroll_view.setHasVerticalScroller_(True)
@@ -453,9 +463,12 @@ class ScrollManager:
 
             # 设置边框样式
             scroll_view.setBorderType_(0)  # 无边框
+            
+            # 🔧 确保NSScrollView禁用Auto Layout，依赖布局引擎控制
+            scroll_view.setTranslatesAutoresizingMaskIntoConstraints_(True)
 
-            # 注册到管理器
-            self._scroll_containers.append(weakref.ref(scroll_view))
+            # 注册到管理器 (NSScrollView不支持弱引用，直接存储)
+            self._scroll_containers.append(scroll_view)
 
             logger.debug(f"📋 创建滚动容器: {overflow.value}")
             return scroll_view
@@ -614,7 +627,25 @@ class AppWindow:
         )
 
         self.nswindow.setTitle_(title)
+        
+        # 🔧 新增：设置窗口共享属性，使CGWindowListCreateImage能够访问
+        try:
+            # 确保窗口可以被屏幕截图API访问
+            self.nswindow.setSharingType_(1)  # NSWindowSharingReadWrite
+        except AttributeError:
+            # 如果方法不存在，尝试其他方法
+            pass
+        
+        # 设置窗口层级，确保在正确层
+        self.nswindow.setLevel_(0)  # NSNormalWindowLevel
+        
         self.nswindow.makeKeyAndOrderFront_(None)
+        
+        # 🔧 关键修复：激活应用程序，确保成为前台应用
+        from AppKit import NSApplication
+        app = NSApplication.sharedApplication()
+        app.activateIgnoringOtherApps_(True)  # 强制激活应用
+        
         self._content = None
         
         # 🔥 关键修复: 设置窗口代理来监听大小变化
