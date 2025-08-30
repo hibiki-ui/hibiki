@@ -9,7 +9,7 @@ from typing import Optional, List, Union, Dict, Tuple, Callable, Any
 from abc import ABC, abstractmethod
 from enum import Enum
 from AppKit import NSView, NSWindow, NSScrollView
-from Foundation import NSMakeRect, NSAffineTransform, NSBezierPath
+from Foundation import NSMakeRect, NSAffineTransform, NSBezierPath, NSSize
 
 from .logging import get_logger
 
@@ -30,6 +30,11 @@ class ViewportManager:
     - Retina屏幕适配
     - 窗口事件监听
     - 视口单位计算 (vw, vh)
+
+    🔧 架构修复：消除循环依赖
+    - 不再依赖contentView.frame()
+    - 直接接收准确的内容区域尺寸
+    - 建立单向的尺寸传递链
     """
 
     _instance: Optional["ViewportManager"] = None
@@ -44,32 +49,45 @@ class ViewportManager:
             return
         self._initialized = True
 
-        self._window_ref: Optional[weakref.ReferenceType] = None
+        self._window: Optional[NSWindow] = None
         self._viewport_size = (800, 600)  # 默认尺寸
         self._scale_factor = 1.0
-        self._cached_frame_count = 0
+        self._size_change_callbacks = []  # 尺寸变化回调
 
         logger.info("🖥️ ViewportManager初始化完成")
 
-    def set_window(self, window: NSWindow):
-        """设置关联的窗口"""
-        # PyObjC对象不能直接使用weakref，直接保存引用
-        self._window = window
-        self._update_viewport_info()
-        logger.info(f"📱 ViewportManager绑定窗口: {self._viewport_size}")
+    def set_window_content_size(self, width: float, height: float, window: Optional[NSWindow] = None):
+        """直接设置窗口内容区域尺寸，不依赖contentView
+
+        🔧 核心修复：消除循环依赖
+        - 直接接收准确的内容区域尺寸
+        - 不再依赖window.contentView().frame()
+        """
+        old_size = self._viewport_size
+        self._viewport_size = (width, height)
+
+        # 更新窗口引用和缩放因子
+        if window:
+            self._window = window
+            self._scale_factor = window.backingScaleFactor()
+
+        # 如果尺寸发生变化，通知所有监听者
+        if old_size != self._viewport_size:
+            self._notify_size_change()
+
+        logger.info(f"🎯 ViewportManager尺寸更新: {width}x{height}")
 
     def get_viewport_size(self) -> Tuple[float, float]:
-        """获取视口尺寸"""
-        self._update_viewport_info()
+        """获取视口尺寸 - 现在返回可靠的尺寸"""
         return self._viewport_size
 
     def get_viewport_width(self) -> float:
         """获取视口宽度"""
-        return self.get_viewport_size()[0]
+        return self._viewport_size[0]
 
     def get_viewport_height(self) -> float:
         """获取视口高度"""
-        return self.get_viewport_size()[1]
+        return self._viewport_size[1]
 
     def get_scale_factor(self) -> float:
         """获取缩放因子（Retina支持）"""
@@ -83,15 +101,24 @@ class ViewportManager:
         """将vh单位转换为像素"""
         return vh * self.get_viewport_height() / 100
 
+    def add_size_change_callback(self, callback: Callable[[float, float], None]):
+        """添加尺寸变化回调"""
+        self._size_change_callbacks.append(callback)
+
+    def _notify_size_change(self):
+        """通知所有监听者尺寸发生变化"""
+        width, height = self._viewport_size
+        for callback in self._size_change_callbacks:
+            try:
+                callback(width, height)
+            except Exception as e:
+                logger.warning(f"⚠️ 尺寸变化回调失败: {e}")
+
     def _update_viewport_info(self):
-        """更新视口信息"""
-        if hasattr(self, '_window') and self._window:
-            window = self._window
-            # 🔧 关键修复：使用contentView而不是整个窗口frame
-            # 这确保了视口尺寸是实际可用的内容区域，不包含标题栏
-            content_frame = window.contentView().frame()
-            self._viewport_size = (content_frame.size.width, content_frame.size.height)
-            self._scale_factor = window.backingScaleFactor()
+        """更新视口信息 - 已废弃，现在尺寸通过set_window_content_size直接设置"""
+        # 这个方法保留用于向后兼容，但现在是空操作
+        # 实际尺寸更新通过set_window_content_size()进行
+        pass
 
 
 # ================================
@@ -547,7 +574,101 @@ class MaskManager:
 
 
 # ================================
-# 7. 应用程序管理器
+# 7. RootContainerManager - 根容器管理器
+# ================================
+
+
+class RootContainerManager:
+    """根容器管理器 - 统一管理根容器的创建和尺寸同步
+
+    职责：
+    - 创建具有正确尺寸的根容器
+    - 统一处理根容器尺寸更新
+    - 确保根容器与窗口内容区域的尺寸同步
+
+    🔧 架构修复：解决窗口-容器尺寸同步问题
+    - 在组件挂载前就确定根容器的正确尺寸
+    - 提供统一的根容器管理接口
+    - 消除百分比布局的父容器尺寸不确定问题
+    """
+
+    _instance: Optional["RootContainerManager"] = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if hasattr(self, "_initialized"):
+            return
+        self._initialized = True
+
+        self._active_root_containers: List[NSView] = []
+        logger.info("🏗️ RootContainerManager初始化完成")
+
+    def create_root_container(self, content_width: float, content_height: float) -> NSView:
+        """创建具有正确尺寸的根容器
+
+        Args:
+            content_width: 窗口内容区域宽度
+            content_height: 窗口内容区域高度
+
+        Returns:
+            配置好的根容器NSView
+        """
+        from .base_view import HibikiBaseView
+
+        # 创建flipped根容器（支持top-left坐标系）
+        root_container = HibikiBaseView.alloc().init()
+
+        # 设置正确的frame尺寸
+        frame = NSMakeRect(0, 0, content_width, content_height)
+        root_container.setFrame_(frame)
+
+        # 注册到活跃容器列表（NSView不支持弱引用，直接存储）
+        self._active_root_containers.append(root_container)
+
+        logger.info(f"🏗️ 创建根容器: {content_width:.1f}x{content_height:.1f}")
+        return root_container
+
+    def update_root_container_size(self, root_container: NSView, new_width: float, new_height: float):
+        """更新根容器尺寸
+
+        Args:
+            root_container: 要更新的根容器
+            new_width: 新的宽度
+            new_height: 新的高度
+        """
+        if not root_container:
+            logger.warning("⚠️ 根容器为None，无法更新尺寸")
+            return
+
+        # 更新frame
+        new_frame = NSMakeRect(0, 0, new_width, new_height)
+        root_container.setFrame_(new_frame)
+
+        # 如果有子视图，也需要更新其布局
+        subviews = root_container.subviews()
+        if subviews and len(subviews) > 0:
+            # 更新第一个子视图（通常是用户的主容器）
+            main_subview = subviews[0]
+            main_subview.setFrame_(root_container.bounds())
+
+        logger.info(f"🔄 根容器尺寸已更新: {new_width:.1f}x{new_height:.1f}")
+
+    def get_active_root_containers_count(self) -> int:
+        """获取活跃的根容器数量"""
+        return len(self._active_root_containers)
+
+    def cleanup_released_containers(self):
+        """清理已释放的根容器引用"""
+        # NSView直接存储，无需特殊清理（由NSWindow管理生命周期）
+        logger.debug(f"🧹 当前活跃根容器数量: {len(self._active_root_containers)}")
+
+
+# ================================
+# 8. 应用程序管理器
 # ================================
 
 
@@ -560,15 +681,27 @@ class AppWindowDelegate:
         self.app_window = app_window
 
     def windowDidResize_(self, notification):
-        """窗口大小改变回调"""
-        print(f"🔄 窗口大小改变事件触发")
+        """窗口大小改变回调 - 架构修复版本"""
+        logger.info("🔄 窗口大小改变事件触发")
 
-        # 通知ViewportManager更新
+        # 🔧 架构修复：使用新的尺寸同步机制
+        # 1. 重新计算内容区域尺寸
+        content_size = self.app_window._calculate_content_area_size()
+
+        # 2. 更新ViewportManager（使用新的API）
         viewport_mgr = ManagerFactory.get_viewport_manager()
-        viewport_mgr._window = self.app_window.nswindow
-        viewport_mgr._update_viewport_info()
+        viewport_mgr.set_window_content_size(content_size.width, content_size.height, self.app_window.nswindow)
 
-        # 触发布局引擎重新计算
+        # 3. 更新根容器尺寸
+        if self.app_window._content:
+            root_container = self.app_window.nswindow.contentView()
+            if root_container:
+                root_container_mgr = ManagerFactory.get_root_container_manager()
+                root_container_mgr.update_root_container_size(
+                    root_container, content_size.width, content_size.height
+                )
+
+        # 4. 触发布局重新计算
         self._trigger_layout_recalculation()
 
     def _trigger_layout_recalculation(self):
@@ -652,42 +785,67 @@ class AppWindow:
         self.delegate = AppWindowDelegate(self)
         self.nswindow.setDelegate_(self.delegate)
 
-        # 初始化时设置ViewportManager
+        # 🔧 架构修复：正确的初始化时序
+        # 1. 计算窗口内容区域尺寸
+        content_size = self._calculate_content_area_size()
+
+        # 2. 设置ViewportManager（使用新的API，不依赖contentView）
         viewport_mgr = ManagerFactory.get_viewport_manager()
-        viewport_mgr.set_window(self.nswindow)
+        viewport_mgr.set_window_content_size(content_size.width, content_size.height, self.nswindow)
+
+        logger.info(f"🎯 窗口初始化完成，内容区域: {content_size.width:.1f}x{content_size.height:.1f}")
+
+    def _calculate_content_area_size(self) -> NSSize:
+        """计算实际的内容区域尺寸
+
+        Returns:
+            NSSize: 窗口内容区域的实际尺寸（不包含标题栏等装饰元素）
+        """
+        window_frame = self.nswindow.frame()
+        content_rect = self.nswindow.contentRectForFrameRect_(window_frame)
+        return content_rect.size
 
     def set_content(self, component):
-        """设置窗口内容"""
+        """设置窗口内容 - 架构修复版本
+
+        🔧 新的正确时序：
+        1. 确保ViewportManager有准确尺寸（已在__init__中完成）
+        2. 使用RootContainerManager创建正确尺寸的根容器
+        3. 挂载用户组件（此时百分比计算将基于正确的父容器尺寸）
+        4. 配置布局并设置为contentView
+        """
         self._content = component
         if hasattr(component, "mount"):
-            # 🎯 最小化Flip策略：仅在窗口根容器使用FlippedView
-            from .base_view import HibikiBaseView
 
-            # 创建flipped根容器作为窗口的contentView
-            root_container = HibikiBaseView.alloc().init()
+            # 1. 获取当前窗口内容区域尺寸（确保是最新的）
+            content_size = self._calculate_content_area_size()
 
-            wincontentsize = self.nswindow.contentRectForFrameRect_(self.nswindow.frame()).size
-            rc = NSMakeRect(0, 0, wincontentsize.width, wincontentsize.height)
-            root_container.setFrame_(rc)
+            # 2. 确保ViewportManager有最新的尺寸信息
+            viewport_mgr = ManagerFactory.get_viewport_manager()
+            viewport_mgr.set_window_content_size(content_size.width, content_size.height, self.nswindow)
 
-            # 挂载用户组件并添加到根容器
+            # 3. 使用RootContainerManager创建具有正确尺寸的根容器
+            root_container_mgr = ManagerFactory.get_root_container_manager()
+            root_container = root_container_mgr.create_root_container(
+                content_size.width, content_size.height
+            )
+
+            # 4. 挂载用户组件 - 此时百分比计算将基于正确的根容器尺寸
+            logger.info("🔄 挂载用户组件...")
             user_nsview = component.mount()
             root_container.addSubview_(user_nsview)
 
-            # 让用户组件填充整个根容器
+            # 5. 配置用户组件的布局行为
             user_nsview.setTranslatesAutoresizingMaskIntoConstraints_(True)
             user_nsview.setFrame_(root_container.bounds())
 
-            # user_nsview.setTranslatesAutoresizingMaskIntoConstraints_(False)
-            # user_nsview.setFrame_(root_container.bounds())
-            # user_nsview.setAutoresizingMask_(0x3F)  # All flexible margins and size
-
-            # 设置flipped根容器为窗口内容
+            # 6. 设置为窗口内容
             self.nswindow.setContentView_(root_container)
 
-            logger.info(f"🎯 已创建Flipped根容器，实现top-left坐标系")
+            logger.info(f"✅ 窗口内容设置完成，根容器: {content_size.width:.1f}x{content_size.height:.1f}")
+
         else:
-            logger.warning(f"⚠️ Component {component} doesn't have mount() method")
+            logger.warning(f"⚠️ 组件 {component} 没有mount()方法")
 
 
 class AppManager:
@@ -773,6 +931,7 @@ class ManagerFactory:
     _transform_manager: Optional[TransformManager] = None
     _scroll_manager: Optional[ScrollManager] = None
     _mask_manager: Optional[MaskManager] = None
+    _root_container_manager: Optional[RootContainerManager] = None
     _responsive_manager: Optional['ResponsiveManager'] = None
 
     @classmethod
@@ -819,6 +978,12 @@ class ManagerFactory:
         return cls._mask_manager
 
     @classmethod
+    def get_root_container_manager(cls) -> RootContainerManager:
+        if cls._root_container_manager is None:
+            cls._root_container_manager = RootContainerManager()
+        return cls._root_container_manager
+
+    @classmethod
     def get_responsive_manager(cls) -> 'ResponsiveManager':
         if cls._responsive_manager is None:
             from .responsive import ResponsiveManager
@@ -836,6 +1001,7 @@ class ManagerFactory:
         cls.get_transform_manager()
         cls.get_scroll_manager()
         cls.get_mask_manager()
+        cls.get_root_container_manager()
         cls.get_responsive_manager()
         logger.info("✅ 所有管理器初始化完成！")
 
