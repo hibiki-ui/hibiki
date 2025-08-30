@@ -222,11 +222,11 @@ class UIComponent(Component):
 
             if self.style.overflow in [OverflowBehavior.SCROLL, OverflowBehavior.AUTO]:
                 original_view = self._nsview
-                
+
                 self._nsview = self.scroll_manager.create_scroll_view(
                     original_view, self.style.overflow
                 )
-                
+
                 # 🔧 关键修复：不要在mount时设置frame
                 # NSScrollView的frame将在_apply_layout_result中正确设置
                 # 这里只需要创建ScrollView结构即可
@@ -665,11 +665,11 @@ class Container(UIComponent):
             self.add_child(child)
 
     def _create_nsview(self) -> NSView:
-        """🚀 最小化Flip策略：使用普通NSView作为容器"""
-        # 🎯 使用普通NSView而不是HibikiContainerView
-        # 坐标系由窗口根容器的FlippedView统一处理
-        from AppKit import NSView
-        container = NSView.alloc().init()
+        """🔧 修复坐标系Bug：使用HibikiContainerView确保正确的top-left坐标系"""
+        # 🎯 使用HibikiContainerView而不是普通NSView
+        # 确保每个容器都有正确的isFlipped=True坐标系转换
+        from .base_view import HibikiContainerView
+        container = HibikiContainerView.alloc().init()
 
         # 建立v4布局树关系
         try:
