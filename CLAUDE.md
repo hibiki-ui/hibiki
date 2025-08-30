@@ -528,6 +528,40 @@ def handle_form_submit(form):
         # Handle validation errors
 ```
 
+## 🧭 坐标系统
+
+Hibiki UI使用**top-left坐标系**以保持与现代UI框架的一致性：
+
+- **原点**: 左上角 (0, 0)
+- **X轴**: 向右递增
+- **Y轴**: 向下递增
+
+这与Web CSS、React、SwiftUI等框架保持一致，但与macOS原生的bottom-left坐标系不同。
+
+### 技术实现
+
+框架通过设置`NSView.isFlipped = True`来实现坐标系转换：
+
+```python
+class HibikiBaseView(NSView):
+    def isFlipped(self) -> bool:
+        return True  # 启用top-left坐标系
+```
+
+### 开发考虑
+
+- **布局计算**: 所有Y坐标按top-left逻辑计算
+- **事件处理**: 点击坐标自动转换为top-left坐标系
+- **截屏工具**: 生成的截图按macOS原生坐标系显示（正确行为）
+- **调试工具**: 坐标信息以top-left格式显示
+
+### 迁移注意事项
+
+从bottom-left坐标系迁移时：
+- 布局代码无需修改（框架自动处理）
+- 手动坐标计算需要适应top-left逻辑
+- 与原生Cocoa API交互时注意坐标系差异
+
 ## Debugging and Development Tools
 
 ### 🔍 Debugging GUI Applications
@@ -569,6 +603,49 @@ logger.error("Error occurred", exc_info=True)
 # - Component lifecycle tracking
 # - Performance metrics
 ```
+
+### 📸 Screenshot and Visual Debugging Tools
+
+For debugging visual layout issues and verifying UI rendering:
+
+```python
+from hibiki.ui import capture_app_screenshot, debug_view_layout, ScreenshotTool
+
+# Quick screenshot capture
+success = capture_app_screenshot("debug_screenshot.png")
+
+# Debug NSView layout properties
+debug_view_layout(my_component._nsview, "My Component")
+
+# Advanced screenshot tools
+ScreenshotTool.capture_window(window, "window_capture.png")
+ScreenshotTool.capture_view(view, "view_capture.png", format="jpg")
+
+# Get detailed view information
+info = ScreenshotTool.get_view_debug_info(view)
+print(f"Frame: {info['frame']}")
+print(f"Bounds: {info['bounds']}")
+```
+
+**Key Features:**
+- **capture_app_screenshot()**: Quick current window capture
+- **debug_view_layout()**: NSView property inspection with formatted logging
+- **ScreenshotTool**: Advanced capture with format options (PNG/JPG)
+- **get_view_debug_info()**: Detailed view metrics and hierarchy info
+
+**Usage Tips:**
+- **Bitmap Method (Recommended)**: Uses CoreGraphics for accurate screen capture
+- Screenshots can be taken from any thread (with automatic handling)
+- Use for visual verification after layout changes
+- Combine with layout debugging for comprehensive analysis
+- Ideal for before/after comparison testing
+- **Superior Quality**: Bitmap capture produces more accurate results than PDF-based methods
+
+**API Methods Available:**
+- `capture_app_screenshot()`: Quick screenshot of current window (uses CoreGraphics)
+- `ScreenshotTool.capture_window_with_cg()`: Direct CoreGraphics window capture
+- `ScreenshotTool.capture_view_bitmap()`: NSView bitmap rendering for precise view capture
+- `debug_view_layout()`: Layout debugging with visual verification
 
 ## Framework Status and Roadmap
 

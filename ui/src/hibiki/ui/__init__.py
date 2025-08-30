@@ -221,6 +221,8 @@ from .components import (
     ProgressBar, ImageView,
     # 选择组件
     PopUpButton, ComboBox,
+    # 表格组件
+    TableView, TableColumn,
     # 自定义组件
     CustomView, DrawingUtils
 )
@@ -233,6 +235,11 @@ from .theme import (
     FontScheme, SystemFonts, TextStyle, PresetFontSchemes,
     AppearanceManager, AppearanceMode,
     get_appearance_manager, is_dark_mode, add_appearance_observer
+)
+
+# 调试工具
+from .utils import (
+    ScreenshotTool, capture_app_screenshot, debug_view_layout
 )
 
 __all__ = [
@@ -259,6 +266,7 @@ __all__ = [
     'TextArea', 'Checkbox', 'RadioButton',
     'ProgressBar', 'ImageView',
     'PopUpButton', 'ComboBox',
+    'TableView', 'TableColumn',
     'CustomView', 'DrawingUtils',
     
     # 主题系统
@@ -267,5 +275,8 @@ __all__ = [
     'ColorScheme', 'SystemColors', 'ColorRole', 'PresetColorSchemes',
     'FontScheme', 'SystemFonts', 'TextStyle', 'PresetFontSchemes',
     'AppearanceManager', 'AppearanceMode',
-    'get_appearance_manager', 'is_dark_mode', 'add_appearance_observer'
+    'get_appearance_manager', 'is_dark_mode', 'add_appearance_observer',
+    
+    # 调试工具
+    'ScreenshotTool', 'capture_app_screenshot', 'debug_view_layout'
 ]

@@ -10,6 +10,7 @@ from .basic import (
     PopUpButton, ComboBox
 )
 from .custom_view import CustomView, DrawingUtils
+from .table_view import TableView, TableColumn
 
 __all__ = [
     # 基础组件
@@ -31,6 +32,10 @@ __all__ = [
     # 选择组件
     'PopUpButton',
     'ComboBox',
+    
+    # 表格组件
+    'TableView',
+    'TableColumn',
     
     # 自定义组件
     'CustomView',

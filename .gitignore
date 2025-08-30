@@ -196,3 +196,5 @@ uv.lock
 demo_output/
 temp/
 *.tmp
+
+*.png

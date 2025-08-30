@@ -145,13 +145,23 @@ class Label(UIComponent):
 
     def _create_nsview(self) -> NSView:
         """🚀 创建NSTextField作为Label"""
-        label = NSTextField.alloc().init()
+        # 🔧 修复：使用固定frame创建，防止自动尺寸调整
+        from AppKit import NSMakeRect
+        label = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 20))
 
         # 基础配置
         label.setBezeled_(False)  # 无边框
         label.setDrawsBackground_(False)  # 无背景
         label.setEditable_(False)  # 不可编辑
         label.setSelectable_(False)  # 不可选择
+        
+        # 🔑 关键修复：多层面禁用自动尺寸调整
+        label.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        # 禁用内容驱动的尺寸调整
+        if hasattr(label, 'setPreferredMaxLayoutWidth_'):
+            label.setPreferredMaxLayoutWidth_(0)
+        # 强制禁用自动尺寸适配
+        label.setAutoresizingMask_(0)
 
         # 设置文本内容 - 使用响应式绑定系统
 

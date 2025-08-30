@@ -10,6 +10,7 @@ from typing import Optional, List, Union, Callable, Any, TypeVar, Tuple
 from AppKit import NSView, NSColor
 from Foundation import NSMakeRect
 
+from .base_view import HibikiContainerView
 from .animation import Animation, AnimationGroup, AnimationManager
 from .api import HighLevelLayoutAPI, LowLevelLayoutAPI
 from .layout import get_layout_engine
@@ -391,8 +392,15 @@ class UIComponent(Component):
             # 绝对定位禁用Auto Layout
             self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(True)
         else:
-            # Flex布局可以与Auto Layout协同
-            self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            # 🔧 修复：对于有内容驱动尺寸的控件（如NSTextField），强制禁用Auto Layout
+            from AppKit import NSTextField
+            if isinstance(self._nsview, NSTextField):
+                # NSTextField需要禁用Auto Layout才能遵循布局系统的frame设置
+                self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(True)
+                self._nsview.setAutoresizingMask_(0)  # 禁用所有自动调整
+            else:
+                # 其他组件可以与Auto Layout协同
+                self._nsview.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
     def _apply_children_layout_from_stretchable(self, engine):
         """从Stretchable重建树应用子组件布局（简化版本）"""
@@ -662,7 +670,7 @@ class Container(UIComponent):
 
     def _create_nsview(self) -> NSView:
         """🚀 创建容器NSView并挂载所有子组件"""
-        container = NSView.alloc().init()
+        container = HibikiContainerView.alloc().init()
 
         # 建立v4布局树关系
         try:
