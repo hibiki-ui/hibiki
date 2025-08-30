@@ -629,8 +629,25 @@ class AppWindow:
         """设置窗口内容"""
         self._content = component
         if hasattr(component, "mount"):
-            nsview = component.mount()
-            self.nswindow.setContentView_(nsview)
+            # 🎯 最小化Flip策略：仅在窗口根容器使用FlippedView
+            from .base_view import HibikiBaseView
+            
+            # 创建flipped根容器作为窗口的contentView
+            root_container = HibikiBaseView.alloc().init()
+            
+            # 挂载用户组件并添加到根容器
+            user_nsview = component.mount()
+            root_container.addSubview_(user_nsview)
+            
+            # 让用户组件填充整个根容器
+            user_nsview.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            user_nsview.setFrame_(root_container.bounds())
+            user_nsview.setAutoresizingMask_(0x3F)  # All flexible margins and size
+            
+            # 设置flipped根容器为窗口内容
+            self.nswindow.setContentView_(root_container)
+            
+            logger.info(f"🎯 已创建Flipped根容器，实现top-left坐标系")
         else:
             logger.warning(f"⚠️ Component {component} doesn't have mount() method")
 

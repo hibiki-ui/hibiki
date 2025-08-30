@@ -10,7 +10,8 @@ from typing import Optional, List, Union, Callable, Any, TypeVar, Tuple
 from AppKit import NSView, NSColor
 from Foundation import NSMakeRect
 
-from .base_view import HibikiContainerView
+# HibikiContainerView不再需要 - 使用最小化Flip策略
+# from .base_view import HibikiContainerView
 from .animation import Animation, AnimationGroup, AnimationManager
 from .api import HighLevelLayoutAPI, LowLevelLayoutAPI
 from .layout import get_layout_engine
@@ -669,8 +670,11 @@ class Container(UIComponent):
             self.add_child(child)
 
     def _create_nsview(self) -> NSView:
-        """🚀 创建容器NSView并挂载所有子组件"""
-        container = HibikiContainerView.alloc().init()
+        """🚀 最小化Flip策略：使用普通NSView作为容器"""
+        # 🎯 使用普通NSView而不是HibikiContainerView
+        # 坐标系由窗口根容器的FlippedView统一处理
+        from AppKit import NSView
+        container = NSView.alloc().init()
 
         # 建立v4布局树关系
         try:
