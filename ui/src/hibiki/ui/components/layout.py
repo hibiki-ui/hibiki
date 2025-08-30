@@ -50,13 +50,21 @@ class GridTemplate:
         """解析Grid模板字符串"""
         # 处理repeat()语法
         if template.startswith("repeat("):
-            # 简单的repeat解析：repeat(3, 1fr) -> ["1fr", "1fr", "1fr"]
             content = template[7:-1]  # 去掉repeat()
             parts = content.split(",", 1)
             if len(parts) == 2:
-                count = int(parts[0].strip())
+                count_or_keyword = parts[0].strip()
                 value = parts[1].strip()
-                return [value] * count
+                
+                # 处理数字repeat: repeat(3, 1fr)
+                try:
+                    count = int(count_or_keyword)
+                    return [value] * count
+                except ValueError:
+                    # 处理auto-fit/auto-fill: repeat(auto-fit, minmax(300px, 1fr))
+                    if count_or_keyword in ["auto-fit", "auto-fill"]:
+                        # 对于auto-fit/auto-fill，返回原始字符串让CSS Grid处理
+                        return [template]
         
         # 分割空格分隔的值
         return [item.strip() for item in template.split() if item.strip()]

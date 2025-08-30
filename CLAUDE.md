@@ -1,61 +1,374 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides comprehensive guidance to Claude Code (claude.ai/code) when working with the Hibiki UI ecosystem. It contains essential development patterns, architectural principles, and best practices for this modern macOS UI framework.
 
 ## Project Overview
 
-**Hibiki UI** is a Hibiki UI framework for native macOS applications using Python and PyObjC. It provides signal-based reactivity inspired by SolidJS, with fine-grained updates that directly manipulate native NSViews without a virtual DOM.
+**Hibiki UI** is a cutting-edge reactive UI framework for native macOS applications built with Python and PyObjC. It provides a signal-based reactivity system with fine-grained updates that directly manipulate native NSViews, delivering optimal performance without virtual DOM overhead.
 
-### Key v3.0 Features
+### 🏗️ Core Architecture
 
-- **Unified API**: Simple component names (`Label`, `Button`) automatically resolve to best implementations
-- **Stretchable Layout Engine**: Professional layout system with CSS-like properties
-- **Complete Reactive System**: Signal, Computed, Effect with full UI binding support
-- **Event Handling**: Comprehensive click and interaction event system
+The framework follows a sophisticated layered architecture:
 
-## Development Commands
+```
+Application Layer (User Code)
+       ↓
+Component System (Label, Button, Container, etc.)
+       ↓
+Reactive System (Signal, Computed, Effect) ← CORE ENGINE
+       ↓
+Binding & Layout (ReactiveBinding, Stretchable Engine)
+       ↓
+Managers (App, Viewport, Layer, Positioning, etc.)
+       ↓
+AppKit/PyObjC (NSView, NSButton, NSTextField, etc.)
+```
 
-### Setup and Installation
+### 🎯 Key Features
+
+- **🔄 Reaktiv-inspired Signal System**: Enterprise-grade reactive programming with version control and batch processing
+- **📐 Stretchable Layout Engine**: Professional CSS Grid and Flexbox implementation
+- **🎨 Pure Core Animation**: GPU-accelerated animations using only Core Animation APIs
+- **🔧 Unified Component API**: Simple, consistent interface across all components
+- **📱 Responsive Design**: Built-in breakpoint system and viewport management
+- **🎭 Theme System**: Complete theming with light/dark mode support
+- **🚀 Performance Optimized**: Minimal overhead, direct NSView manipulation
+
+## Directory Structure
+
+```
+hibiki-ui/
+├── ui/                                    # Hibiki UI Framework
+│   ├── src/hibiki/ui/                     # Main package
+│   │   ├── core/                          # Core systems
+│   │   │   ├── reactive.py               # Signal, Computed, Effect
+│   │   │   ├── component.py              # UIComponent, Container base classes
+│   │   │   ├── styles.py                 # ComponentStyle, layout enums
+│   │   │   ├── binding.py                # Reactive binding system
+│   │   │   ├── layout.py                 # Stretchable layout engine
+│   │   │   ├── managers.py               # App, Window, Viewport managers
+│   │   │   ├── animation.py              # Core Animation API
+│   │   │   ├── responsive.py             # Breakpoint and responsive system
+│   │   │   └── text_props.py             # Text styling system
+│   │   ├── components/                   # UI component library
+│   │   │   ├── basic.py                  # Label, Button, TextField, etc.
+│   │   │   ├── layout.py                 # Grid, Stack, responsive containers
+│   │   │   ├── forms.py                  # Form components and validation
+│   │   │   └── custom_view.py            # Custom drawing utilities
+│   │   ├── theme/                        # Theming system
+│   │   │   ├── theme_manager.py          # Theme management
+│   │   │   ├── colors.py                 # Color schemes
+│   │   │   ├── fonts.py                  # Font management
+│   │   │   └── appearance.py             # Light/dark mode
+│   │   └── __init__.py                   # Main API exports
+│   ├── examples/                         # Usage examples
+│   │   └── basic/                        # Tutorial examples (01-11)
+│   └── tests/                           # Test suite
+├── music/                               # Hibiki Music (separate project)
+└── docs/                               # Documentation
+```
+
+## Development Setup and Commands
+
+### 🚀 Environment Setup
 
 ```bash
-# Install with uv (recommended)
-uv add hibiki-ui
+# Prerequisites
+# - Python 3.11+
+# - macOS 10.15+
+# - uv (recommended package manager)
 
-# Development setup
+# Clone and setup
+git clone <repository-url>
+cd hibiki-ui
+
+# Install dependencies (automatically installs project in editable mode)
 uv sync --all-extras
+
+# Install pre-commit hooks
 uv run pre-commit install
 ```
 
-### Testing and Quality
+### 🧪 Testing and Quality Assurance
 
 ```bash
-# Run tests
+# Run comprehensive test suite
 uv run pytest
 
-# Code quality
+# Code quality checks
 uv run ruff check .
-uv run ruff check --fix .
-uv run black .
-uv run isort .
-uv run mypy hibiki
+uv run ruff check --fix .       # Auto-fix issues
+uv run black .                  # Format code
+uv run isort .                  # Sort imports
+uv run mypy hibiki              # Type checking
 
-# Build package
+# Build distribution package
 uv build
 
-# Test GUI examples (timeout is expected and normal)
-timeout 8 uv run python examples/basic/01_hello_world.py
-timeout 8 uv run python examples/basic/02_reactive_basics.py
+# Run GUI examples (timeout is expected and normal)
+timeout 8 uv run python ui/examples/basic/01_hello_world.py
+timeout 8 uv run python ui/examples/basic/02_reactive_basics.py
+timeout 8 uv run python ui/examples/basic/11_modern_card_showcase.py
 ```
 
-### Python Import Best Practices
+### 📚 Example Programs
 
-**CRITICAL: Always use standard Python imports, never sys.path.insert()**
+The framework includes 9 comprehensive examples:
+1. **01_hello_world.py** - Basic application structure
+2. **02_reactive_basics.py** - Signal/Computed/Effect usage
+3. **03_forms_and_inputs.py** - Form components and validation
+4. **04_layout.py** - Flexbox and basic layouts
+5. **05_responsive_layout.py** - Responsive design patterns
+6. **06_dynamic_grid_columns.py** - Dynamic grid systems
+7. **07_static_grid_basic.py** - Static grid layouts
+8. **11_modern_card_showcase.py** - Advanced card components with responsive grid
+
+## Core Programming Patterns
+
+### 🔄 Signal-Based Reactivity
+
+The framework uses a powerful reactive system inspired by SolidJS and enhanced with Reaktiv optimizations:
 
 ```python
-# ✅ CORRECT: Standard imports with enums
-from hibiki import (
-    Label, Button, Signal, Computed, ComponentStyle, px,
-    Display, FlexDirection, JustifyContent, AlignItems
+from hibiki.ui import Signal, Computed, Effect
+
+# Signal - reactive state
+count = Signal(0)
+count.value = 5  # Triggers dependent updates
+
+# Computed - derived values with intelligent caching
+double = Computed(lambda: count.value * 2)
+formatted = Computed(lambda: f"Count: {count.value}, Double: {double.value}")
+
+# Effect - side effects with automatic cleanup
+effect = Effect(lambda: print(f"Current value: {count.value}"))
+```
+
+**Key Features:**
+- **Version Control**: Each Signal/Computed tracks versions for intelligent caching
+- **Batch Processing**: Multiple updates are automatically batched and deduplicated
+- **Smart Dependencies**: Only recomputes when dependencies actually change
+- **Automatic Cleanup**: Effects are automatically disposed when components unmount
+
+### 🎨 Component Development
+
+```python
+from hibiki.ui import (
+    UIComponent, Label, Button, Container,
+    ComponentStyle, Display, FlexDirection, px
+)
+
+# Basic component usage
+label = Label(
+    "Hello World",
+    font_size=16,
+    color="#333",
+    style=ComponentStyle(padding=px(10))
+)
+
+button = Button(
+    "Click me",
+    on_click=lambda: print("Clicked!"),
+    style=ComponentStyle(
+        background_color="#007acc",
+        border_radius=px(8)
+    )
+)
+
+# Container with flexbox layout
+container = Container(
+    children=[label, button],
+    style=ComponentStyle(
+        display=Display.FLEX,
+        flex_direction=FlexDirection.COLUMN,
+        gap=px(10),
+        padding=px(20)
+    )
+)
+```
+
+### 📐 Advanced Layout System
+
+The framework includes a professional layout system with CSS Grid and Flexbox support:
+
+```python
+from hibiki.ui import ComponentStyle, Display, px
+from hibiki.ui.components.layout import GridContainer, ResponsiveGrid
+
+# CSS Grid layout
+grid = GridContainer(
+    children=cards,
+    columns="repeat(3, 1fr)",  # 3 equal columns
+    rows="auto",
+    gap=16,
+    style=ComponentStyle(padding=px(20))
+)
+
+# Responsive grid that adapts to container width
+responsive_grid = ResponsiveGrid(
+    children=items,
+    min_column_width=300,    # Minimum column width
+    max_columns=4,           # Maximum columns
+    gap=20
+)
+
+# Advanced grid positioning
+grid.set_grid_position(child_component, 
+                      column_start=1, column_end=3,
+                      row_start=1, row_end=2)
+```
+
+### 📱 Responsive Design
+
+Built-in responsive system with breakpoint management:
+
+```python
+from hibiki.ui import (
+    ComponentStyle, responsive_style, BreakpointName, 
+    get_responsive_manager, px
+)
+
+# Create responsive styles
+responsive_style_obj = (
+    responsive_style(
+        ComponentStyle(
+            display=Display.GRID,
+            grid_template_columns="1fr",  # Mobile: 1 column
+            gap=px(16)
+        )
+    )
+    .at_breakpoint(BreakpointName.MD, ComponentStyle(
+        grid_template_columns="1fr 1fr",  # Tablet: 2 columns
+        gap=px(20)
+    ))
+    .at_breakpoint(BreakpointName.LG, ComponentStyle(
+        grid_template_columns="1fr 1fr 1fr",  # Desktop: 3 columns
+        gap=px(24)
+    ))
+)
+
+# Apply to component
+container = Container(
+    children=items,
+    responsive_style=responsive_style_obj
+)
+
+# Register with responsive manager
+responsive_mgr = get_responsive_manager()
+responsive_mgr.register_component(container)
+```
+
+### 🎭 Animation System
+
+Pure Core Animation implementation for maximum performance:
+
+```python
+from hibiki.ui import animate, fade_in, fade_out, bounce
+
+# Simple declarative animations
+animate(view, duration=0.5, opacity=0.8, scale=1.2)
+
+# Preset animation effects
+fade_in(view, duration=1.0)
+fade_out(view, duration=0.5)
+bounce(view, scale=1.1)
+
+# Signal-reactive animations
+visible = Signal(True)
+effect = Effect(lambda: animate(
+    label, 
+    opacity=1.0 if visible.value else 0.3,
+    duration=0.3
+))
+```
+
+## Application Development Patterns
+
+### 📱 Standard Application Structure
+
+All Hibiki UI applications must follow these essential patterns:
+
+```python
+from hibiki.ui import ManagerFactory, Container, ComponentStyle
+
+def create_main_app():
+    """Standard application setup pattern"""
+    
+    # 1. Create application manager
+    app_manager = ManagerFactory.get_app_manager()
+    
+    # 2. Create window with appropriate size
+    window = app_manager.create_window(
+        title="My App",
+        width=1200,
+        height=800
+    )
+    
+    # 3. Create main UI content
+    main_content = Container(
+        children=[
+            # Your components here
+        ],
+        style=ComponentStyle(
+            padding=px(20),
+            width=percent(100)
+        )
+    )
+    
+    # 4. Set window content
+    window.set_content(main_content)
+    
+    # 5. Run application event loop
+    app_manager.run()
+
+if __name__ == "__main__":
+    create_main_app()
+```
+
+### 🏗️ Component Lifecycle Management
+
+Components follow a clear lifecycle with automatic resource management:
+
+```python
+class CustomComponent(UIComponent):
+    def __init__(self, initial_data):
+        super().__init__()
+        
+        # Create component-scoped signals
+        self.data = self.create_signal(initial_data)
+        self.computed_value = self.create_computed(
+            lambda: self.process_data(self.data.value)
+        )
+        
+        # Effects are automatically cleaned up on unmount
+        self.create_effect(lambda: self.handle_data_change(self.data.value))
+    
+    def _create_nsview(self) -> NSView:
+        """Create and return the native NSView"""
+        view = NSView.alloc().init()
+        # Configure view...
+        return view
+    
+    def mount(self) -> NSView:
+        """Called when component is added to the UI tree"""
+        nsview = super().mount()
+        # Additional setup after mount...
+        return nsview
+```
+
+## Critical Development Guidelines
+
+### 🚨 Import Best Practices
+
+**CRITICAL: Always use standard Python imports, never sys.path manipulation**
+
+```python
+# ✅ CORRECT: Standard package imports
+from hibiki.ui import (
+    Signal, Computed, Effect,
+    Label, Button, Container, 
+    ComponentStyle, Display, FlexDirection, px, percent,
+    ManagerFactory
 )
 
 # ❌ WRONG: Never use sys.path.insert()
@@ -63,362 +376,266 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 ```
 
-**Development Workflow:**
+### 🎨 Styling Best Practices
 
-1. **Use UV for package management**: `uv sync` automatically installs project in editable mode
-2. **Check for conflicts**: `uv pip list | grep hibiki-ui` should show local editable install
-3. **Remove conflicts**: `uv pip uninstall conflicting-package` if needed
-4. **Examples should work like user installations**: No special path manipulation needed
-
-**Common Issues:**
-
-- If imports fail, check for conflicting packages with same name
-- **Always prefer enums over string literals**: Use `Display.FLEX` not `"flex"`, `FlexDirection.ROW` not `"row"`
-- GUI app timeouts are expected: `timeout 8 uv run python app.py` is normal
-
-## Core Architecture
-
-The framework follows a layered architecture:
-
-```
-Application Layer (User Code)
-       ↓
-Component System (Component, mount, lifecycle)
-       ↓
-Reactive System (Signal, Computed, Effect) ← CORE
-       ↓
-Binding Layer (ReactiveBinding, property binding)
-       ↓
-AppKit/PyObjC (NSView, NSButton, etc.)
-```
-
-### Key Directories
-
-- `hibiki/core/` - 核心系统模块
-  - `reactive.py` - 响应式系统核心 (Signal, Computed, Effect)
-  - `component.py` - 组件基类和容器 (Component, UIComponent, Container)
-  - `styles.py` - 样式系统和布局枚举 (ComponentStyle, Display, FlexDirection)
-  - `binding.py` - 响应式绑定系统 (ReactiveBinding, FormDataBinding)
-  - `layout.py` - 布局引擎集成 (LayoutEngine, LayoutNode)
-  - `managers.py` - 应用和窗口管理 (ManagerFactory)
-  - `animation.py` - 动画系统 (Animation, animate, fade_in/out, bounce)
-  - `text_props.py` - 文本属性系统 (TextProps, TextStyles)
-- `hibiki/components/` - UI 组件库
-  - `basic.py` - 基础组件 (Label, Button, TextField, Slider, Switch 等)
-  - `custom_view.py` - 自定义视图和绘制工具 (CustomView, DrawingUtils)
-  - `forms.py` - 表单组件和验证器
-  - `layout.py` - 高级布局组件
-- `hibiki/theme/` - 主题化系统
-  - `theme_manager.py` - 主题管理器 (ThemeManager, Theme, PresetThemes)
-  - `colors.py` - 颜色系统 (ColorScheme, SystemColors)
-  - `fonts.py` - 字体系统 (FontScheme, SystemFonts)
-  - `appearance.py` - 外观管理 (AppearanceManager, Light/Dark 模式)
-- `examples/` - 使用示例和参考实现
-  - `basic/` - 基础用法演示
-  - `complete/` - 完整功能展示
-
-## Signal-Based Reactivity
-
-The core reactive system uses three primitives:
+**Always use enum values for consistent styling:**
 
 ```python
-# Signal - reactive state
-count = Signal(0)
-count.value = 5  # Triggers updates
+# ✅ CORRECT: Use enums for type safety
+from hibiki.ui import Display, FlexDirection, JustifyContent, AlignItems
 
-# Computed - derived values
-double = Computed(lambda: count.value * 2)
+style = ComponentStyle(
+    display=Display.FLEX,
+    flex_direction=FlexDirection.COLUMN,
+    justify_content=JustifyContent.CENTER,
+    align_items=AlignItems.STRETCH
+)
 
-# Effect - side effects
-effect = Effect(lambda: print(f"Count: {count.value}"))
-```
-
-## Debugging Techniques
-
-### Gradual Feature Addition Method (Proven Effective)
-
-When debugging complex UI issues, use this systematic approach:
-
-1. **Start with working baseline** - Find the simplest version that works
-2. **Add one feature at a time** - Create incremental versions (debug_showcase_1.py, debug_showcase_2.py, etc.)
-3. **Test each increment** - Use `timeout 8 uv run python filename.py` to test GUI apps
-4. **Identify exact failure point** - Know precisely which feature addition breaks functionality
-5. **Fix at framework level** - Resolve root causes in framework code, not application workarounds
-
-**Example progression:**
-
-- v1: Basic unified API imports ✅
-- v2: Add Signal/Computed state ✅
-- v3: Add click event handlers ❌ (Found EventBinding issue)
-- v4: Add reactive binding ❌ (Found ReactiveBinding issue)
-- v5: Combined features after fixes ✅
-
-### GUI Application Testing
-
-- Use `timeout 8 uv run python app.py` for GUI apps (longer timeout for manual testing)
-- Success = App enters event loop without errors (timeout is expected)
-- Failure = Error messages or immediate exit before timeout
-- Watch for import errors, binding failures, layout issues
-
-### Common Framework Issues
-
-- **Import path errors**: Check `..core.binding` vs `..binding.event`
-- **Missing reactive properties**: Add support in `ReactiveBinding.SETTERS`
-- **Missing dependencies**: Install with `uv add package-name`
-- **Unified API issues**: Verify `__init__.py` imports point to working implementations
-
-## PyObjC Best Practices
-
-All PyObjC applications in this project must follow the 4 core requirements:
-
-1. **Activation Policy**: `app.setActivationPolicy_(NSApplicationActivationPolicyRegular)`
-2. **Menu Bar**: Create minimal menu bar with Cmd+Q quit functionality
-3. **AppHelper Event Loop**: `AppHelper.runEventLoop(installInterrupt=True)`
-4. **Separated Architecture**: AppDelegate + WindowController with strong references
-
-Example structure:
-
-```python
-class AppDelegate(NSObject):
-    def applicationDidFinishLaunching_(self, notification):
-        self.window_controller = WindowController.alloc().init()  # Strong reference
-
-class WindowController(NSObject):
-    def __init__(self):
-        self.window = None      # Strong reference
-        self.components = None  # Strong reference
-```
-
-### Apple System API Development Guidelines
-
-**CRITICAL RULE**: Always query Apple official documentation via MCP tools before implementing any macOS/iOS system APIs.
-
-**Required Process**:
-1. **Research First**: Use `mcp__apple-docs__search_apple_docs` to find official API documentation
-2. **Read Documentation**: Use `mcp__apple-docs__get_apple_doc_content` for detailed implementation guides  
-3. **Follow Best Practices**: Implement using Apple's recommended patterns and methods
-4. **Test Thoroughly**: Verify the implementation works as expected
-
-**Common Mistakes to Avoid**:
-- ❌ Using custom timers for media playback progress (use `AVPlayer.addPeriodicTimeObserver`)
-- ❌ Guessing PyObjC method names (always verify with Apple docs)
-- ❌ Implementing workarounds instead of using official APIs
-- ❌ Skipping error handling for system API calls
-
-**Example - Progress Tracking (Fixed)**:
-```python
-# ❌ WRONG: Custom timer approach
-self.timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(...)
-
-# ✅ CORRECT: Official Apple API
-self.time_observer = self.av_player.addPeriodicTimeObserverForInterval_queue_usingBlock_(
-    time_interval, None, progress_callback
+# ❌ WRONG: String literals are error-prone
+style = ComponentStyle(
+    display="flex",
+    flex_direction="column",
+    justify_content="center",
+    align_items="stretch"
 )
 ```
 
-**MCP Tools Available**:
-- `mcp__apple-docs__search_apple_docs` - Search API documentation  
-- `mcp__apple-docs__get_apple_doc_content` - Get detailed API docs
-- `mcp__apple-docs__list_technologies` - Browse available frameworks
-- `mcp__apple-docs__search_framework_symbols` - Explore framework APIs
+### 🎯 Performance Optimization
 
-## Framework Status
-
-### ✅ Core Framework (v3.0)
-
-- Unified API system working correctly
-- Reactive binding system (Signal, Computed, Effect)
-- Event handling system (EventBinding)
-- Layout components (VStack, HStack) with Stretchable engine
-
-### 🚀 Major Performance Optimization (2025-08-27)
-
-**Reaktiv-inspired Signal System Upgrade** - Applied enterprise-grade optimization algorithms:
-
-#### Core Enhancements:
-
-- **🆕 Version Control System**: Each Signal/Computed has version tracking for intelligent caching
-- **🆕 Batch Processing with Deduplication**: Multiple updates batched and deduplicated automatically
-- **🆕 Smart Dependency Tracking**: Only recompute when dependencies actually change
-- **🆕 Global Version Optimization**: Skip unnecessary computations using global version tracking
-
-#### Performance Improvements:
-
-- **30-50% UI responsiveness improvement** (reduced redundant renders)
-- **20-40% computation performance boost** (smart caching)
-- **10-20% memory optimization** (batch deduplication)
-- **100% backward compatibility** (zero breaking changes)
-
-#### Technical Implementation:
+**Leverage the reactive system's built-in optimizations:**
 
 ```python
-# Version control in Signal
-self._version += 1  # Track value changes
-_global_version += 1  # Global change tracking
+# ✅ CORRECT: Let the system batch updates automatically
+def update_multiple_values():
+    # These updates are automatically batched
+    signal1.value = new_value1
+    signal2.value = new_value2
+    signal3.value = new_value3
+    # Single batch update occurs here
 
-# Smart dependency checking
-def _needs_update(self, source) -> bool:
-    return source._version > self._dependency_versions[id(source)]
+# ✅ CORRECT: Use Computed for expensive calculations
+expensive_calculation = Computed(lambda: heavy_computation(data.value))
 
-# Batch processing with deduplication
-_start_batch()
-# Multiple signal updates batched and deduplicated
-_end_batch()  # Single optimized execution
+# ❌ WRONG: Manual batching or frequent recalculation
 ```
 
-#### Verification:
+### 🖥️ macOS Integration Best Practices
 
-- ✅ All existing demos work unchanged
-- ✅ Version control prevents unnecessary recomputation
-- ✅ Batch deduplication reduces Effect executions
-- ✅ Smart caching improves Computed performance
+**Essential PyObjC application requirements:**
 
-### 🔧 Previous Architecture Cleanup (2025-08-27)
+1. **Application Activation**: `app.setActivationPolicy_(NSApplicationActivationPolicyRegular)`
+2. **Menu Bar**: Create minimal menu with Cmd+Q quit functionality
+3. **Event Loop**: Use `AppHelper.runEventLoop(installInterrupt=True)`
+4. **Strong References**: Maintain references to prevent garbage collection
 
-- ReactiveBinding now supports `stringValue` property
-- EventBinding import path corrected (`..core.binding`)
-- Unified API components fully functional
-- **Architecture Simplification**: Removed all "Modern" prefixes
-  - `ModernLabel` → `Label`, `ModernButton` → `Button`, etc.
-  - `modern_components.py` → `components.py`, `modern_layout.py` → `layout.py`
-  - Eliminated LegacyComponentWrapper complexity
-  - Direct imports with clean, simple class names
+```python
+# ✅ CORRECT: Proper macOS app structure
+class AppDelegate(NSObject):
+    def applicationDidFinishLaunching_(self, notification):
+        # Strong reference prevents garbage collection
+        self.window_controller = WindowController.alloc().init()
 
-### Working Components
+class WindowController(NSObject):
+    def __init__(self):
+        # Strong references to UI components
+        self.window = None
+        self.main_component = None
+```
 
-- ✅ All basic controls (Button, Label, TextField)
-- ✅ All input controls (Slider, Switch, Checkbox, etc.)
-- ✅ All selection controls (PopUpButton, ComboBox, Menu, etc.)
-- ✅ All display controls (ImageView, ProgressBar, TextArea)
-- ✅ All picker controls (DatePicker, TimePicker)
-- ✅ Layout components (VStack, HStack, ScrollView)
-- ✅ Reactive system (Signal, Computed, Effect)
-- ✅ Window and app management
+## Advanced Features
+
+### 🎨 Theme System
+
+Comprehensive theming with reactive updates:
+
+```python
+from hibiki.ui import (
+    get_theme_manager, ThemeManager, PresetThemes,
+    get_appearance_manager, is_dark_mode
+)
+
+# Theme management
+theme_manager = get_theme_manager()
+theme_manager.set_theme(PresetThemes.OCEAN)
+
+# Reactive theme changes
+appearance_manager = get_appearance_manager()
+dark_mode = Signal(is_dark_mode())
+appearance_manager.add_observer(lambda mode: setattr(dark_mode, 'value', mode == 'dark'))
+```
+
+### 🧩 Custom Component Development
+
+```python
+from hibiki.ui import UIComponent, ComponentStyle
+from AppKit import NSView
+
+class ProgressCircle(UIComponent):
+    """Custom circular progress component"""
+    
+    def __init__(self, progress: Union[float, Signal[float]]):
+        super().__init__()
+        
+        # Handle both static and reactive progress
+        if isinstance(progress, Signal):
+            self.progress = progress
+        else:
+            self.progress = self.create_signal(progress)
+        
+        # Reactive drawing updates
+        self.create_effect(lambda: self._update_drawing())
+    
+    def _create_nsview(self) -> NSView:
+        from .custom_view import CustomView
+        
+        view = CustomView.alloc().init()
+        view.set_draw_callback(self._draw_progress)
+        return view
+    
+    def _draw_progress(self, rect):
+        # Custom Core Graphics drawing code
+        pass
+```
+
+### 📊 Form Handling and Validation
+
+```python
+from hibiki.ui.components.forms import Form, FormField, RequiredValidator, EmailValidator
+
+# Create form with validation
+form = Form([
+    FormField("email", TextField(placeholder="Email"), [
+        RequiredValidator("Email is required"),
+        EmailValidator("Invalid email format")
+    ]),
+    FormField("name", TextField(placeholder="Full Name"), [
+        RequiredValidator("Name is required")
+    ])
+])
+
+# Handle form submission
+submit_button = Button(
+    "Submit",
+    on_click=lambda: handle_form_submit(form)
+)
+
+def handle_form_submit(form):
+    if form.is_valid():
+        data = form.get_data()
+        # Process valid form data
+    else:
+        errors = form.get_errors()
+        # Handle validation errors
+```
+
+## Debugging and Development Tools
+
+### 🔍 Debugging GUI Applications
+
+Use the systematic "Gradual Feature Addition" method:
+
+1. **Start with working baseline** - Begin with simplest version that works
+2. **Add features incrementally** - Create debug versions (debug_v1.py, debug_v2.py)
+3. **Test each increment** - Use `timeout 8 uv run python filename.py`
+4. **Identify failure points** - Know exactly which addition breaks functionality
+5. **Fix at framework level** - Resolve root causes, not application workarounds
+
+```bash
+# Testing GUI applications
+timeout 8 uv run python my_app.py    # Success = enters event loop
+timeout 15 uv run python complex_app.py  # Longer timeout for complex apps
+
+# Debugging output
+uv run python app.py 2>&1 | grep -E "(ERROR|WARNING|Exception)"
+```
+
+### 📝 Logging and Diagnostics
+
+The framework includes comprehensive logging:
+
+```python
+from hibiki.ui.core.logging import get_logger
+
+# Component-specific logging
+logger = get_logger("my_component")
+logger.info("Component initialized")
+logger.debug("Detailed debug information")
+logger.warning("Potential issue detected")
+logger.error("Error occurred", exc_info=True)
+
+# Built-in system logging provides:
+# - Reactive system debugging (Signal updates, batch processing)
+# - Layout calculation visibility
+# - Component lifecycle tracking
+# - Performance metrics
+```
+
+## Framework Status and Roadmap
+
+### ✅ Production Ready (v4.0)
+
+- **Core Reactive System**: Signal, Computed, Effect with Reaktiv optimizations
+- **Component Library**: 15+ production-ready components
+- **Layout Engine**: Professional CSS Grid and Flexbox implementation
+- **Animation System**: Pure Core Animation with declarative API
+- **Responsive Design**: Complete breakpoint and viewport management
+- **Theme System**: Light/dark mode with custom theme support
+- **Performance**: 30-50% UI responsiveness improvement over previous versions
+
+### 🚀 Recent Major Improvements
+
+**Reaktiv-Inspired Signal System Upgrade** (2025-08):
+- Version control system for intelligent caching
+- Batch processing with automatic deduplication  
+- Smart dependency tracking prevents unnecessary recomputation
+- 30-50% UI responsiveness improvement
+- 20-40% computation performance boost
+- 100% backward compatibility
+
+### 🔬 Testing Strategy
+
+- **Unit Tests**: Core reactive system (`tests/test_reactive.py`)
+- **Integration Tests**: Component behavior and interactions
+- **GUI Tests**: Visual validation through example programs
+- **Performance Tests**: Benchmarks for reactive system optimizations
 
 ## Memory Management
 
-The project uses a hybrid approach:
+The framework uses a hybrid memory management approach:
 
-- `associate_object()` for NSObject associations
-- Component-managed signal lifecycles
-- Effect cleanup on component destruction
+- **Component Lifecycle**: Automatic signal cleanup on component destruction
+- **NSObject Associations**: `associate_object()` for Objective-C bridge
+- **Strong References**: Component hierarchy maintains references to prevent GC
+- **Effect Cleanup**: Automatic disposal of effects when components unmount
 
-Critical: All UI objects must maintain strong references through the component hierarchy to prevent garbage collection.
+## Best Practices Summary
 
-## Component Development
+### ✅ Do
 
-When creating new components:
+- Use standard Python imports with proper package structure
+- Leverage enum values for styling consistency
+- Take advantage of automatic batch processing
+- Use Computed for expensive calculations
+- Follow the 4 core PyObjC requirements for GUI apps
+- Use `timeout` for testing GUI applications
+- Create incremental debug versions when troubleshooting
 
-1. Inherit from `Component` base class
-2. Use `self.create_signal()` for component-scoped state
-3. Implement `mount()` method returning NSView
-4. Use `ReactiveBinding.bind()` for property updates
-5. Follow NSTableView patterns for complex components (see examples/tableview/)
+### ❌ Don't
 
-### Critical NSTextField/NSStackView Implementation Details
+- Use `sys.path.insert()` or path manipulation
+- Use string literals instead of enums for styles
+- Create manual batching or frequent recalculation
+- Use threading, time.sleep(), or custom timers for animations
+- Skip the gradual feature addition method when debugging
+- Assume libraries are available without checking imports
 
-**Essential PyObjC Method Signatures** (verified working):
+## Getting Help
 
-```python
-# NSTextField configuration
-label.setUsesSingleLineMode_(False)                    # Enable multi-line
-label.setLineBreakMode_(NSLineBreakByWordWrapping)     # Word wrap mode
-label.setPreferredMaxLayoutWidth_(400.0)              # Key for intrinsic size
+- **Examples**: Comprehensive tutorial series in `ui/examples/basic/`
+- **Documentation**: In-code documentation and type hints
+- **Source Code**: Well-structured, readable implementation
+- **Community**: GitHub issues for bug reports and feature requests
 
-# NSTextFieldCell configuration
-text_cell = label.cell()
-text_cell.setWraps_(True)                              # Enable text wrapping
-text_cell.setScrollable_(False)                        # Disable scroll for Auto Layout
+---
 
-# NSStackView constraint fixes
-stack.setOrientation_(0)                               # 0=Horizontal, 1=Vertical
-stack.setAlignment_(NSLayoutAttributeCenterY)          # HStack uses vertical alignment
-stack.setAlignment_(NSLayoutAttributeCenterX)          # VStack uses horizontal alignment
-stack.updateConstraintsForSubtreeIfNeeded()           # Force constraint generation
-stack.layoutSubtreeIfNeeded()                         # Force layout update
-```
-
-**Layout Problem Diagnosis Patterns:**
-
-- **Button overlap**: Usually NSStackView orientation mismatch (0 vs 1)
-- **Text width 4px**: Missing `preferredMaxLayoutWidth` on NSTextField
-- **Negative coordinates**: Parent container has 0x0 frame size
-- **Click not working**: Buttons positioned outside visible area
-
-## Testing Strategy
-
-- Unit tests for reactive system in `tests/`
-- Integration tests for component behavior
-- Reference implementations in `examples/` for validation
-- TableView: Use pure PyObjC examples to validate NSTableView functionality
-
-## Documentation Index
-
-Complete project documentation for design decisions, investigations, and architecture:
-
-- **Layout System Research Report**: `docs/LAYOUT_SYSTEM_RESEARCH.md` - Comprehensive research on Auto Layout systems, modern frameworks (React Native, Flutter), and architectural recommendations for professional layout implementation
-- **Layout Problem Investigation**: `docs/LAYOUT_PROBLEM_INVESTIGATION.md` - Detailed technical investigation of NSStackView negative coordinate positioning bugs, systematic debugging process, and emergency fixes applied
-- **Layout Engine v3.0 Implementation**: `docs/LAYOUT_ENGINE_V3_IMPLEMENTATION.md` - Complete implementation report for the professional Stretchable-based layout system (方案 B), including architecture, performance metrics, and technical achievements
-- **Component Refactoring Plan**: `docs/COMPONENT_REFACTORING_PLAN.md` - Comprehensive plan for refactoring existing components to work with the new layout system, including prioritization, migration strategies, and implementation roadmap
-- **Component Refactoring Progress**: `docs/COMPONENT_REFACTORING_PROGRESS.md` - First phase completion report for LayoutAwareComponent base class and modern component implementation, including technical details, test results, and next phase planning
-- **Animation Design Principles**: `docs/ANIMATION_DESIGN_PRINCIPLES.md` - Core design principles for Hibiki UI animation system, including Pure Core Animation requirements, GPU optimization strategies, and performance best practices
-
-## Animation System Development Principles
-
-### Core Architecture Rules
-
-1. **Pure Core Animation**: NEVER use threading, time.sleep, or custom timers. All animations must use Core Animation APIs.
-2. **Hardware Acceleration First**: Leverage GPU acceleration through CALayer properties (shadowOpacity, transform.scale, position, etc.)
-3. **Declarative API**: Provide simple, chainable interfaces that hide Core Animation complexity
-4. **Signal Integration**: All animations should work seamlessly with Hibiki UI's reactive Signal system
-
-### Implementation Standards
-
-```python
-# ✅ CORRECT: Pure Core Animation
-group = CAAnimationGroup.animation()
-shadow_animation = CABasicAnimation.animationWithKeyPath_("shadowOpacity")
-CATransaction.setCompletionBlock_(completion_callback)
-
-# ❌ WRONG: Custom threading/timing
-threading.Thread(target=lambda: time.sleep(duration)).start()
-```
-
-### Performance Requirements
-
-- All animations run on GPU via CALayer
-- Use CATransaction for completion handling
-- Minimize Python-ObjC bridge calls during animation
-- Prefer CAAnimationGroup for complex effects
-
-### API Design Patterns
-
-```python
-# Simple declarative interface
-animate(view, duration=0.5, opacity=0.8, scale=1.2)
-
-# Preset effects with clear naming
-ShinyText(duration=2.0).apply_to(text_view)
-FadeIn(duration=1.0).apply_to(view)
-```
-
-## Current Development Focus
-
-1. **✅ Layout System Architecture Upgrade**: Successfully implemented professional Stretchable-based layout engine (方案 B) - See implementation report for details
-2. **✅ Animation System**: Pure Core Animation implementation with declarative API and Signal integration
-3. **✅ Python Import Standards**: All examples and code follow proper Python packaging practices with no path manipulation
-4. **Component Library**: Expand available UI components
-5. **Documentation**: Complete API documentation
-6. **Performance**: Optimize batch updates and memory usage
-7. **Advanced Features**: Enhanced responsive layout capabilities
-
-## Code Quality Standards
-
-**All code in this project must follow these standards:**
-
-- ✅ Standard Python imports only - no `sys.path.insert()` hacks
-- ✅ UV package manager for dependency management
-- ✅ Examples work like real user installations
-- ✅ Pure Core Animation for all animations
-- ✅ Signal-based reactivity patterns
-- ✅ Professional layout system usage
+**For complete API reference and advanced examples, see the source code and example programs.**

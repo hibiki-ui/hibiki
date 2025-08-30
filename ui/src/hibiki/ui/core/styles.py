@@ -155,6 +155,7 @@ class ComponentStyle:
     flex_direction: FlexDirection = FlexDirection.COLUMN
     justify_content: JustifyContent = JustifyContent.FLEX_START
     align_items: AlignItems = AlignItems.STRETCH
+    flex_wrap: Optional[str] = None  # "wrap", "nowrap", "wrap-reverse"
     flex_grow: float = 0
     flex_shrink: float = 1
     flex_basis: Optional[Union[int, float, str, Length]] = None
