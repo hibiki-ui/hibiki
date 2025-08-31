@@ -585,7 +585,7 @@ class SplitView(Container):
         primary.style.flex_grow = 0
         primary.style.flex_shrink = 1
         primary.style.flex_basis = percent(split_ratio * 100)
-        primary.style.min_width = 0
+        primary.style.min_width = px(min_primary_size)  # 使用构造参数而不是0
         if primary.style.width is None:
             primary.style.width = percent(100)
         if primary.style.height is None:
@@ -595,7 +595,7 @@ class SplitView(Container):
         secondary.style.flex_grow = 1
         secondary.style.flex_shrink = 1
         secondary.style.flex_basis = percent((1 - split_ratio) * 100)
-        secondary.style.min_width = 0
+        secondary.style.min_width = px(min_secondary_size)  # 使用构造参数而不是0
         if secondary.style.width is None:
             secondary.style.width = percent(100)
         if secondary.style.height is None:
@@ -716,16 +716,57 @@ class ScrollableContainer(Container):
 
     def mount(self):
         """重写挂载逻辑，处理NSScrollView的特殊需求"""
-        # 先创建NSScrollView
-        nsview = super().mount()
+        # 先创建NSScrollView（但不要调用super().mount()，因为它会调用_create_nsview）
+        if self._nsview is None:
+            self._nsview = self._create_nsview()
+            self.layer_manager.register_component(self, self.style.z_index)
+            
+            # 🔧 关键修复：建立布局树关系，就像Container._create_nsview()一样
+            from ..core.layout import get_layout_engine
+            
+            engine = get_layout_engine()
+            
+            try:
+                # 为ScrollableContainer创建布局节点
+                engine.create_node_for_component(self)
+                
+                # 挂载所有子组件并建立布局关系
+                for i, child in enumerate(self.children):
+                    try:
+                        # 先设置父子关系
+                        child._parent_container = self
+                        
+                        # 为子组件创建并添加到v4布局树
+                        engine.add_child_relationship(self, child, i)
+                        
+                        # 挂载子组件到内容视图
+                        child_nsview = child.mount()
+                        if hasattr(self, "_content_view") and self._content_view:
+                            self._content_view.addSubview_(child_nsview)
+                            
+                    except Exception as e:
+                        logger.error(f"ScrollableContainer子组件 {i+1} 挂载失败: {e}")
+                        
+            except Exception as e:
+                logger.error(f"ScrollableContainer布局树构建失败: {e}")
+                import traceback
+                traceback.print_exc()
+                raise e
+            
+            # 应用定位和布局（从UIComponent.mount()复制）
+            self._apply_positioning_and_layout()
+            self.transform_manager.apply_transforms(self._nsview, self.style)
 
-        # 挂载子组件到内容视图而不是ScrollView本身
-        if hasattr(self, "_content_view") and self._content_view:
-            for child in self.children:
-                child_nsview = child.mount()
-                self._content_view.addSubview_(child_nsview)
+            if self.style.clip_rect:
+                self.mask_manager.apply_clip_mask(self._nsview, self.style.clip_rect)
 
-        return nsview
+            for configurator in self._raw_configurators:
+                try:
+                    configurator(self._nsview)
+                except Exception as e:
+                    logger.error(f"原始配置器执行失败: {e}")
+
+        return self._nsview
 
     def _apply_layout_result(self, layout_result):
         """重写布局应用，ScrollableContainer应保持容器尺寸而非内容尺寸"""
