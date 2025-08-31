@@ -414,6 +414,10 @@ class StyleConverter:
             kwargs["flex_grow"] = style.flex_grow
         if style.flex_shrink is not None:
             kwargs["flex_shrink"] = style.flex_shrink
+        if style.flex_basis is not None:
+            flex_basis_length = StyleConverter._convert_length(style.flex_basis)
+            if flex_basis_length:
+                kwargs["flex_basis"] = flex_basis_length
 
         # 尺寸转换
         size = StyleConverter._convert_size(style.width, style.height)
