@@ -198,3 +198,6 @@ temp/
 *.tmp
 
 *.png
+
+/ui/debug_exports
+
