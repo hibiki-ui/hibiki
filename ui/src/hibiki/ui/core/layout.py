@@ -62,6 +62,7 @@ Stretchable 是一个提供基于 CSS 布局操作的 Python 库，使用：
    - 全面的调试和分析工具
    - 带上下文的详细错误报告
    - 布局树完整性的健康监控
+   - 独立的布局专用文件日志系统
 
 使用模式
 -------
@@ -87,6 +88,30 @@ Stretchable 是一个提供基于 CSS 布局操作的 Python 库，使用：
     health = engine.health_check()
     engine.debug_print_stats()
     tree_info = engine.get_node_tree_info(root_component)
+
+**布局专用文件日志**::
+
+    # 启用布局调试文件日志（运行时动态开关，JSON结构化格式）
+    engine.enable_layout_file_logging("/tmp/layout_debug.log", "DEBUG")
+    
+    # 现有调试方法自动输出结构化JSON到专用文件
+    engine.debug_print_stats()     # 统计信息 -> JSON文件 + 控制台
+    health = engine.health_check() # 健康检查 -> JSON文件
+    tree_info = engine.get_node_tree_info(component)  # 节点树 -> JSON文件
+    
+    # JSON日志格式便于工具处理和LLM分析：
+    # {"timestamp":"2025-08-31T11:06:12.975","level":"INFO","event_type":"layout_stats","data":{...}}
+    
+    # 使用jq工具分析日志：
+    # jq '.data.performance' /tmp/layout_debug.log  # 查看性能数据
+    # jq 'select(.event_type=="health_check")' /tmp/layout_debug.log  # 筛选健康检查
+    
+    # 检查日志状态
+    config = engine.get_layout_logging_config()
+    print(f"日志状态: {config}")
+    
+    # 关闭专用日志
+    engine.disable_layout_file_logging()
 
 样式系统集成
 ----------
@@ -150,6 +175,11 @@ Stretchable 是一个提供基于 CSS 布局操作的 Python 库，使用：
 from typing import Optional, Tuple, Dict, Any, List
 from dataclasses import dataclass
 import time
+import logging
+import logging.handlers
+import os
+import json
+from datetime import datetime
 
 # 直接导入Stretchable - 这是外部依赖，不是旧版本代码
 import stretchable as st
@@ -194,6 +224,329 @@ class LayoutResult:
     content_width: float
     content_height: float
     compute_time: float
+
+
+class JsonLayoutFormatter(logging.Formatter):
+    """
+    JSON格式化器 - 专为布局调试设计的结构化日志格式
+    =================================================
+    
+    将布局引擎的日志信息格式化为结构化的JSON格式，便于工具处理和分析。
+    支持不同类型的布局事件，每种事件都有特定的数据结构。
+    
+    支持的事件类型
+    -----------
+    - layout_stats: 布局引擎统计信息
+    - health_check: 健康检查结果
+    - node_tree: 节点树结构
+    - layout_computation: 布局计算记录
+    - operation: 一般操作记录
+    """
+    
+    def format(self, record: logging.LogRecord) -> str:
+        """将日志记录格式化为JSON字符串"""
+        
+        # 基础JSON结构
+        log_entry = {
+            "timestamp": datetime.fromtimestamp(record.created).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage()
+        }
+        
+        # 检查是否有结构化数据
+        if hasattr(record, 'layout_event_type'):
+            log_entry["event_type"] = record.layout_event_type
+            
+        if hasattr(record, 'layout_data'):
+            log_entry["data"] = record.layout_data
+            
+        # 添加文件和行号信息（调试用）
+        if hasattr(record, 'filename') and hasattr(record, 'lineno'):
+            log_entry["source"] = {
+                "file": record.filename,
+                "line": record.lineno,
+                "function": getattr(record, 'funcName', 'unknown')
+            }
+            
+        return json.dumps(log_entry, ensure_ascii=False, separators=(',', ':'))
+
+
+class LayoutFileLogger:
+    """
+    布局引擎专用文件日志器
+    ===========================
+    
+    提供布局引擎调试信息的独立文件日志输出功能，与主日志系统完全隔离。
+    支持运行时动态开关、自定义文件路径和日志级别。
+    
+    主要功能
+    -------
+    - 运行时动态启用/禁用日志
+    - 独立的日志文件，不影响其他模块
+    - 自动文件轮转和大小管理
+    - 整合布局统计、健康检查、节点树信息
+    
+    使用示例
+    -------
+    
+    ::
+    
+        # 启用布局专用日志
+        engine = get_layout_engine()
+        engine.enable_layout_file_logging("/tmp/layout_debug.log", "DEBUG")
+        
+        # 现有调试方法自动输出到文件
+        engine.debug_print_stats()  # 同时输出到控制台和文件
+        health = engine.health_check()  # 健康状态记录到文件
+        tree_info = engine.get_node_tree_info(component)  # 节点树记录到文件
+        
+        # 关闭专用日志
+        engine.disable_layout_file_logging()
+    """
+    
+    def __init__(self):
+        # 创建专用的Logger，完全独立于主日志系统
+        self.layout_logger = logging.getLogger("hibiki.layout.dedicated")
+        self.layout_logger.propagate = False  # 不传播到父日志器，完全隔离
+        
+        self.enabled = False
+        self.file_handler = None
+        self.log_file_path = None
+        self.use_json_format = True  # 默认使用JSON格式
+        
+        # JSON格式器 - 结构化日志输出
+        self.json_formatter = JsonLayoutFormatter()
+        
+        # 传统格式器 - 可读性优化（备用）
+        self.text_formatter = logging.Formatter(
+            '[%(asctime)s.%(msecs)03d] LAYOUT | %(levelname)-8s | %(message)s',
+            datefmt='%H:%M:%S'
+        )
+    
+    def enable_logging(self, file_path: str, level: str = "DEBUG") -> bool:
+        """
+        启用布局专用文件日志
+        
+        参数
+        ----
+        file_path : str
+            日志文件路径，支持相对和绝对路径
+        level : str
+            日志级别："DEBUG", "INFO", "WARNING", "ERROR"
+            
+        返回值
+        ------
+        bool
+            启用成功返回True，失败返回False
+        """
+        try:
+            # 如果已经启用，先关闭现有的
+            if self.enabled:
+                self.disable_logging()
+            
+            # 确保目录存在
+            file_path = os.path.abspath(file_path)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            
+            # 创建轮转文件处理器
+            self.file_handler = logging.handlers.RotatingFileHandler(
+                file_path, 
+                maxBytes=50*1024*1024,  # 50MB
+                backupCount=3,
+                encoding='utf-8'
+            )
+            
+            # 设置级别和格式器
+            level_map = {
+                "DEBUG": logging.DEBUG,
+                "INFO": logging.INFO, 
+                "WARNING": logging.WARNING,
+                "ERROR": logging.ERROR
+            }
+            log_level = level_map.get(level.upper(), logging.DEBUG)
+            self.file_handler.setLevel(log_level)
+            
+            # 使用JSON格式器
+            formatter = self.json_formatter if self.use_json_format else self.text_formatter
+            self.file_handler.setFormatter(formatter)
+            
+            # 添加到专用Logger
+            self.layout_logger.addHandler(self.file_handler)
+            self.layout_logger.setLevel(logging.DEBUG)
+            
+            self.enabled = True
+            self.log_file_path = file_path
+            
+            # 记录启用信息
+            self.layout_logger.info(f"🚀 布局专用日志已启用")
+            self.layout_logger.info(f"📁 日志文件: {file_path}")
+            self.layout_logger.info(f"📊 日志级别: {level.upper()}")
+            return True
+            
+        except Exception as e:
+            # 失败时输出到标准错误，不影响主应用
+            import sys
+            print(f"❌ 启用布局日志失败: {e}", file=sys.stderr)
+            return False
+    
+    def disable_logging(self) -> bool:
+        """禁用布局专用文件日志"""
+        try:
+            if self.file_handler:
+                self.layout_logger.info("🔌 布局专用日志已禁用")
+                self.layout_logger.removeHandler(self.file_handler)
+                self.file_handler.close()
+                self.file_handler = None
+            
+            self.enabled = False
+            self.log_file_path = None
+            return True
+            
+        except Exception as e:
+            import sys
+            print(f"❌ 禁用布局日志失败: {e}", file=sys.stderr)
+            return False
+    
+    def is_enabled(self) -> bool:
+        """检查是否启用了文件日志"""
+        return self.enabled
+    
+    def get_config(self) -> dict:
+        """获取当前配置信息"""
+        return {
+            "enabled": self.enabled,
+            "file_path": self.log_file_path,
+            "level": self.file_handler.level if self.file_handler else None
+        }
+    
+    def info(self, message: str):
+        """记录INFO级别日志"""
+        if self.enabled:
+            self.layout_logger.info(message)
+    
+    def debug(self, message: str):
+        """记录DEBUG级别日志"""
+        if self.enabled:
+            self.layout_logger.debug(message)
+    
+    def warning(self, message: str):
+        """记录WARNING级别日志"""
+        if self.enabled:
+            self.layout_logger.warning(message)
+    
+    def error(self, message: str):
+        """记录ERROR级别日志"""
+        if self.enabled:
+            self.layout_logger.error(message)
+    
+    def log_structured_event(self, event_type: str, level: str, message: str, data: dict = None):
+        """记录结构化事件到JSON日志"""
+        if not self.enabled:
+            return
+            
+        # 创建LogRecord并添加结构化数据
+        level_map = {
+            "DEBUG": logging.DEBUG,
+            "INFO": logging.INFO,
+            "WARNING": logging.WARNING,
+            "ERROR": logging.ERROR
+        }
+        log_level = level_map.get(level.upper(), logging.INFO)
+        
+        # 创建记录
+        record = self.layout_logger.makeRecord(
+            self.layout_logger.name, log_level, "", 0, message, (), None
+        )
+        
+        # 添加结构化数据
+        record.layout_event_type = event_type
+        record.layout_data = data or {}
+        
+        # 发送到处理器
+        self.layout_logger.handle(record)
+    
+    def log_health_status(self, health_data: dict):
+        """记录布局引擎健康状态 - JSON结构化格式"""
+        if not self.enabled:
+            return
+        
+        message = "布局引擎健康检查完成"
+        if not health_data["healthy"]:
+            message = "布局引擎健康检查发现问题"
+            
+        self.log_structured_event(
+            event_type="health_check",
+            level="WARNING" if not health_data["healthy"] else "INFO",
+            message=message,
+            data={
+                "healthy": health_data["healthy"],
+                "total_nodes": health_data["total_nodes"],
+                "orphaned_nodes": health_data["orphaned_nodes"],
+                "corrupted_references": health_data["corrupted_references"],
+                "warnings": health_data["warnings"]
+            }
+        )
+    
+    def log_node_tree_structure(self, component_name: str, tree_info: dict, is_root: bool = True):
+        """记录节点树结构信息 - JSON结构化格式"""
+        if not self.enabled:
+            return
+        
+        if "error" in tree_info:
+            self.log_structured_event(
+                event_type="node_tree_error",
+                level="ERROR",
+                message=f"节点树信息获取失败: {component_name}",
+                data={"component_name": component_name, "error": tree_info["error"]}
+            )
+            return
+        
+        # 构建完整的树结构数据
+        tree_data = {
+            "root_component": component_name,
+            "component_type": tree_info["component_type"],
+            "node_key": tree_info["node_key"],
+            "children_count": tree_info["children_count"],
+            "has_parent": tree_info["has_parent"],
+            "stretchable_valid": tree_info["stretchable_valid"],
+            "tree_structure": self._flatten_tree_structure(tree_info)
+        }
+        
+        self.log_structured_event(
+            event_type="node_tree",
+            level="INFO",
+            message=f"节点树结构: {component_name}",
+            data=tree_data
+        )
+    
+    def _flatten_tree_structure(self, tree_info: dict, path: str = "") -> dict:
+        """将树结构扁平化为便于分析的格式"""
+        result = {}
+        
+        if "error" in tree_info:
+            return {"error": tree_info["error"]}
+        
+        current_path = path or tree_info.get("component_type", "root")
+        result[current_path] = {
+            "type": tree_info["component_type"],
+            "key": tree_info["node_key"],
+            "children_count": tree_info["children_count"],
+            "has_parent": tree_info["has_parent"],
+            "stretchable_valid": tree_info["stretchable_valid"]
+        }
+        
+        # 递归处理子节点
+        for i, child_info in enumerate(tree_info.get('children', [])):
+            child_path = f"{current_path}.child_{i}"
+            if not child_info.get('error'):
+                child_type = child_info.get('component_type', f'child_{i}')
+                child_path = f"{current_path}.{child_type}"
+            
+            child_result = self._flatten_tree_structure(child_info, child_path)
+            result.update(child_result)
+        
+        return result
 
 
 class StyleConverter:
@@ -1030,7 +1383,56 @@ class LayoutEngine:
         self._cache_hits = 0
         self._cache_misses = 0
 
+        # 布局专用文件日志器
+        self.layout_file_logger = LayoutFileLogger()
+
         logger.debug("🏗️ LayoutEngine初始化完成")
+
+    # =====================================
+    # 布局专用文件日志API
+    # =====================================
+    
+    def enable_layout_file_logging(self, file_path: str, level: str = "DEBUG") -> bool:
+        """
+        启用布局引擎专用文件日志
+        
+        参数
+        ----
+        file_path : str
+            日志文件路径，建议使用 .log 扩展名
+        level : str
+            日志级别，可选："DEBUG", "INFO", "WARNING", "ERROR"
+            
+        返回值
+        ------
+        bool
+            启用成功返回True，失败返回False
+            
+        示例
+        ----
+        ::
+        
+            engine = get_layout_engine()
+            success = engine.enable_layout_file_logging("/tmp/layout_debug.log", "DEBUG")
+            if success:
+                print("布局日志已启用")
+        """
+        success = self.layout_file_logger.enable_logging(file_path, level)
+        if success:
+            self.layout_file_logger.info("🎯 布局引擎文件日志系统已激活")
+        return success
+    
+    def disable_layout_file_logging(self) -> bool:
+        """禁用布局引擎专用文件日志"""
+        return self.layout_file_logger.disable_logging()
+    
+    def is_layout_file_logging_enabled(self) -> bool:
+        """检查布局文件日志是否启用"""
+        return self.layout_file_logger.is_enabled()
+    
+    def get_layout_logging_config(self) -> dict:
+        """获取布局日志配置信息"""
+        return self.layout_file_logger.get_config()
 
     def create_node_for_component(self, component) -> LayoutNode:
         """为组件创建布局节点"""
@@ -1376,6 +1778,29 @@ class LayoutEngine:
             logger.debug(
                 f"✅ 布局计算完成: {component.__class__.__name__} -> {width:.1f}x{height:.1f} @ ({x:.1f}, {y:.1f}) [{compute_time:.2f}ms]"
             )
+        
+        # 输出结构化布局计算日志
+        if self.layout_file_logger.is_enabled():
+            self.layout_file_logger.log_structured_event(
+                event_type="layout_computation",
+                level="DEBUG",
+                message=f"布局计算完成: {component.__class__.__name__}",
+                data={
+                    "component_type": component.__class__.__name__,
+                    "layout_result": {
+                        "x": round(x, 2),
+                        "y": round(y, 2), 
+                        "width": round(width, 2),
+                        "height": round(height, 2),
+                        "content_width": round(content_width, 2),
+                        "content_height": round(content_height, 2)
+                    },
+                    "performance": {
+                        "compute_time_ms": round(compute_time, 2)
+                    },
+                    "available_size": available_size
+                }
+            )
 
             # 🔥 Grid布局调试：打印所有子组件的位置
             if (
@@ -1635,7 +2060,8 @@ class LayoutEngine:
             logger.debug(f"🧹 清理组件布局节点: {component.__class__.__name__}")
 
     def debug_print_stats(self):
-        """打印详细的调试统计信息"""
+        """打印详细的调试统计信息 - 支持文件日志输出"""
+        # 输出到控制台日志（保持原有行为）
         logger.info("📊 Hibiki UI 布局引擎状态报告")
         logger.info("=" * 50)
         logger.info(f"🔄 布局计算调用次数: {self._layout_calls}")
@@ -1655,6 +2081,46 @@ class LayoutEngine:
                 logger.info(f"   {comp_type}: {count}")
 
         logger.info("=" * 50)
+        
+        # 输出结构化JSON日志到专用文件
+        if self.layout_file_logger.is_enabled():
+            # 计算性能指标
+            avg_time = self._get_average_layout_time()
+            cache_calls = getattr(self, '_cache_calls', 0)
+            cache_hit_rate = f"{self._cache_hits}/{cache_calls}" if cache_calls > 0 else "0/0"
+            
+            self.layout_file_logger.log_structured_event(
+                event_type="layout_stats",
+                level="INFO",
+                message="布局引擎状态统计",
+                data={
+                    "engine_state": {
+                        "layout_calls": self._layout_calls,
+                        "active_nodes": len(self._component_nodes),
+                        "cache_enabled": self.enable_cache,
+                        "debug_mode": self.debug_mode,
+                        "file_logging_enabled": True,
+                        "log_file_path": self.layout_file_logger.log_file_path
+                    },
+                    "performance": {
+                        "cache_hit_rate": cache_hit_rate,
+                        "cache_hits": self._cache_hits,
+                        "cache_calls": cache_calls,
+                        "avg_layout_time_ms": round(avg_time, 2)
+                    },
+                    "component_distribution": component_types,
+                    "summary": {
+                        "total_component_types": len(component_types),
+                        "most_common_type": max(component_types.items(), key=lambda x: x[1])[0] if component_types else None
+                    }
+                }
+            )
+    
+    def _get_average_layout_time(self) -> float:
+        """计算平均布局时间（用于文件日志的额外统计）"""
+        if not hasattr(self, '_total_layout_time'):
+            return 0.0
+        return self._total_layout_time / max(self._layout_calls, 1)
 
     def health_check(self) -> dict:
         """
@@ -1704,6 +2170,10 @@ class LayoutEngine:
         except Exception as e:
             health_status["healthy"] = False
             health_status["warnings"].append(f"健康检查过程出错: {e}")
+
+        # 输出到布局专用文件日志
+        if self.layout_file_logger.is_enabled():
+            self.layout_file_logger.log_health_status(health_status)
 
         return health_status
 
@@ -1786,10 +2256,22 @@ class LayoutEngine:
                 else:
                     info["children"].append({"error": "找不到对应的组件"})
 
+            # 输出到布局专用文件日志（JSON格式）
+            if self.layout_file_logger.is_enabled():
+                self.layout_file_logger.log_node_tree_structure(
+                    info["component_type"], info, is_root=True
+                )
+
             return info
 
         except Exception as e:
-            return {"error": f"获取节点信息时出错: {e}"}
+            error_info = {"error": f"获取节点信息时出错: {e}"}
+            
+            # 错误也记录到文件日志
+            if self.layout_file_logger.is_enabled():
+                self.layout_file_logger.error(f"❌ 获取节点树信息失败: {e}")
+            
+            return error_info
 
 
 # 全局布局引擎实例
