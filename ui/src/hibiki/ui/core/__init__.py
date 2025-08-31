@@ -12,7 +12,7 @@ from .reactive import Signal, Computed, Effect, create_signal, create_computed, 
 
 # 样式系统
 from .styles import (
-    ComponentStyle, StylePresets, px, percent, auto,
+    ComponentStyle, StylePresets, px, percent, auto, vw, vh,
     Display, FlexDirection, JustifyContent, AlignItems, LengthUnit
 )
 
@@ -55,6 +55,8 @@ __all__ = [
     'px',
     'percent', 
     'auto',
+    'vw',
+    'vh',
     'Display',
     'FlexDirection',
     'JustifyContent',

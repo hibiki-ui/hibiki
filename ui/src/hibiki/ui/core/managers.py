@@ -1,15 +1,49 @@
 #!/usr/bin/env python3
 """
-Hibiki UI v4.0 管理器系统
+Hibiki UI 管理器系统
 六大专业管理器，分离关注点，各司其职
 """
 
 import weakref
+import math
 from typing import Optional, List, Union, Dict, Tuple, Callable, Any
-from abc import ABC, abstractmethod
 from enum import Enum
-from AppKit import NSView, NSWindow, NSScrollView
-from Foundation import NSMakeRect, NSAffineTransform, NSBezierPath, NSSize
+
+# AppKit imports
+from AppKit import (
+    NSView,
+    NSWindow,
+    NSScrollView,
+    NSApplication,
+    NSApplicationActivationPolicyRegular,
+    NSMenu,
+    NSMenuItem,
+    NSScreen,
+    NSWindowStyleMaskTitled,
+    NSWindowStyleMaskClosable,
+    NSWindowStyleMaskMiniaturizable,
+    NSWindowStyleMaskResizable,
+    NSBackingStoreBuffered,
+)
+
+# Foundation imports
+from Foundation import (
+    NSMakeRect,
+    NSBezierPath,
+    NSSize,
+    NSStringFromSelector,
+)
+
+# Quartz imports
+from Quartz import (
+    CATransform3DIdentity,
+    CATransform3DScale,
+    CATransform3DRotate,
+    CATransform3DTranslate,
+)
+
+# PyObjCTools imports
+from PyObjCTools import AppHelper
 
 from .logging import get_logger
 
@@ -56,7 +90,9 @@ class ViewportManager:
 
         logger.info("🖥️ ViewportManager初始化完成")
 
-    def set_window_content_size(self, width: float, height: float, window: Optional[NSWindow] = None):
+    def set_window_content_size(
+        self, width: float, height: float, window: Optional[NSWindow] = None
+    ):
         """直接设置窗口内容区域尺寸，不依赖contentView
 
         🔧 核心修复：消除循环依赖
@@ -124,8 +160,6 @@ class ViewportManager:
 # ================================
 # 2. LayerManager - 层级管理器
 # ================================
-
-from enum import Enum
 
 
 class ZLayer(Enum):
@@ -245,8 +279,6 @@ class LayerManager:
 # ================================
 # 3. PositioningManager - 定位管理器
 # ================================
-
-from enum import Enum
 
 
 class Position(Enum):
@@ -400,15 +432,6 @@ class TransformManager:
         if any([style.scale != (1.0, 1.0), style.rotation != 0, style.translation != (0, 0)]):
             try:
                 # 使用CATransform3D进行变换
-                from Quartz import (
-                    CATransform3DIdentity,
-                    CATransform3DScale,
-                    CATransform3DRotate,
-                    CATransform3DTranslate,
-                    CATransform3DConcat,
-                )
-                import math
-
                 transform = CATransform3DIdentity
 
                 # 缩放
@@ -617,9 +640,9 @@ class RootContainerManager:
         Returns:
             配置好的根容器NSView
         """
+        # 创建flipped根容器（支持top-left坐标系）
         from .base_view import HibikiBaseView
 
-        # 创建flipped根容器（支持top-left坐标系）
         root_container = HibikiBaseView.alloc().init()
 
         # 设置正确的frame尺寸
@@ -632,7 +655,9 @@ class RootContainerManager:
         logger.info(f"🏗️ 创建根容器: {content_width:.1f}x{content_height:.1f}")
         return root_container
 
-    def update_root_container_size(self, root_container: NSView, new_width: float, new_height: float):
+    def update_root_container_size(
+        self, root_container: NSView, new_width: float, new_height: float
+    ):
         """更新根容器尺寸
 
         Args:
@@ -675,8 +700,7 @@ class RootContainerManager:
 class AppWindowDelegate:
     """窗口事件代理 - 监听窗口大小变化"""
 
-    def __init__(self, app_window: 'AppWindow'):
-        from Foundation import NSObject
+    def __init__(self, app_window: "AppWindow"):
         super(AppWindowDelegate, self).__init__()
         self.app_window = app_window
 
@@ -690,7 +714,9 @@ class AppWindowDelegate:
 
         # 2. 更新ViewportManager（使用新的API）
         viewport_mgr = ManagerFactory.get_viewport_manager()
-        viewport_mgr.set_window_content_size(content_size.width, content_size.height, self.app_window.nswindow)
+        viewport_mgr.set_window_content_size(
+            content_size.width, content_size.height, self.app_window.nswindow
+        )
 
         # 3. 更新根容器尺寸
         if self.app_window._content:
@@ -718,18 +744,19 @@ class AppWindowDelegate:
             width, height = viewport_mgr.get_viewport_size()
 
             # 🔥 关键更新：先通知响应式管理器，再重新计算布局
-            print(f"📱 更新响应式系统: {width}x{height}")
+            logger.debug(f"📱 更新响应式系统: {width}x{height}")
             responsive_mgr.update_viewport(width, height)
 
             # 获取根容器并触发重新计算
             if self.app_window._content:
-                print(f"📐 开始布局重新计算...")
+                logger.debug(f"📐 开始布局重新计算...")
                 engine.recalculate_all_layouts()
-                print(f"✅ 布局重新计算完成")
+                logger.debug(f"✅ 布局重新计算完成")
 
         except Exception as e:
-            print(f"❌ 布局重新计算失败: {e}")
+            logger.warning(f"❌ 布局重新计算失败: {e}")
             import traceback
+
             traceback.print_exc()
 
 
@@ -737,15 +764,13 @@ class AppWindow:
     """应用程序窗口包装器"""
 
     def __init__(self, title: str, width: int, height: int):
-        from AppKit import (
-            NSWindow,
-            NSWindowStyleMaskTitled,
-            NSWindowStyleMaskClosable,
-            NSWindowStyleMaskMiniaturizable,
-            NSWindowStyleMaskResizable,
-            NSBackingStoreBuffered,
-        )
-        from Foundation import NSMakeRect
+        # 获取桌面尺寸并计算窗口居中位置
+        main_screen = NSScreen.mainScreen()
+        screen_frame = main_screen.frame()
+
+        # 计算居中位置
+        center_x = (screen_frame.size.width - width) / 2
+        center_y = (screen_frame.size.height - height) / 2
 
         # 创建窗口
         style_mask = (
@@ -756,7 +781,7 @@ class AppWindow:
         )
 
         self.nswindow = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
-            NSMakeRect(100, 100, width, height), style_mask, NSBackingStoreBuffered, False
+            NSMakeRect(center_x, center_y, width, height), style_mask, NSBackingStoreBuffered, False
         )
 
         self.nswindow.setTitle_(title)
@@ -775,7 +800,6 @@ class AppWindow:
         self.nswindow.makeKeyAndOrderFront_(None)
 
         # 🔧 关键修复：激活应用程序，确保成为前台应用
-        from AppKit import NSApplication
         app = NSApplication.sharedApplication()
         app.activateIgnoringOtherApps_(True)  # 强制激活应用
 
@@ -793,7 +817,9 @@ class AppWindow:
         viewport_mgr = ManagerFactory.get_viewport_manager()
         viewport_mgr.set_window_content_size(content_size.width, content_size.height, self.nswindow)
 
-        logger.info(f"🎯 窗口初始化完成，内容区域: {content_size.width:.1f}x{content_size.height:.1f}")
+        logger.info(
+            f"🎯 窗口初始化完成，内容区域: {content_size.width:.1f}x{content_size.height:.1f}"
+        )
 
     def _calculate_content_area_size(self) -> NSSize:
         """计算实际的内容区域尺寸
@@ -822,7 +848,9 @@ class AppWindow:
 
             # 2. 确保ViewportManager有最新的尺寸信息
             viewport_mgr = ManagerFactory.get_viewport_manager()
-            viewport_mgr.set_window_content_size(content_size.width, content_size.height, self.nswindow)
+            viewport_mgr.set_window_content_size(
+                content_size.width, content_size.height, self.nswindow
+            )
 
             # 3. 使用RootContainerManager创建具有正确尺寸的根容器
             root_container_mgr = ManagerFactory.get_root_container_manager()
@@ -842,7 +870,9 @@ class AppWindow:
             # 6. 设置为窗口内容
             self.nswindow.setContentView_(root_container)
 
-            logger.info(f"✅ 窗口内容设置完成，根容器: {content_size.width:.1f}x{content_size.height:.1f}")
+            logger.info(
+                f"✅ 窗口内容设置完成，根容器: {content_size.width:.1f}x{content_size.height:.1f}"
+            )
 
         else:
             logger.warning(f"⚠️ 组件 {component} 没有mount()方法")
@@ -870,15 +900,6 @@ class AppManager:
 
     def _setup_application(self):
         """设置NSApplication"""
-        from AppKit import (
-            NSApplication,
-            NSApplicationActivationPolicyRegular,
-            NSApp,
-            NSMenu,
-            NSMenuItem,
-        )
-        from Foundation import NSStringFromSelector, NSObject
-
         # 创建应用程序实例
         self._app = NSApplication.sharedApplication()
         self._app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
@@ -905,8 +926,6 @@ class AppManager:
 
     def run(self):
         """运行应用程序"""
-        from PyObjCTools import AppHelper
-
         logger.info("🚀 启动应用程序事件循环...")
         AppHelper.runEventLoop()
 
@@ -932,7 +951,7 @@ class ManagerFactory:
     _scroll_manager: Optional[ScrollManager] = None
     _mask_manager: Optional[MaskManager] = None
     _root_container_manager: Optional[RootContainerManager] = None
-    _responsive_manager: Optional['ResponsiveManager'] = None
+    _responsive_manager: Optional["ResponsiveManager"] = None
 
     @classmethod
     def get_app_manager(cls) -> AppManager:
@@ -984,9 +1003,10 @@ class ManagerFactory:
         return cls._root_container_manager
 
     @classmethod
-    def get_responsive_manager(cls) -> 'ResponsiveManager':
+    def get_responsive_manager(cls) -> "ResponsiveManager":
         if cls._responsive_manager is None:
             from .responsive import ResponsiveManager
+
             cls._responsive_manager = ResponsiveManager()
         return cls._responsive_manager
 

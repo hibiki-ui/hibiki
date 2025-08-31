@@ -30,6 +30,22 @@ logger.setLevel("INFO")
 
 
 # ================================
+# FlippedScrollView - 坐标系修复
+# ================================
+
+class FlippedScrollView(NSScrollView):
+    """坐标系修复的NSScrollView
+    
+    确保TableView的滚动视图使用top-left坐标系，
+    与框架的布局引擎保持一致。
+    """
+    
+    def isFlipped(self) -> bool:
+        """启用top-left坐标系"""
+        return True
+
+
+# ================================
 # TableView 数据源和委托类
 # ================================
 
@@ -339,10 +355,10 @@ class TableView(UIComponent):
         return columns
     
     def _create_nsview(self) -> NSView:
-        """🚀 创建NSTableView及其滚动视图容器"""
+        """🔧 修复坐标系Bug：使用FlippedScrollView确保top-left坐标系"""
         
-        # 创建滚动视图容器
-        scroll_view = NSScrollView.alloc().initWithFrame_(
+        # 创建flipped滚动视图容器（确保坐标系一致性）
+        scroll_view = FlippedScrollView.alloc().initWithFrame_(
             NSMakeRect(0, 0, 400, 300)
         )
         scroll_view.setHasVerticalScroller_(True)

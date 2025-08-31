@@ -193,7 +193,7 @@ For complete documentation, examples, and guides, see the project repository.
 from .core import (
     Component, UIComponent, Container,
     Signal, Computed, Effect, create_signal, create_computed, create_effect,
-    ComponentStyle, StylePresets, px, percent, auto,
+    ComponentStyle, StylePresets, px, percent, auto, vw, vh,
     Display, FlexDirection, JustifyContent, AlignItems, LengthUnit,
     ReactiveBinding, FormDataBinding,
     TextProps, TextStyles, text_props,
@@ -246,7 +246,7 @@ __all__ = [
     # 核心系统
     'Component', 'UIComponent', 'Container',
     'Signal', 'Computed', 'Effect', 'create_signal', 'create_computed', 'create_effect',
-    'ComponentStyle', 'StylePresets', 'px', 'percent', 'auto',
+    'ComponentStyle', 'StylePresets', 'px', 'percent', 'auto', 'vw', 'vh',
     'Display', 'FlexDirection', 'JustifyContent', 'AlignItems', 'LengthUnit',
     'ReactiveBinding', 'FormDataBinding',
     'TextProps', 'TextStyles', 'text_props',

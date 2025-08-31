@@ -60,6 +60,33 @@ class Length:
         if self.unit == LengthUnit.AUTO:
             return "auto"
         return f"{self.value}{self.unit.value}"
+    
+    def to_pixels(self, container_width: float = 0, container_height: float = 0, 
+                  viewport_width: float = 0, viewport_height: float = 0) -> float:
+        """将长度值转换为像素值
+        
+        Args:
+            container_width: 容器宽度（用于百分比计算）
+            container_height: 容器高度（用于百分比计算）
+            viewport_width: 视口宽度（用于vw计算）
+            viewport_height: 视口高度（用于vh计算）
+        
+        Returns:
+            像素值
+        """
+        if self.unit == LengthUnit.PX:
+            return float(self.value)
+        elif self.unit == LengthUnit.PERCENT:
+            # 这里假设百分比相对于容器宽度，实际使用时需要根据属性决定
+            return float(self.value) / 100 * container_width
+        elif self.unit == LengthUnit.VW:
+            return float(self.value) / 100 * viewport_width
+        elif self.unit == LengthUnit.VH:
+            return float(self.value) / 100 * viewport_height
+        elif self.unit == LengthUnit.AUTO:
+            return 0  # AUTO需要在布局引擎中特殊处理
+        else:
+            return 0
 
 # 便捷构造函数
 def px(value: Union[int, float]) -> Length:
@@ -213,7 +240,45 @@ class ComponentStyle:
     border_width: Optional[Union[int, float, str, Length]] = None
     border_color: Optional[str] = None
     border_style: Optional[str] = None  # "solid", "dashed", "dotted"
+    
+    # 四个方向的边框单独控制
+    border_top: Optional[str] = None  # "1px solid #ccc"
+    border_right: Optional[str] = None
+    border_bottom: Optional[str] = None
+    border_left: Optional[str] = None
+    
+    # 四个方向的边框宽度
+    border_top_width: Optional[Union[int, float, str, Length]] = None
+    border_right_width: Optional[Union[int, float, str, Length]] = None
+    border_bottom_width: Optional[Union[int, float, str, Length]] = None
+    border_left_width: Optional[Union[int, float, str, Length]] = None
+    
+    # 四个方向的边框颜色
+    border_top_color: Optional[str] = None
+    border_right_color: Optional[str] = None
+    border_bottom_color: Optional[str] = None
+    border_left_color: Optional[str] = None
+    
+    # 四个方向的边框样式
+    border_top_style: Optional[str] = None
+    border_right_style: Optional[str] = None
+    border_bottom_style: Optional[str] = None
+    border_left_style: Optional[str] = None
     background_color: Optional[str] = None  # 背景颜色
+    
+    # ================================
+    # 文本属性
+    # ================================
+    color: Optional[str] = None  # 文字颜色
+    font_size: Optional[Union[int, float]] = None  # 字体大小
+    font_weight: Optional[str] = None  # 字体粗细 ("normal", "bold", "100"-"900")
+    font_family: Optional[str] = None  # 字体族
+    font_style: Optional[str] = None  # 字体样式 ("normal", "italic", "oblique")
+    text_align: Optional[str] = None  # 文本对齐 ("left", "center", "right", "justify")
+    line_height: Optional[Union[int, float, str]] = None  # 行高
+    letter_spacing: Optional[Union[int, float]] = None  # 字母间距
+    text_decoration: Optional[str] = None  # 文本装饰 ("none", "underline", "line-through")
+    text_transform: Optional[str] = None  # 文本转换 ("none", "uppercase", "lowercase", "capitalize")
     
     # ================================
     # 变换
@@ -241,7 +306,8 @@ class ComponentStyle:
             'margin', 'margin_top', 'margin_right', 'margin_bottom', 'margin_left',
             'padding', 'padding_top', 'padding_right', 'padding_bottom', 'padding_left',
             'gap', 'row_gap', 'column_gap', 'flex_basis',
-            'border_radius', 'border_width'
+            'border_radius', 'border_width',
+            'border_top_width', 'border_right_width', 'border_bottom_width', 'border_left_width'
         ]
         
         for prop in length_props:

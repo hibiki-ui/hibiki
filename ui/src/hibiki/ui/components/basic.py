@@ -89,52 +89,74 @@ class Label(UIComponent):
         text: Union[str, Any],
         style: Optional[ComponentStyle] = None,
         text_props: Optional["TextProps"] = None,
-        # 便捷参数 - 自动转换为TextProps
+        # 便捷参数 - 向后兼容，会自动合并到ComponentStyle
         text_style: Optional[str] = None,
         font_size: Optional[float] = None,
         font_weight: Optional[str] = None,
         font_family: Optional[str] = None,
         color: Optional[str] = None,
         text_align: Optional[str] = None,
+        line_height: Optional[Union[int, float, str]] = None,
+        font_style: Optional[str] = None,
         **style_kwargs,
     ):
-        """🏗️ CORE METHOD: Label component initialization
+        """🔧 统一API：Label组件初始化，文本属性统一到ComponentStyle
 
         Args:
             text: 标签文本内容，支持字符串或响应式Signal
-            style: 组件样式对象 (布局属性)
-            text_props: 文本属性对象 (字体、颜色等)
-            text_style: 语义化文本样式 (便捷参数)
-            font_size: 字体大小 (便捷参数)
-            font_weight: 字体粗细 (便捷参数)
-            font_family: 字体族 (便捷参数)
-            color: 文字颜色 (便捷参数)
-            text_align: 文本对齐 (便捷参数)
+            style: 组件样式对象 (包含文本属性)
+            text_props: 文本属性对象 (向后兼容)
+            
+            便捷参数 (向后兼容，会自动合并到ComponentStyle):
+            font_size, font_weight, font_family, color, text_align等
             **style_kwargs: 样式快捷参数
         """
+        # 🔧 统一样式处理：将便捷参数合并到ComponentStyle
+        if not style:
+            from ..core.styles import ComponentStyle
+            style = ComponentStyle()
+        
+        # 合并便捷文本参数到ComponentStyle
+        text_params = {
+            'color': color,
+            'font_size': font_size,
+            'font_weight': font_weight,
+            'font_family': font_family,
+            'text_align': text_align,
+            'line_height': line_height,
+            'font_style': font_style
+        }
+        
+        for param, value in text_params.items():
+            if value is not None:
+                # 只有当style中对应属性为None时才设置
+                if getattr(style, param) is None:
+                    setattr(style, param, value)
+        
         super().__init__(style, **style_kwargs)
         self.text = text
 
-        # 处理文本属性
+        # 🔧 向后兼容：处理text_props参数
         if text_props:
+            # 如果提供了text_props，从中提取属性到style
+            if hasattr(text_props, 'color') and text_props.color and not self.style.color:
+                self.style.color = text_props.color
+            if hasattr(text_props, 'font_size') and text_props.font_size and not self.style.font_size:
+                self.style.font_size = text_props.font_size
+            # 可以继续添加其他属性的映射
+            
             self.text_props = text_props
-        elif any([text_style, font_size, font_weight, font_family, color, text_align]):
-            # 从便捷参数创建TextProps
-            from ..core.text_props import TextProps
-
-            self.text_props = TextProps(
-                text_style=text_style,
-                font_size=font_size,
-                font_weight=font_weight,
-                font_family=font_family,
-                color=color,
-                text_align=text_align,
-            )
         else:
-            # 默认文本属性
+            # 从ComponentStyle创建对应的TextProps (向后兼容)
             from ..core.text_props import TextProps
-
-            self.text_props = TextProps()
+            
+            self.text_props = TextProps(
+                color=self.style.color,
+                font_size=self.style.font_size,
+                font_weight=self.style.font_weight,
+                font_family=self.style.font_family,
+                text_align=self.style.text_align,
+            )
 
         # 检查是否为响应式文本
         self._is_reactive_text = isinstance(text, (Signal, Computed))

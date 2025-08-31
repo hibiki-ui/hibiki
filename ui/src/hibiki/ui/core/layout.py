@@ -149,7 +149,6 @@ Stretchable 是一个提供基于 CSS 布局操作的 Python 库，使用：
 
 from typing import Optional, Tuple, Dict, Any, List
 from dataclasses import dataclass
-from enum import Enum
 import time
 
 # 直接导入Stretchable - 这是外部依赖，不是旧版本代码
@@ -181,7 +180,7 @@ from .managers import Position as HibikiPosition
 from .logging import get_logger
 
 logger = get_logger("layout")
-logger.setLevel("DEBUG")
+logger.setLevel("INFO")
 
 
 @dataclass
@@ -509,6 +508,22 @@ class StyleConverter:
                 return Length.from_any(float(length_value.value))
             elif length_value.unit == LengthUnit.PERCENT:
                 return length_value.value * PCT
+            elif length_value.unit == LengthUnit.VW:
+                # VW需要根据视口宽度转换为像素
+                from .managers import ManagerFactory
+
+                viewport_mgr = ManagerFactory.get_viewport_manager()
+                viewport_width = viewport_mgr.get_viewport_width()
+                pixel_value = length_value.to_pixels(viewport_width=viewport_width)
+                return Length.from_any(float(pixel_value))
+            elif length_value.unit == LengthUnit.VH:
+                # VH需要根据视口高度转换为像素
+                from .managers import ManagerFactory
+
+                viewport_mgr = ManagerFactory.get_viewport_manager()
+                viewport_height = viewport_mgr.get_viewport_height()
+                pixel_value = length_value.to_pixels(viewport_height=viewport_height)
+                return Length.from_any(float(pixel_value))
             elif length_value.unit == LengthUnit.AUTO:
                 return Length.default()  # Stretchable auto representation
 
@@ -586,17 +601,20 @@ class StyleConverter:
                 # 手动解析 repeat() 语法: repeat(4, 1fr) -> 4个1fr
                 try:
                     import re
-                    match = re.match(r'repeat\(\s*(\d+)\s*,\s*(.+?)\s*\)', template_value)
+
+                    match = re.match(r"repeat\(\s*(\d+)\s*,\s*(.+?)\s*\)", template_value)
                     if match:
                         count = int(match.group(1))
                         track_pattern = match.group(2).strip()
-                        
+
                         tracks = []
                         for _ in range(count):
                             track = GridTrackSizing.from_any(track_pattern)
                             tracks.append(track)
-                        
-                        logger.debug(f"🎯 解析repeat(): {template_value} -> {count}列 x {track_pattern}")
+
+                        logger.debug(
+                            f"🎯 解析repeat(): {template_value} -> {count}列 x {track_pattern}"
+                        )
                         return tracks
                     else:
                         logger.warning(f"⚠️ repeat()语法解析失败: {template_value}")
@@ -1354,17 +1372,27 @@ class LayoutEngine:
             logger.debug(
                 f"✅ 布局计算完成: {component.__class__.__name__} -> {width:.1f}x{height:.1f} @ ({x:.1f}, {y:.1f}) [{compute_time:.2f}ms]"
             )
-            
+
             # 🔥 Grid布局调试：打印所有子组件的位置
-            if hasattr(component, 'style') and component.style and component.style.display == Display.GRID:
-                logger.info(f"🔲 Grid布局调试 - 容器: {component.__class__.__name__} ({width:.1f}x{height:.1f})")
-                if hasattr(component, 'children') and component.children:
+            if (
+                hasattr(component, "style")
+                and component.style
+                and component.style.display == Display.GRID
+            ):
+                logger.info(
+                    f"🔲 Grid布局调试 - 容器: {component.__class__.__name__} ({width:.1f}x{height:.1f})"
+                )
+                if hasattr(component, "children") and component.children:
                     for i, child in enumerate(component.children):
                         child_node = self.get_node_for_component(child)
                         if child_node:
                             try:
-                                child_x, child_y, child_width, child_height = child_node.get_layout()
-                                logger.info(f"  项目 {i+1}: {child_width:.1f}x{child_height:.1f} @ ({child_x:.1f}, {child_y:.1f})")
+                                child_x, child_y, child_width, child_height = (
+                                    child_node.get_layout()
+                                )
+                                logger.info(
+                                    f"  项目 {i+1}: {child_width:.1f}x{child_height:.1f} @ ({child_x:.1f}, {child_y:.1f})"
+                                )
                             except Exception as e:
                                 logger.info(f"  项目 {i+1}: 布局获取失败 - {e}")
                     logger.info(f"🔲 Grid项目总数: {len(component.children)}")
@@ -1514,18 +1542,18 @@ class LayoutEngine:
             # 1. 更新节点样式
             node.update_style(component.style)
             logger.debug(f"🎨 更新组件样式: {component.__class__.__name__}")
-            
+
             # 2. 重新计算这个组件的布局
             layout_result = self.compute_layout_for_component(component)
             logger.debug(f"📐 重新计算组件布局: {component.__class__.__name__}")
-            
+
             # 🔥 3. 关键修复：将布局结果应用到NSView上
-            if layout_result and hasattr(component, '_apply_layout_result'):
+            if layout_result and hasattr(component, "_apply_layout_result"):
                 component._apply_layout_result(layout_result)
                 logger.debug(f"🎯 应用布局结果到NSView: {component.__class__.__name__}")
-                
+
                 # 🔥 4. 应用子组件的布局（Grid项目的位置）
-                if hasattr(component, '_apply_children_layout'):
+                if hasattr(component, "_apply_children_layout"):
                     component._apply_children_layout(self)
                     logger.debug(f"🔲 应用子组件布局: {component.__class__.__name__}")
 
@@ -1553,21 +1581,21 @@ class LayoutEngine:
             for component, node in self._component_nodes.items():
                 if self._is_root_node(node):
                     logger.debug(f"🔄 重新计算根节点: {component.__class__.__name__}")
-                    
+
                     # 🔧 关键修复：不仅计算布局，还要应用到NSView
                     available_size = window_size
                     layout_result = self.compute_layout_for_component(component, available_size)
-                    
-                    if layout_result and hasattr(component, '_apply_layout_result'):
+
+                    if layout_result and hasattr(component, "_apply_layout_result"):
                         # 应用根容器布局
                         component._apply_layout_result(layout_result)
-                        
+
                         # 递归应用子组件布局
-                        if hasattr(component, '_apply_children_layout'):
+                        if hasattr(component, "_apply_children_layout"):
                             component._apply_children_layout(self)
-                        
+
                         logger.debug(f"✅ 根节点布局已重新应用: {component.__class__.__name__}")
-                    
+
                     recalculated_count += 1
 
             logger.debug(f"✅ 全局布局重新计算完成，处理了 {recalculated_count} 个根节点")

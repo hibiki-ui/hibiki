@@ -634,6 +634,54 @@ class ScrollableContainer(Container):
         
         super().__init__(children=children, style=style, **kwargs)
     
+    def _create_nsview(self):
+        """创建NSScrollView容器"""
+        from AppKit import NSScrollView, NSClipView
+        from ..core.base_view import HibikiContainerView
+        from ..core.logging import get_logger
+        
+        logger = get_logger("components.layout")
+        logger.info(f"🎨 创建ScrollableContainer组件 - ID: {id(self)}")
+        
+        # 创建FlippedScrollView确保正确的坐标系
+        # 使用唯一的类名避免冲突
+        class HibikiScrollView(NSScrollView):
+            """坐标系修复的NSScrollView for ScrollableContainer"""
+            def isFlipped(self) -> bool:
+                return True
+        
+        # 创建NSScrollView
+        scroll_view = HibikiScrollView.alloc().init()
+        scroll_view.setBorderType_(0)  # 无边框
+        scroll_view.setHasVerticalScroller_(self.scroll_vertical and self.show_scrollbars)
+        scroll_view.setHasHorizontalScroller_(self.scroll_horizontal and self.show_scrollbars)
+        scroll_view.setAutohidesScrollers_(True)
+        
+        # 创建内容视图（使用HibikiContainerView确保坐标系一致）
+        content_view = HibikiContainerView.alloc().init()
+        
+        # 设置内容视图到scrollView
+        scroll_view.setDocumentView_(content_view)
+        
+        # 存储内容视图的引用，以便布局管理
+        self._content_view = content_view
+        
+        logger.info(f"✅ ScrollableContainer组件创建成功 - NSScrollView ID: {id(scroll_view)}")
+        return scroll_view
+    
+    def mount(self):
+        """重写挂载逻辑，处理NSScrollView的特殊需求"""
+        # 先创建NSScrollView
+        nsview = super().mount()
+        
+        # 挂载子组件到内容视图而不是ScrollView本身
+        if hasattr(self, '_content_view') and self._content_view:
+            for child in self.children:
+                child_nsview = child.mount()
+                self._content_view.addSubview_(child_nsview)
+        
+        return nsview
+    
     def _apply_layout_result(self, layout_result):
         """重写布局应用，ScrollableContainer应保持容器尺寸而非内容尺寸"""
         from AppKit import NSMakeRect, NSScrollView
@@ -647,13 +695,14 @@ class ScrollableContainer(Container):
                 layout_result.width, layout_result.height
             )
             
-            # 检查是否为NSScrollView，需要特殊处理
-            if isinstance(self._nsview, NSScrollView):
-                # 对于NSScrollView，直接设置frame
-                self._nsview.setFrame_(frame)
-            else:
-                # 普通情况，调用父类方法
-                super()._apply_layout_result(layout_result)
+            # 对于NSScrollView，直接设置frame
+            self._nsview.setFrame_(frame)
+            
+            # 同时需要调整内容视图大小以便正确滚动
+            if hasattr(self, '_content_view') and self._content_view:
+                # 内容视图的大小由内容决定，这里设置一个初始大小
+                content_frame = NSMakeRect(0, 0, layout_result.width, layout_result.height)
+                self._content_view.setFrame_(content_frame)
         else:
             # NSView未创建，调用父类方法
             super()._apply_layout_result(layout_result)
