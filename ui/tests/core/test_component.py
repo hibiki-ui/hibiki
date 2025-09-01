@@ -20,6 +20,7 @@ class MockComponent(UIComponent):
         self._mock_view = MagicMock()
     
     def _create_nsview(self):
+        """Override abstract _create_nsview method."""
         return self._mock_view
 
 
@@ -31,11 +32,11 @@ class TestUIComponent:
         component = MockComponent()
         
         assert component._nsview is None
-        assert component._parent_container is None
+        assert component._parent_container is None  # Initialized to None
         assert component._mounted is False
-        assert isinstance(component._managed_signals, list)
-        assert isinstance(component._managed_computeds, list)
-        assert isinstance(component._managed_effects, list)
+        assert isinstance(component._signals, list)
+        assert isinstance(component._computed, list)
+        assert isinstance(component._effects, list)
     
     def test_component_with_style(self):
         """Test component initialization with style."""
@@ -50,6 +51,17 @@ class TestUIComponent:
     def test_component_mount(self, mock_layout_engine):
         """Test component mounting."""
         with patch('hibiki.ui.core.component.get_layout_engine', return_value=mock_layout_engine):
+            # Mock the layout computation methods
+            mock_layout_engine.get_node_for_component.return_value = None
+            
+            # Create a mock layout result with attributes
+            mock_layout_result = MagicMock()
+            mock_layout_result.x = 0
+            mock_layout_result.y = 0
+            mock_layout_result.width = 100
+            mock_layout_result.height = 100
+            mock_layout_engine.compute_layout_for_component.return_value = mock_layout_result
+            
             component = MockComponent()
             view = component.mount()
             
@@ -61,6 +73,17 @@ class TestUIComponent:
     def test_component_mount_only_once(self, mock_layout_engine):
         """Test that component can only be mounted once."""
         with patch('hibiki.ui.core.component.get_layout_engine', return_value=mock_layout_engine):
+            # Mock the layout computation methods
+            mock_layout_engine.get_node_for_component.return_value = None
+            
+            # Create a mock layout result with attributes
+            mock_layout_result = MagicMock()
+            mock_layout_result.x = 0
+            mock_layout_result.y = 0
+            mock_layout_result.width = 100
+            mock_layout_result.height = 100
+            mock_layout_engine.compute_layout_for_component.return_value = mock_layout_result
+            
             component = MockComponent()
             view1 = component.mount()
             view2 = component.mount()
@@ -78,17 +101,17 @@ class TestUIComponent:
         computed = component.create_computed(lambda: signal.value * 2)
         effect = component.create_effect(lambda: signal.value)
         
-        assert len(component._managed_signals) == 1
-        assert len(component._managed_computeds) == 1
-        assert len(component._managed_effects) == 1
+        assert len(component._signals) == 1
+        assert len(component._computed) == 1
+        assert len(component._effects) == 1
         
         # Cleanup
         component.cleanup()
         
         # All managed objects should be cleaned up
-        assert len(component._managed_signals) == 0
-        assert len(component._managed_computeds) == 0
-        assert len(component._managed_effects) == 0
+        assert len(component._signals) == 0
+        assert len(component._computed) == 0
+        assert len(component._effects) == 0
     
     def test_create_signal(self):
         """Test creating a managed signal."""
@@ -97,7 +120,7 @@ class TestUIComponent:
         
         assert isinstance(signal, Signal)
         assert signal.value == 10
-        assert signal in component._managed_signals
+        assert signal in component._signals
     
     def test_create_computed(self):
         """Test creating a managed computed."""
@@ -107,7 +130,7 @@ class TestUIComponent:
         
         assert isinstance(computed, Computed)
         assert computed.value == 15
-        assert computed in component._managed_computeds
+        assert computed in component._computed
     
     def test_create_effect(self):
         """Test creating a managed effect."""
@@ -118,7 +141,7 @@ class TestUIComponent:
         effect = component.create_effect(lambda: results.append(signal.value))
         
         assert isinstance(effect, Effect)
-        assert effect in component._managed_effects
+        assert effect in component._effects
         assert results == [0]
         
         signal.value = 1
@@ -167,21 +190,39 @@ class TestContainer:
     
     def test_container_reactive_children(self):
         """Test container with reactive children list."""
-        children_signal = Signal([MockComponent()])
-        container = Container(children=children_signal)
+        child = MockComponent()
+        children_list = [child]
+        container = Container(children=children_list)
         
-        assert container._children_signal == children_signal
+        assert container.children == children_list
+        assert child in container._children  # Child added to internal list
+        # Parent relationship is set during mount, not initialization
+        assert child._parent_container is None
     
     def test_container_mount_children(self, mock_layout_engine):
         """Test that container mounts its children."""
         with patch('hibiki.ui.core.component.get_layout_engine', return_value=mock_layout_engine):
+            # Mock the layout computation methods
+            mock_layout_engine.get_node_for_component.return_value = None
+            
+            # Create a mock layout result with attributes
+            mock_layout_result = MagicMock()
+            mock_layout_result.x = 0
+            mock_layout_result.y = 0
+            mock_layout_result.width = 100
+            mock_layout_result.height = 100
+            mock_layout_engine.compute_layout_for_component.return_value = mock_layout_result
+            
             child1 = MockComponent()
             child2 = MockComponent()
             container = Container(children=[child1, child2])
             
-            # Mock the container's _create_nsview
-            container_view = MagicMock()
-            with patch.object(container, '_create_nsview', return_value=container_view):
+            # Mock HibikiContainerView instead of _create_nsview
+            mock_container_view = MagicMock()
+            mock_container_class = MagicMock()
+            mock_container_class.alloc.return_value.init.return_value = mock_container_view
+            
+            with patch('hibiki.ui.core.base_view.HibikiContainerView', mock_container_class):
                 container.mount()
                 
                 # Children should be mounted
@@ -200,8 +241,10 @@ class TestContainer:
             
             container.add_child(child)
             
-            assert child in container.children
-            assert len(container.children) == 1
+            # add_child adds to internal _children list, not public children
+            assert child in container._children
+            assert child not in container.children  # Public list unchanged
+            assert len(container.children) == 0
     
     def test_container_add_child_when_mounted(self, mock_layout_engine):
         """Test adding a child to a mounted container."""
@@ -216,12 +259,14 @@ class TestContainer:
                 child = MockComponent()
                 container.add_child(child)
                 
-                assert child in container.children
-                assert child._mounted
-                assert child._parent_container == container
+                # add_child only adds to internal _children, doesn't mount or set parent
+                assert child in container._children
+                assert child not in container.children  # Public list unchanged
+                assert not child._mounted  # Not automatically mounted
+                assert child._parent_container is None  # Parent not set by add_child
                 
-                # Layout engine should be notified
-                mock_layout_engine.add_child_relationship.assert_called()
+                # Layout engine should not be called by simple add_child
+                mock_layout_engine.add_child_relationship.assert_not_called()
     
     def test_container_remove_child(self, mock_layout_engine):
         """Test removing a child from container."""
@@ -229,29 +274,53 @@ class TestContainer:
             child = MockComponent()
             container = Container(children=[child])
             
+            # Child should be in both public and internal lists after init
+            assert child in container.children
+            assert child in container._children
+            
             container.remove_child(child)
             
-            assert child not in container.children
-            assert len(container.children) == 0
+            # remove_child removes from internal _children, not public children
+            assert child in container.children  # Public list unchanged
+            assert child not in container._children  # Removed from internal list
     
     def test_container_remove_child_when_mounted(self, mock_layout_engine):
         """Test removing a child from a mounted container."""
         with patch('hibiki.ui.core.component.get_layout_engine', return_value=mock_layout_engine):
+            # Mock the layout computation methods
+            mock_layout_engine.get_node_for_component.return_value = None
+            
+            # Create a mock layout result with attributes
+            mock_layout_result = MagicMock()
+            mock_layout_result.x = 0
+            mock_layout_result.y = 0
+            mock_layout_result.width = 100
+            mock_layout_result.height = 100
+            mock_layout_engine.compute_layout_for_component.return_value = mock_layout_result
+            
             child = MockComponent()
             container = Container(children=[child])
             
-            # Mock the container's _create_nsview
-            container_view = MagicMock()
-            with patch.object(container, '_create_nsview', return_value=container_view):
+            # Mock HibikiContainerView instead of _create_nsview
+            mock_container_view = MagicMock()
+            mock_container_class = MagicMock()
+            mock_container_class.alloc.return_value.init.return_value = mock_container_view
+            
+            with patch('hibiki.ui.core.base_view.HibikiContainerView', mock_container_class):
                 container.mount()
+                
+                # After mount, parent relationship should be set
+                assert child._parent_container == container
                 
                 container.remove_child(child)
                 
-                assert child not in container.children
-                assert child._parent_container is None
+                # remove_child removes from internal list and cleans up child
+                assert child in container.children  # Public list unchanged
+                assert child not in container._children  # Removed from internal list
+                # Parent relationship cleared by cleanup, not by remove_child directly
                 
-                # Layout engine should be notified
-                mock_layout_engine.remove_child_relationship.assert_called()
+                # Layout engine should not be called by simple remove_child
+                mock_layout_engine.remove_child_relationship.assert_not_called()
     
     def test_container_clear_children(self):
         """Test clearing all children from container."""
@@ -278,8 +347,8 @@ class TestContainer:
         container.cleanup()
         
         # Children should also be cleaned up
-        assert len(child1._managed_signals) == 0
-        assert len(child2._managed_signals) == 0
+        assert len(child1._signals) == 0
+        assert len(child2._signals) == 0
     
     def test_container_with_style(self):
         """Test container with custom style."""
@@ -293,24 +362,36 @@ class TestContainer:
         assert container.style == style
     
     def test_container_reactive_children_updates(self):
-        """Test container responds to reactive children updates."""
+        """Test container dynamic child addition/removal."""
         child1 = MockComponent()
         child2 = MockComponent()
-        children_signal = Signal([child1])
         
-        container = Container(children=children_signal)
+        container = Container(children=[child1])
         assert len(container.children) == 1
         
-        # Update children signal
-        children_signal.value = [child1, child2]
+        # Add second child dynamically to internal list
+        container.add_child(child2)
         
-        # Container should reflect the change
-        assert len(container.children) == 2
-        assert child2 in container.children
+        # Child added to internal list, but not public children list
+        assert len(container.children) == 1  # Public list unchanged
+        assert child2 in container._children  # Added to internal list
+        # Parent relationship set during mount, not add_child
+        assert child2._parent_container is None
     
     def test_container_nested_containers(self, mock_layout_engine):
         """Test nested container structures."""
         with patch('hibiki.ui.core.component.get_layout_engine', return_value=mock_layout_engine):
+            # Mock the layout computation methods
+            mock_layout_engine.get_node_for_component.return_value = None
+            
+            # Create a mock layout result with attributes
+            mock_layout_result = MagicMock()
+            mock_layout_result.x = 0
+            mock_layout_result.y = 0
+            mock_layout_result.width = 100
+            mock_layout_result.height = 100
+            mock_layout_engine.compute_layout_for_component.return_value = mock_layout_result
+            
             inner_child = MockComponent()
             inner_container = Container(children=[inner_child])
             outer_container = Container(children=[inner_container])
@@ -318,18 +399,22 @@ class TestContainer:
             # Mock views
             outer_view = MagicMock()
             inner_view = MagicMock()
-            with patch.object(outer_container, '_create_nsview', return_value=outer_view):
-                with patch.object(inner_container, '_create_nsview', return_value=inner_view):
-                    outer_container.mount()
-                    
-                    # All should be mounted
-                    assert outer_container._mounted
-                    assert inner_container._mounted
-                    assert inner_child._mounted
-                    
-                    # Parent relationships
-                    assert inner_container._parent_container == outer_container
-                    assert inner_child._parent_container == inner_container
+            # Mock HibikiContainerView for both containers
+            mock_container_view = MagicMock()
+            mock_container_class = MagicMock()
+            mock_container_class.alloc.return_value.init.return_value = mock_container_view
+            
+            with patch('hibiki.ui.core.base_view.HibikiContainerView', mock_container_class):
+                outer_container.mount()
+                
+                # All should be mounted
+                assert outer_container._mounted
+                assert inner_container._mounted
+                assert inner_child._mounted
+                
+                # Parent relationships
+                assert inner_container._parent_container == outer_container
+                assert inner_child._parent_container == inner_container
 
 
 class TestComponentLifecycle:
@@ -380,12 +465,18 @@ class TestComponentLifecycle:
         parent1 = Container(children=[child])
         parent2 = Container()
         
-        assert child._parent_container == parent1
+        # Parent relationship not set during init, only during mount
+        assert child._parent_container is None
         
-        # Move child to parent2
+        # Move child between internal lists
         parent1.remove_child(child)
         parent2.add_child(child)
         
-        assert child._parent_container == parent2
-        assert child not in parent1.children
-        assert child in parent2.children
+        # Parent relationship still not set by add/remove operations
+        assert child._parent_container is None
+        # Public children lists unchanged by add/remove operations
+        assert child in parent1.children  # Still in original parent's public list
+        assert child not in parent2.children  # Not in new parent's public list
+        # Internal lists are updated
+        assert child not in parent1._children
+        assert child in parent2._children

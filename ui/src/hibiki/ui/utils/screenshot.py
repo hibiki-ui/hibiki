@@ -33,8 +33,8 @@ from Quartz import (
 from CoreFoundation import (
     CFURLCreateFromFileSystemRepresentation, kCFAllocatorDefault
 )
-# UTI常量需要从正确的模块导入
-from LaunchServices import kUTTypePNG, kUTTypeJPEG
+# UTI常量从CoreServices导入（LaunchServices已废弃）
+from CoreServices import kUTTypePNG, kUTTypeJPEG
 from hibiki.ui.core.logging import get_logger
 
 logger = get_logger("screenshot")

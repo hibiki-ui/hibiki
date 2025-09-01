@@ -336,6 +336,10 @@ class ComponentStyle:
                 merged_dict[key] = value
                 
         return ComponentStyle(**merged_dict)
+    
+    def to_dict(self) -> dict:
+        """Convert style to dictionary, excluding None values"""
+        return {key: value for key, value in self.__dict__.items() if value is not None}
 
 # ================================
 # 4. 预设样式工厂

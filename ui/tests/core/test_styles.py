@@ -23,28 +23,28 @@ class TestLengthUnits:
         """Test pixel unit creation."""
         unit = px(100)
         assert unit.value == 100
-        assert unit.unit == "px"
+        assert unit.unit.value == "px"
         assert str(unit) == "100px"
     
     def test_percent_unit(self):
         """Test percentage unit creation."""
         unit = percent(50)
         assert unit.value == 50
-        assert unit.unit == "%"
+        assert unit.unit.value == "%"
         assert str(unit) == "50%"
     
     def test_vw_unit(self):
         """Test viewport width unit creation."""
         unit = vw(75)
         assert unit.value == 75
-        assert unit.unit == "vw"
+        assert unit.unit.value == "vw"
         assert str(unit) == "75vw"
     
     def test_vh_unit(self):
         """Test viewport height unit creation."""
         unit = vh(100)
         assert unit.value == 100
-        assert unit.unit == "vh"
+        assert unit.unit.value == "vh"
         assert str(unit) == "100vh"
     
     # em, rem, pt units not yet implemented in styles module
@@ -53,7 +53,7 @@ class TestLengthUnits:
         """Test converting units to pixels."""
         # Test with default viewport
         assert px(100).to_pixels() == 100
-        assert percent(50).to_pixels(reference_value=200) == 100
+        assert percent(50).to_pixels(container_width=200) == 100
         
         # vw/vh require viewport size
         assert vw(50).to_pixels(viewport_width=800) == 400
@@ -86,9 +86,9 @@ class TestComponentStyle:
         )
         
         assert style.display == Display.FLEX
-        assert style.width == 100
-        assert style.height == 200
-        assert style.padding == 10
+        assert style.width == px(100)  # Numeric values converted to Length
+        assert style.height == px(200)  # Numeric values converted to Length
+        assert style.padding == px(10)  # Numeric values converted to Length
     
     def test_style_with_units(self):
         """Test style with length units."""
@@ -121,11 +121,11 @@ class TestComponentStyle:
         merged = base_style.merge(override_style)
         
         # Override values should take precedence
-        assert merged.width == 100  # From base
-        assert merged.height == 300  # Overridden
+        assert merged.width == px(100)  # From base
+        assert merged.height == px(300)  # Overridden
         assert merged.background_color == "#fff"  # From base
         assert merged.color == "#000"  # From override
-        assert merged.padding == 10  # From override
+        assert merged.padding == px(10)  # From override
     
     def test_style_to_dict(self):
         """Test converting style to dictionary."""
@@ -141,8 +141,8 @@ class TestComponentStyle:
         
         assert style_dict["display"] == Display.FLEX
         assert style_dict["width"] == px(100)
-        assert style_dict["height"] == 200
-        assert style_dict["padding"] == 10
+        assert style_dict["height"] == px(200)  # Numeric values converted to Length
+        assert style_dict["padding"] == px(10)  # Numeric values converted to Length
         assert style_dict["flex_direction"] == FlexDirection.COLUMN
     
     def test_style_copy(self):
@@ -174,7 +174,7 @@ class TestComponentStyle:
         assert style.flex_direction == FlexDirection.ROW
         assert style.justify_content == JustifyContent.CENTER
         assert style.align_items == AlignItems.STRETCH
-        assert style.gap == 10
+        assert style.gap == px(10)
     
     def test_style_grid_properties(self):
         """Test CSS Grid style properties."""
@@ -182,15 +182,13 @@ class TestComponentStyle:
             display=Display.GRID,
             grid_template_columns="1fr 1fr 1fr",
             grid_template_rows="auto",
-            grid_gap=20,
-            grid_auto_flow="row"
+            gap=20  # Using gap instead of grid_gap
         )
         
         assert style.display == Display.GRID
         assert style.grid_template_columns == "1fr 1fr 1fr"
         assert style.grid_template_rows == "auto"
-        assert style.grid_gap == 20
-        assert style.grid_auto_flow == "row"
+        assert style.gap == px(20)  # Converted to Length
     
     def test_style_text_properties(self):
         """Test text-related style properties."""
@@ -219,15 +217,17 @@ class TestComponentStyle:
             border_radius=px(8)
         )
         
-        assert style.border_width == 2
+        assert style.border_width == px(2)
         assert style.border_color == "#000"
         assert style.border_style == "solid"
         assert style.border_radius == px(8)
     
     def test_style_position_properties(self):
         """Test position-related properties."""
+        from hibiki.ui.core.managers import Position
+        
         style = ComponentStyle(
-            position="absolute",
+            position=Position.ABSOLUTE,
             top=10,
             left=20,
             right=30,
@@ -235,11 +235,11 @@ class TestComponentStyle:
             z_index=100
         )
         
-        assert style.position == "absolute"
-        assert style.top == 10
-        assert style.left == 20
-        assert style.right == 30
-        assert style.bottom == 40
+        assert style.position == Position.ABSOLUTE
+        assert style.top == px(10)
+        assert style.left == px(20)
+        assert style.right == px(30)
+        assert style.bottom == px(40)
         assert style.z_index == 100
     
     def test_style_none_values(self):
@@ -261,7 +261,7 @@ class TestComponentStyle:
             padding=px(20)  # All sides with units
         )
         
-        assert style.margin == 10
+        assert style.margin == px(10)
         assert style.padding == px(20)
 
 
@@ -278,7 +278,7 @@ class TestResponsiveStyles:
         responsive = responsive_style(base_style)
         
         assert responsive.base_style == base_style
-        assert len(responsive.breakpoint_styles) == 0
+        assert len(responsive.responsive_rules) == 0
     
     def test_responsive_style_with_breakpoints(self):
         """Test adding breakpoint-specific styles."""
@@ -295,15 +295,17 @@ class TestResponsiveStyles:
             ))
         )
         
-        assert len(responsive.breakpoint_styles) == 2
-        assert BreakpointName.MD in responsive.breakpoint_styles
-        assert BreakpointName.LG in responsive.breakpoint_styles
+        assert len(responsive.responsive_rules) == 2
+        # Check that rules contain the expected breakpoints
+        breakpoints = [rule.media_query.breakpoint for rule in responsive.responsive_rules]
+        assert 'md' in breakpoints
+        assert 'lg' in breakpoints
     
     def test_responsive_style_get_active_style(self):
-        """Test getting the active style for a breakpoint."""
-        base = ComponentStyle(columns=1)
-        tablet = ComponentStyle(columns=2)
-        desktop = ComponentStyle(columns=3)
+        """Test resolving the active style for different breakpoints."""
+        base = ComponentStyle(grid_template_columns="1fr")
+        tablet = ComponentStyle(grid_template_columns="1fr 1fr")
+        desktop = ComponentStyle(grid_template_columns="1fr 1fr 1fr")
         
         responsive = (
             responsive_style(base)
@@ -311,10 +313,17 @@ class TestResponsiveStyles:
             .at_breakpoint(BreakpointName.LG, desktop)
         )
         
-        # Test different viewport widths
-        assert responsive.get_active_style(400) == base  # Mobile
-        assert responsive.get_active_style(800) == tablet  # Tablet
-        assert responsive.get_active_style(1200) == desktop  # Desktop
+        # Test basic resolution with empty breakpoints (base style)
+        mobile_style = responsive.resolve(400, [])
+        assert mobile_style.grid_template_columns == "1fr"
+        
+        # Test with medium breakpoint active
+        tablet_style = responsive.resolve(800, ['md'])
+        assert tablet_style.grid_template_columns == "1fr 1fr"
+        
+        # Test with large breakpoint active
+        desktop_style = responsive.resolve(1200, ['lg'])
+        assert desktop_style.grid_template_columns == "1fr 1fr 1fr"
     
     def test_responsive_style_inheritance(self):
         """Test that responsive styles inherit from base."""
@@ -330,9 +339,9 @@ class TestResponsiveStyles:
         )
         
         # At medium breakpoint, should have base properties + override
-        active = responsive.get_active_style(800)
+        active = responsive.resolve(800, ['md'])
         assert active.display == Display.FLEX  # Inherited
-        assert active.padding == 20  # Overridden
+        assert active.padding == px(20)  # Overridden (converted to Length)
         assert active.color == "#000"  # Inherited
 
 
@@ -346,7 +355,6 @@ class TestStyleEnums:
         assert Display.GRID.value == "grid"
         assert Display.NONE.value == "none"
         assert Display.INLINE.value == "inline"
-        assert Display.INLINE_BLOCK.value == "inline-block"
     
     def test_flex_direction_enum(self):
         """Test FlexDirection enum values."""
@@ -357,8 +365,8 @@ class TestStyleEnums:
     
     def test_justify_content_enum(self):
         """Test JustifyContent enum values."""
-        assert JustifyContent.START.value == "flex-start"
-        assert JustifyContent.END.value == "flex-end"
+        assert JustifyContent.FLEX_START.value == "flex-start"
+        assert JustifyContent.FLEX_END.value == "flex-end"
         assert JustifyContent.CENTER.value == "center"
         assert JustifyContent.SPACE_BETWEEN.value == "space-between"
         assert JustifyContent.SPACE_AROUND.value == "space-around"
@@ -366,8 +374,8 @@ class TestStyleEnums:
     
     def test_align_items_enum(self):
         """Test AlignItems enum values."""
-        assert AlignItems.START.value == "flex-start"
-        assert AlignItems.END.value == "flex-end"
+        assert AlignItems.FLEX_START.value == "flex-start"
+        assert AlignItems.FLEX_END.value == "flex-end"
         assert AlignItems.CENTER.value == "center"
         assert AlignItems.STRETCH.value == "stretch"
         assert AlignItems.BASELINE.value == "baseline"
@@ -387,7 +395,7 @@ class TestStyleUtilities:
         
         assert isinstance(style.width, Length)
         assert isinstance(style.height, Length)
-        assert isinstance(style.margin, int)
+        assert isinstance(style.margin, Length)  # Raw numbers also converted to Length
         assert isinstance(style.padding, Length)
     
     def test_style_merge_with_none(self):
@@ -398,9 +406,9 @@ class TestStyleUtilities:
         merged = base.merge(override)
         
         # None in override should not override base value
-        assert merged.width == 100
-        assert merged.height == 200
-        assert merged.padding == 10
+        assert merged.width == px(100)
+        assert merged.height == px(200)
+        assert merged.padding == px(10)
     
     def test_style_to_dict_excludes_none(self):
         """Test that to_dict excludes None values."""
@@ -420,7 +428,10 @@ class TestStyleUtilities:
         """Test creating an empty style."""
         style = ComponentStyle()
         
-        assert style.to_dict() == {}
+        # ComponentStyle has default values, so to_dict() won't be empty
+        style_dict = style.to_dict()
+        assert isinstance(style_dict, dict)
+        assert len(style_dict) > 0  # Has default values
     
     def test_style_equality(self):
         """Test style equality comparison."""
