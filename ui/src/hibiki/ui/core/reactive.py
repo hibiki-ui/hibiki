@@ -166,6 +166,9 @@ class Signal(Generic[T]):
             # 🆕 记录观察者看到的版本 - 只对 Computed 和 Effect 实例
             if hasattr(observer, "_dependency_versions") and hasattr(observer, "_version"):
                 observer._dependency_versions[id(self)] = self._version  # type: ignore
+            # 记录依赖关系
+            if hasattr(observer, "_dependencies"):
+                observer._dependencies.add(self)  # type: ignore
             logger.debug(
                 f"🔗 Signal[{id(self)}].get: 添加观察者 {type(observer).__name__}[{id(observer)}] (v{self._version}), 总观察者数: {len(self._observers)}"
             )
@@ -248,6 +251,10 @@ class Signal(Generic[T]):
     @value.setter
     def value(self, new_value: T) -> None:
         self.set(new_value)
+    
+    def __repr__(self) -> str:
+        """String representation of Signal."""
+        return f"Signal(value={self._value}, version={self._version})"
 
 
 class Computed(Generic[T]):
@@ -260,8 +267,10 @@ class Computed(Generic[T]):
         self._version = 0  # 🆕 版本控制
         self._dirty = True
         self._observers = set()  # 改用普通set
+        self._dependencies = set()  # 存储依赖的引用
         self._dependency_versions: Dict[int, int] = {}  # 🆕 依赖版本追踪
         self._global_version_seen = _global_version - 1  # 🆕 全局版本追踪
+        self._active = True  # 标记是否活跃
         logger.debug(f"Computed创建: 版本=v{self._version}, id={id(self)}")
 
     def get(self) -> T:
@@ -290,6 +299,9 @@ class Computed(Generic[T]):
             # 🆕 记录观察者看到的版本 - 只对 Computed 和 Effect 实例
             if hasattr(observer, "_dependency_versions") and hasattr(observer, "_version"):
                 observer._dependency_versions[id(self)] = self._version  # type: ignore
+            # 记录依赖关系
+            if hasattr(observer, "_dependencies"):
+                observer._dependencies.add(self)  # type: ignore
             logger.debug(
                 f"Computed[{id(self)}].get: 添加观察者 {type(observer).__name__}[{id(observer)}] (v{self._version}), 总观察者数: {len(self._observers)}"
             )
@@ -309,6 +321,11 @@ class Computed(Generic[T]):
     def _recompute(self):
         """🚀 重新计算值 - 版本控制"""
         global _global_version
+
+        # 清理旧的依赖
+        for dep in self._dependencies:
+            dep._observers.discard(self)
+        self._dependencies.clear()
 
         # 设置当前观察者为自己
         token = Signal._current_observer.set(self)  # type: ignore
@@ -413,6 +430,17 @@ class Computed(Generic[T]):
     @property
     def value(self) -> T:
         return self.get()
+    
+    def cleanup(self):
+        """清理计算属性，移除所有依赖关系"""
+        logger.debug(f"Computed[{id(self)}].cleanup: 清理依赖关系")
+        # 从所有依赖中移除自己
+        for dep in self._dependencies:
+            dep._observers.discard(self)
+        self._dependencies.clear()
+        self._dependency_versions.clear()
+        self._dirty = True
+        self._active = False
 
 
 # 全局Effect注册表，防止被垃圾回收
@@ -433,6 +461,7 @@ class Effect:
         self._fn = fn
         self._cleanup_fn: Optional[Callable[[], None]] = None
         self._active = True
+        self._dependencies = set()  # 存储依赖的引用
         self._dependency_versions: Dict[int, int] = {}  # 🆕 依赖版本追踪
 
         logger.debug(
@@ -458,6 +487,11 @@ class Effect:
             logger.debug(f"Effect[{id(self)}]: 清理上一次的副作用")
             self._cleanup_fn()
             self._cleanup_fn = None
+
+        # 清理旧的依赖
+        for dep in self._dependencies:
+            dep._observers.discard(self)
+        self._dependencies.clear()
 
         # 设置当前观察者为自己（而不是方法）
         token = Signal._current_observer.set(self)  # type: ignore
@@ -557,6 +591,12 @@ class Effect:
             self._cleanup_fn()
             self._cleanup_fn = None
 
+        # 从所有依赖中移除自己
+        for dep in self._dependencies:
+            dep._observers.discard(self)
+        self._dependencies.clear()
+        self._dependency_versions.clear()
+
         # 从全局注册表中移除
         _active_effects.discard(self)
         logger.debug(f"Effect[{id(self)}]: 清理完成，剩余总Effect数: {len(_active_effects)}")
@@ -582,6 +622,31 @@ def create_effect(fn: Callable[[], None]) -> Effect:
     return Effect(fn)
 
 
+class batch:
+    """批处理上下文管理器
+    
+    在批处理块中的所有更新会被延迟并在块结束时一次性处理。
+    这避免了中间状态的不必要计算。
+    
+    Example:
+        with batch():
+            signal1.value = 1
+            signal2.value = 2
+            signal3.value = 3
+        # 所有更新在这里一次性处理
+    """
+    
+    def __enter__(self):
+        """进入批处理模式"""
+        _start_batch()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """退出批处理模式并刷新更新"""
+        _end_batch()
+        return False
+
+
 # 导出
 __all__ = [
     "Signal",
@@ -591,4 +656,5 @@ __all__ = [
     "create_computed",
     "create_effect",
     "batch_update",
+    "batch",
 ]
