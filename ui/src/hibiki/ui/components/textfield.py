@@ -5,178 +5,143 @@ Hibiki UI v4.0 - TextField组件
 """
 
 from typing import Optional, Union, Any, Callable
-from AppKit import NSView, NSTextField
-from Foundation import NSObject
+from Foundation import NSObject, NSAttributedString
 import objc
 
-from ..core.component import UIComponent
 from ..core.styles import ComponentStyle
-from ..core.reactive import Signal, Computed
-from ..core.binding import bind_text
 from ..core.logging import get_logger
+from .base_text_field import _BaseTextField
+from .text_field_config import TextFieldConfig, BezelStyle
 
 logger = get_logger("components.textfield")
 logger.setLevel("INFO")
 
 
-# TextField事件委托类
-class TextFieldDelegate(NSObject):
-    """TextField事件委托类"""
-    
-    def init(self):
-        self = objc.super(TextFieldDelegate, self).init()
-        if self is None:
-            return None
-        self.callback = None
-        self.textfield_component = None
-        return self
-    
-    def controlTextDidChange_(self, notification):
-        """文本改变时的处理"""
-        if hasattr(self, "callback") and self.callback:
-            try:
-                # 获取当前文本内容
-                textfield = notification.object()
-                current_text = textfield.stringValue()
-                
-                # 更新组件的值
-                if hasattr(self, "textfield_component") and self.textfield_component:
-                    if self.textfield_component._is_reactive_value and hasattr(
-                        self.textfield_component.value, "value"
-                    ):
-                        self.textfield_component.value.value = current_text
-                    else:
-                        self.textfield_component.value = current_text
-                
-                # 调用回调函数
-                self.callback(current_text)
-                logger.debug(f"📝 TextField文本改变: '{current_text}'")
-            
-            except Exception as e:
-                logger.error(f"⚠️ TextField文本改变回调错误: {e}")
+# TextFieldDelegate已在base_text_field.py中实现，此处无需重复定义
 
 
-class TextField(UIComponent):
+class TextField(_BaseTextField):
     """现代化TextField组件
     
     基于Hibiki UI v4.0新架构的文本输入组件。
     支持完整的布局API和响应式绑定。
+    
+    🆕 新增功能：
+    - 🔧 完整边框样式控制 (BezelStyle.ROUNDED/SQUARE)
+    - 🎨 背景颜色定制 (background_color)
+    - 💬 占位符文本支持 (placeholder)
+    - 📝 文本变化事件 (on_text_change)
+    - 🎯 委托支持 (delegate)
     
     Features:
     - 完整的定位支持 (static, relative, absolute, fixed)
     - Z-Index层级管理
     - 变换效果 (scale, rotate, translate, opacity)
     - 响应式文本绑定
-    - 占位符文本支持
     - 输入验证和格式化
     - 高层和低层API支持
     """
     
     def __init__(
         self,
-        value: Union[str, Any] = "",
-        placeholder: str = "",
-        on_change: Optional[Callable[[str], None]] = None,
+        text: Union[str, Any, NSAttributedString] = "",
         style: Optional[ComponentStyle] = None,
+        # 🆕 新增TextField特有功能
+        placeholder: str = "",
+        attributed_placeholder: Optional[NSAttributedString] = None,
+        bordered: bool = True,
+        bezel_style: Optional[BezelStyle] = None,
+        background_color: Optional[str] = None,
+        on_text_change: Optional[Callable[[str], None]] = None,
+        delegate: Optional[Any] = None,
+        # 🎨 富文本支持
+        rich_text_mode: bool = False,
+        # 向后兼容参数
+        value: Union[str, Any] = None,
+        on_change: Optional[Callable[[str], None]] = None,
+        font_size: Optional[float] = None,
+        font_weight: Optional[str] = None,
+        font_family: Optional[str] = None,
+        color: Optional[str] = None,
+        text_align: Optional[str] = None,
+        line_height: Optional[Union[int, float, str]] = None,
+        font_style: Optional[str] = None,
         **style_kwargs,
     ):
-        """🏗️ CORE METHOD: TextField component initialization
+        """🔧 新架构TextField组件初始化
         
         Args:
-            value: 初始文本值，支持字符串或响应式Signal
-            placeholder: 占位符文本
-            on_change: 文本改变事件回调函数
+            text: 文本内容，支持字符串或响应式Signal
             style: 组件样式对象
-            **style_kwargs: 样式快捷参数
+            placeholder: 占位符文本
+            bordered: 是否显示边框
+            bezel_style: 边框样式 (BezelStyle.ROUNDED/SQUARE)
+            background_color: 背景颜色 (如 "#FFFFFF")
+            on_text_change: 文本变化回调函数
+            delegate: 自定义委托对象
+            
+            向后兼容参数:
+            value, on_change, font_size, font_weight, color等
         """
-        super().__init__(style, **style_kwargs)
-        self.value = value
-        self.placeholder = placeholder
-        self.on_change = on_change
-        # 响应式类型检查
-        self._is_reactive_value = isinstance(value, (Signal, Computed))
-        self._delegate = None
+        # 🔄 向后兼容处理
+        if value is not None:
+            text = value
+        if on_change is not None:
+            on_text_change = on_change
+        
+        # 🏗️ 创建TextField专用配置
+        config = TextFieldConfig.for_text_field(
+            bordered=bordered,
+            bezel_style=bezel_style or BezelStyle.ROUNDED,
+            placeholder=placeholder,
+            on_text_change=on_text_change,
+            background_color=background_color
+        )
+        
+        # 设置富文本相关配置
+        config.rich_text_mode = rich_text_mode or isinstance(text, NSAttributedString)
+        config.attributed_placeholder = attributed_placeholder
+        
+        # 设置自定义委托
+        if delegate:
+            config.delegate = delegate
+        
+        # 调用基类初始化
+        super().__init__(
+            text=text,
+            style=style,
+            config=config,
+            font_size=font_size,
+            font_weight=font_weight,
+            font_family=font_family,
+            color=color,
+            text_align=text_align,
+            line_height=line_height,
+            font_style=font_style,
+            **style_kwargs
+        )
         
         logger.debug(
-            f"📝 TextField创建: value='{value}', placeholder='{placeholder}', reactive={self._is_reactive_value}"
+            f"📝 TextField创建: text='{text}', placeholder='{placeholder}', "
+            f"bordered={bordered}, bezel_style={bezel_style}, background={background_color}"
         )
     
-    def _create_nsview(self) -> NSView:
-        """🚀 创建NSTextField作为文本输入框"""
-        textfield = NSTextField.alloc().init()
-        
-        # 基础配置
-        textfield.setBezeled_(True)  # 有边框
-        textfield.setDrawsBackground_(True)  # 有背景
-        textfield.setEditable_(True)  # 可编辑
-        textfield.setSelectable_(True)  # 可选择
-        
-        # 设置初始值 - 使用响应式绑定系统
-        
-        # 绑定文本值，自动处理响应式和静态值
-        binding_cleanup = bind_text(textfield, self.value)
-        if binding_cleanup:
-            # 如果有响应式绑定，记录清理函数以便后续清理
-            self._bindings.append(binding_cleanup)
-            logger.debug(f"🔗 TextField响应式绑定已创建: {self.value}")
-        else:
-            logger.debug(f"📝 TextField静态值已设置: {str(self.value)}")
-        
-        # 设置占位符
-        if self.placeholder:
-            textfield.setPlaceholderString_(self.placeholder)
-            logger.debug(f"💬 TextField占位符: '{self.placeholder}'")
-        
-        # 绑定文本改变事件
-        if self.on_change:
-            self._bind_text_change_event(textfield)
-        
-        return textfield
+    # 继承基类的_create_nsview方法，无需重写
+    # _BaseTextField已经提供了完整的NSTextField创建和配置逻辑
     
-    def _bind_text_change_event(self, textfield: NSTextField):
-        """绑定文本改变事件"""
-        try:
-            # 使用TextFieldDelegate类
-            self._delegate = TextFieldDelegate.alloc().init()
-            if self._delegate is None:
-                logger.warning("⚠️ 无法创建TextFieldDelegate")
-                return
-            
-            self._delegate.callback = self.on_change
-            self._delegate.textfield_component = self  # 保存组件引用
-            
-            textfield.setDelegate_(self._delegate)
-            
-            logger.debug(f"🔗 TextField文本改变事件已绑定")
-        
-        except Exception as e:
-            logger.warning(f"⚠️ TextField事件绑定失败: {e}")
+    # 继承基类的事件绑定逻辑，无需重写
+    # _BaseTextField已经提供了完整的事件绑定实现
     
-    def get_text(self) -> str:
-        """获取当前文本内容"""
-        if self._nsview:
-            return self._nsview.stringValue()
-        return str(self.value)
+    # 继承基类的get_text方法
+    # def get_text(self) -> str: 已在_BaseTextField中实现
     
-    def set_text(self, text: str) -> "TextField":
+    def set_text(self, text: Union[str, Any]) -> "TextField":
         """动态设置文本内容
         
         Args:
             text: 新的文本内容
         """
-        self.value = text
-        from ..core.reactive import Signal, Computed
-        
-        self._is_reactive_value = isinstance(text, (Signal, Computed))
-        
-        if self._nsview:
-            if self._is_reactive_value:
-                content = str(getattr(text, "value", text))
-            else:
-                content = str(text)
-            self._nsview.setStringValue_(content)
-            logger.debug(f"📝 TextField文本更新: '{content}'")
-        
+        super().set_text(text)
         return self
     
     def set_placeholder(self, placeholder: str) -> "TextField":
@@ -185,10 +150,59 @@ class TextField(UIComponent):
         Args:
             placeholder: 新的占位符文本
         """
-        self.placeholder = placeholder
+        self.config.placeholder = placeholder
         
         if self._nsview:
             self._nsview.setPlaceholderString_(placeholder)
             logger.debug(f"💬 TextField占位符更新: '{placeholder}'")
         
         return self
+    
+    def set_bordered(self, bordered: bool, bezel_style: Optional[BezelStyle] = None) -> "TextField":
+        """🆕 动态设置边框样式
+        
+        Args:
+            bordered: 是否显示边框
+            bezel_style: 边框样式 (可选)
+        """
+        self.config.bordered = bordered
+        if bezel_style:
+            self.config.bezel_style = bezel_style
+        elif bordered:
+            self.config.bezel_style = BezelStyle.ROUNDED
+        
+        if self._nsview:
+            self._nsview.setBezeled_(bordered)
+            logger.debug(f"🎨 TextField边框更新: bordered={bordered}, style={self.config.bezel_style}")
+        
+        return self
+    
+    def set_background_color(self, color: Optional[str]) -> "TextField":
+        """🆕 动态设置背景颜色
+        
+        Args:
+            color: 背景颜色 (如 "#FFFFFF"，None为透明)
+        """
+        self.config.background_color = color
+        self.config.draws_background = color is not None
+        
+        if self._nsview:
+            self._nsview.setDrawsBackground_(self.config.draws_background)
+            if color:
+                ns_color = self._parse_color(color)
+                self._nsview.setBackgroundColor_(ns_color)
+            logger.debug(f"🎨 TextField背景更新: color={color}")
+        
+        return self
+    
+    # 新增功能方法，旧版TextField可能缺少的功能
+    
+    @property
+    def value(self) -> Union[str, Any]:
+        """向后兼容：获取text属性"""
+        return self.text
+    
+    @value.setter 
+    def value(self, new_value: Union[str, Any]):
+        """向后兼容：设置text属性"""
+        self.set_text(new_value)

@@ -237,6 +237,13 @@ from .theme import (
     get_appearance_manager, is_dark_mode, add_appearance_observer
 )
 
+# 富文本系统
+from .core.rich_text import (
+    RichText, RichTextBuilder, TextAttributes, TextStyle, 
+    UnderlineStyle, StrikethroughStyle, TextSegment,
+    rich_text, attributed_string, markdown_text
+)
+
 # 调试工具
 from .utils import (
     ScreenshotTool, capture_app_screenshot, debug_view_layout
@@ -276,6 +283,11 @@ __all__ = [
     'FontScheme', 'SystemFonts', 'TextStyle', 'PresetFontSchemes',
     'AppearanceManager', 'AppearanceMode',
     'get_appearance_manager', 'is_dark_mode', 'add_appearance_observer',
+    
+    # 富文本系统
+    'RichText', 'RichTextBuilder', 'TextAttributes', 'TextStyle',
+    'UnderlineStyle', 'StrikethroughStyle', 'TextSegment',
+    'rich_text', 'attributed_string', 'markdown_text',
     
     # 调试工具
     'ScreenshotTool', 'capture_app_screenshot', 'debug_view_layout'
