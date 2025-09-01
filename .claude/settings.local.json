@@ -49,7 +49,8 @@
       "WebFetch(domain:docs.astral.sh)",
       "mcp__memory__search_nodes",
       "mcp__memory__read_graph",
-      "WebFetch(domain:pyobjc.readthedocs.io)"
+      "WebFetch(domain:pyobjc.readthedocs.io)",
+      "mcp__apple-docs__search_framework_symbols"
     ],
     "deny": [],
     "ask": [],
