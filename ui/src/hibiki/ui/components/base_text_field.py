@@ -53,19 +53,25 @@ class VerticallyCenteredTextFieldCell(NSTextFieldCell):
             NSStringDrawingTruncatesLastVisibleLine | NSStringDrawingUsesLineFragmentOrigin
         )
         
-        # 如果文本高度小于可用高度，进行垂直居中
+        # 🔧 修复：保持原有高度，避免文本被裁剪
+        # 只调整Y位置进行垂直居中，但保持足够的高度
         if text_rect.size.height < title_rect.size.height:
             # 计算垂直居中的偏移
             y_offset = (frame.size.height - text_rect.size.height) / 2.0
             
-            # 创建居中的矩形
+            # 创建居中的矩形 - 关键修复：保持原有高度或使用更大的高度
             from Foundation import NSMakeRect
+            # 使用原有的title_rect高度，确保文本不被裁剪
+            safe_height = max(text_rect.size.height, title_rect.size.height)
             title_rect = NSMakeRect(
                 frame.origin.x,                           # X位置不变
-                frame.origin.y + y_offset,               # Y位置垂直居中
+                frame.origin.y + max(0, y_offset),       # Y位置垂直居中，但不能为负
                 frame.size.width,                        # 宽度保持
-                text_rect.size.height                    # 高度为实际文本高度
+                safe_height                              # 使用安全的高度
             )
+        else:
+            # 如果文本较高，使用原始title_rect避免裁剪
+            title_rect = title_rect
         
         return title_rect
     
@@ -203,16 +209,20 @@ class _BaseTextField(UIComponent):
     
     def _create_nsview(self) -> NSView:
         """🚀 创建完整配置的NSTextField"""
-        textfield = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 100, 20))
+        # 🔧 临时修复：使用更大的初始尺寸避免0x0问题
+        textfield = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 200, 30))
         
-        # 🔧 为Label组件创建垂直居中的自定义cell
+        # 🔧 临时注释掉垂直居中功能，恢复常规NSTextField行为
         # 对所有不可编辑的组件（Label）都使用垂直居中
         # 包括有边框、有背景色或者普通的Label都需要垂直居中
-        if not self.config.editable:
-            # 创建垂直居中的TextFieldCell
-            cell = VerticallyCenteredTextFieldCell.alloc().init()
-            textfield.setCell_(cell)
-            logger.debug(f"🎯 应用垂直居中cell - 边框:{self.config.bordered}, 背景:{bool(self.config.background_color)}")
+        # if not self.config.editable:
+        #     # 创建垂直居中的TextFieldCell
+        #     cell = VerticallyCenteredTextFieldCell.alloc().init()
+        #     textfield.setCell_(cell)
+        #     logger.debug(f"🎯 应用垂直居中cell - 边框:{self.config.bordered}, 背景:{bool(self.config.background_color)}")
+        
+        # 使用默认的NSTextField行为
+        logger.debug(f"📝 使用默认NSTextField - 可编辑:{self.config.editable}")
         
         # 🔧 应用核心功能配置
         textfield.setEditable_(self.config.editable)

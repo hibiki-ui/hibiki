@@ -783,14 +783,48 @@ class ScrollableContainer(Container):
             # 对于NSScrollView，直接设置frame
             self._nsview.setFrame_(frame)
 
-            # 同时需要调整内容视图大小以便正确滚动
-            if hasattr(self, "_content_view") and self._content_view:
-                # 内容视图的大小由内容决定，这里设置一个初始大小
-                content_frame = NSMakeRect(0, 0, layout_result.width, layout_result.height)
+            # 🔧 重要修复：计算内容视图的实际大小
+            if hasattr(self, "_content_view") and self._content_view and self.children:
+                content_width, content_height = self._calculate_content_size()
+                
+                # 内容视图应该根据内容的实际尺寸来设置，而不是容器尺寸
+                content_frame = NSMakeRect(0, 0, content_width, content_height)
                 self._content_view.setFrame_(content_frame)
+                
+                logger.info(f"📏 ScrollableContainer内容视图尺寸更新: {content_width}x{content_height}")
         else:
             # NSView未创建，调用父类方法
             super()._apply_layout_result(layout_result)
+
+    def _calculate_content_size(self):
+        """计算内容的实际尺寸 - 直接使用布局引擎的计算结果"""
+        from ..core.logging import get_logger
+        from ..core.layout import get_layout_engine
+        
+        logger = get_logger("components.layout")
+        
+        if not self.children:
+            return 0, 0
+        
+        engine = get_layout_engine()
+        
+        for child in self.children:
+            # 直接从布局引擎获取已经计算好的布局结果
+            if child in engine._component_nodes:
+                layout_node = engine._component_nodes[child]
+                
+                # 获取布局引擎已经计算的真实尺寸
+                x, y, width, height = layout_node.get_layout()
+                content_width, content_height = layout_node.get_content_size()
+                
+                logger.info(f"📏 子组件 {type(child).__name__} 布局引擎结果: {content_width:.1f}x{content_height:.1f}")
+                
+                # 直接使用布局引擎的计算结果，无需任何调整
+                return content_width, content_height
+        
+        # 如果没有找到布局节点，返回0尺寸
+        logger.warning("⚠️ 未找到有效的布局节点")
+        return 0, 0
 
 
 # ================================
